@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useMarketStore } from "../state/marketStore";
 import { MarketRow } from "../components/MarketRow";
-import { themes, defaultTheme } from "../theme/tokens";
+import { useTheme } from "../theme/useTheme";
 
 export function MarketsScreen() {
-  const theme = themes[defaultTheme];
+  const theme = useTheme();
   const { tickers, loading, error } = useMarketStore();
 
   return (

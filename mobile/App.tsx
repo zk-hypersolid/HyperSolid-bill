@@ -1,16 +1,15 @@
 import React, { useMemo } from "react";
-import { SafeAreaView, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { MarketsScreen } from "./src/screens/MarketsScreen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NavigationContainer } from "@react-navigation/native";
+import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useLiveMarkets } from "./src/hooks/useLiveMarkets";
 import { MarketDataService } from "./src/services/marketData";
 import { createInfoClient, createSubsClient } from "./src/lib/hyperliquid/client";
 import { useEnvStore } from "./src/state/envStore";
-import { themes, defaultTheme } from "./src/theme/tokens";
 
 export default function App() {
   const network = useEnvStore((s) => s.network);
-  const theme = themes[defaultTheme];
   const service = useMemo(
     () => new MarketDataService(createInfoClient(network), createSubsClient(network)),
     [network],
@@ -18,11 +17,11 @@ export default function App() {
   useLiveMarkets(service);
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: theme.bg }]}>
+    <SafeAreaProvider>
       <StatusBar style="light" />
-      <MarketsScreen />
-    </SafeAreaView>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({ root: { flex: 1 } });

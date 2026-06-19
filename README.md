@@ -2,7 +2,7 @@
 
 在手机上直接、流畅、安全地使用 **Hyperliquid** 交易永续合约的**非托管**移动 App，并提供"离线也能跑策略"的 **agentic 钱包**。
 
-> 状态：实施中（spec 定稿 v2.1；**Phase 0 脚手架 + Phase 1 Task 0–1 已完成、测试通过、已提交 git**；Phase 1 行情列表开发进行中）。
+> 状态：实施中（spec 定稿 v2.1；**Phase 1 行情列表切片完成**——市场列表 MVP 跑通，35 单测通过、tsc 零错误、Metro 打包通过；详情/持仓与 Phase 2 钱包为后续切片）。
 
 ---
 
@@ -23,7 +23,7 @@
 | Phase | 内容 | 状态 |
 |---|---|---|
 | 0 | 脚手架（Expo+TS、CI、geo-block、Sentry） | **进行中**（Expo+TS+Jest ✅；CI/geo-block/Sentry 待办） |
-| 1 | 只读行情（市场列表/详情/view-only 持仓） | **进行中**（Task 0 脚手架 + Task 1 主题 token ✅；行情列表开发中） |
+| 1 | 只读行情（市场列表/详情/view-only 持仓） | **行情列表 ✅**（Task 0–12 完成，35 测试通过，Metro 打包通过；详情/持仓为后续切片） |
 | 2 | 钱包与鉴权（Passkey 本地/Privy onboarding、approveAgent、approveBuilderFee、入金引导） | 待规划 |
 | 3 | 交易核心（下单/撤改/TP-SL/杠杆；精度·asset-id·状态码三件套） | 待规划 |
 | 4 | 持仓与历史 | 待规划 |

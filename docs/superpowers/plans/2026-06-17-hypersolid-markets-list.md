@@ -251,7 +251,7 @@ git commit -m "feat(mobile): theme tokens (electrum/daylight/oscilloscope)"
 - Create: `mobile/src/state/envStore.ts`
 - Test: `mobile/src/state/envStore.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/state/envStore.test.ts`:
 
@@ -281,7 +281,7 @@ describe("envStore", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -290,7 +290,7 @@ npm test -- src/state/envStore.test.ts
 
 Expected: FAIL with "Cannot find module './envStore'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/state/envStore.ts`:
 
@@ -313,7 +313,7 @@ export const useEnvStore = create<EnvState>((set) => ({
 }));
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -322,7 +322,7 @@ npm test -- src/state/envStore.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -338,7 +338,7 @@ git commit -m "feat(mobile): env store for mainnet/testnet"
 - Create: `mobile/src/lib/hyperliquid/types.ts`
 - Test: none (types only; exercised by later tasks)
 
-- [ ] **Step 1: Write the types**
+- [x] **Step 1: Write the types**
 
 Create `mobile/src/lib/hyperliquid/types.ts`:
 
@@ -387,7 +387,7 @@ export interface SubsLike {
 }
 ```
 
-- [ ] **Step 2: Verify it type-checks**
+- [x] **Step 2: Verify it type-checks**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -396,7 +396,7 @@ npx tsc --noEmit
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -412,7 +412,7 @@ git commit -m "feat(mobile): hyperliquid shared types + injectable interfaces"
 - Create: `mobile/src/lib/hyperliquid/normalize.ts`
 - Test: `mobile/src/lib/hyperliquid/normalize.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/lib/hyperliquid/normalize.test.ts`:
 
@@ -463,7 +463,7 @@ describe("normalizeMarkets", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -472,7 +472,7 @@ npm test -- src/lib/hyperliquid/normalize.test.ts
 
 Expected: FAIL with "Cannot find module './normalize'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/lib/hyperliquid/normalize.ts`:
 
@@ -513,7 +513,7 @@ export function applyMids(tickers: MarketTicker[], mids: Mids): MarketTicker[] {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -522,7 +522,7 @@ npm test -- src/lib/hyperliquid/normalize.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -538,7 +538,7 @@ git commit -m "feat(mobile): pure normalizeMarkets"
 - Modify: `mobile/src/lib/hyperliquid/normalize.ts` (already contains `applyMids` from Task 4)
 - Test: `mobile/src/lib/hyperliquid/applyMids.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/lib/hyperliquid/applyMids.test.ts`:
 
@@ -573,7 +573,7 @@ describe("applyMids", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it passes (applyMids already implemented in Task 4)**
+- [x] **Step 2: Run test to verify it passes (applyMids already implemented in Task 4)**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -582,7 +582,7 @@ npm test -- src/lib/hyperliquid/applyMids.test.ts
 
 Expected: PASS. (If FAIL, ensure `applyMids` from Task 4, Step 3 exists in `normalize.ts`.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -598,7 +598,7 @@ git commit -m "test(mobile): applyMids live-merge coverage"
 - Create: `mobile/src/lib/hyperliquid/network.ts`
 - Test: `mobile/src/lib/hyperliquid/network.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/lib/hyperliquid/network.test.ts`:
 
@@ -615,7 +615,7 @@ describe("resolveIsTestnet", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -624,7 +624,7 @@ npm test -- src/lib/hyperliquid/network.test.ts
 
 Expected: FAIL with "Cannot find module './network'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/lib/hyperliquid/network.ts`:
 
@@ -636,7 +636,7 @@ export function resolveIsTestnet(network: Network): boolean {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -645,7 +645,7 @@ npm test -- src/lib/hyperliquid/network.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -661,7 +661,7 @@ git commit -m "feat(mobile): resolveIsTestnet"
 - Create: `mobile/src/lib/hyperliquid/client.ts`
 - Test: none (network/ESM boundary; covered by the manual smoke test in Task 12)
 
-- [ ] **Step 1: Write the implementation**
+- [x] **Step 1: Write the implementation**
 
 Create `mobile/src/lib/hyperliquid/client.ts`:
 
@@ -687,7 +687,7 @@ export function createSubsClient(network: Network): SubsLike {
 }
 ```
 
-- [ ] **Step 2: Verify it type-checks**
+- [x] **Step 2: Verify it type-checks**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -696,7 +696,7 @@ npx tsc --noEmit
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -712,7 +712,7 @@ git commit -m "feat(mobile): hyperliquid client factory"
 - Create: `mobile/src/state/marketStore.ts`
 - Test: `mobile/src/state/marketStore.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/state/marketStore.test.ts`:
 
@@ -750,7 +750,7 @@ describe("marketStore", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -759,7 +759,7 @@ npm test -- src/state/marketStore.test.ts
 
 Expected: FAIL with "Cannot find module './marketStore'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/state/marketStore.ts`:
 
@@ -789,7 +789,7 @@ export const useMarketStore = create<MarketState>((set) => ({
 }));
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -798,7 +798,7 @@ npm test -- src/state/marketStore.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -814,7 +814,7 @@ git commit -m "feat(mobile): market store"
 - Create: `mobile/src/services/marketData.ts`
 - Test: `mobile/src/services/marketData.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/services/marketData.test.ts`:
 
@@ -872,7 +872,7 @@ describe("MarketDataService", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -881,7 +881,7 @@ npm test -- src/services/marketData.test.ts
 
 Expected: FAIL with "Cannot find module './marketData'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/services/marketData.ts`:
 
@@ -909,7 +909,7 @@ export class MarketDataService {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -918,7 +918,7 @@ npm test -- src/services/marketData.test.ts
 
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -935,7 +935,7 @@ git commit -m "feat(mobile): market data service"
 - Create: `mobile/src/components/MarketRow.tsx`
 - Test: `mobile/src/components/MarketRow.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/components/MarketRow.test.tsx`:
 
@@ -972,7 +972,7 @@ describe("MarketRow", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -981,7 +981,7 @@ npm test -- src/components/MarketRow.test.tsx
 
 Expected: FAIL with "Cannot find module './MarketRow'".
 
-- [ ] **Step 3: Write `PriceText`**
+- [x] **Step 3: Write `PriceText`**
 
 Create `mobile/src/components/PriceText.tsx`:
 
@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 4: Write `MarketRow`**
+- [x] **Step 4: Write `MarketRow`**
 
 Create `mobile/src/components/MarketRow.tsx`:
 
@@ -1051,7 +1051,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1060,7 +1060,7 @@ npm test -- src/components/MarketRow.test.tsx
 
 Expected: PASS, 3 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -1076,7 +1076,7 @@ git commit -m "feat(mobile): PriceText + MarketRow components"
 - Create: `mobile/src/screens/MarketsScreen.tsx`
 - Test: `mobile/src/screens/MarketsScreen.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/screens/MarketsScreen.test.tsx`:
 
@@ -1115,7 +1115,7 @@ describe("MarketsScreen", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1124,7 +1124,7 @@ npm test -- src/screens/MarketsScreen.test.tsx
 
 Expected: FAIL with "Cannot find module './MarketsScreen'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/screens/MarketsScreen.tsx`:
 
@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
 });
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1179,7 +1179,7 @@ npm test -- src/screens/MarketsScreen.test.tsx
 
 Expected: PASS, 3 tests. (If FlashList warns about act(), tests still pass.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -1196,7 +1196,7 @@ git commit -m "feat(mobile): markets screen"
 - Test: `mobile/src/hooks/useLiveMarkets.test.ts`
 - Modify: `mobile/App.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/hooks/useLiveMarkets.test.ts`:
 
@@ -1252,7 +1252,7 @@ describe("useLiveMarkets", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1261,7 +1261,7 @@ npm test -- src/hooks/useLiveMarkets.test.ts
 
 Expected: FAIL with "Cannot find module './useLiveMarkets'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/hooks/useLiveMarkets.ts`:
 
@@ -1299,7 +1299,7 @@ export function useLiveMarkets(service: MarketDataService) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1308,7 +1308,7 @@ npm test -- src/hooks/useLiveMarkets.test.ts
 
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Wire the app entry**
+- [x] **Step 5: Wire the app entry**
 
 Replace the contents of `mobile/App.tsx`:
 
@@ -1343,7 +1343,7 @@ export default function App() {
 const styles = StyleSheet.create({ root: { flex: 1 } });
 ```
 
-- [ ] **Step 6: Run the full test suite**
+- [x] **Step 6: Run the full test suite**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -1361,7 +1361,7 @@ npx expo start
 
 In the Expo dev tools, open the app (web build is fastest: press `w`). Expected: after a brief "Loading markets…", a list of perps appears with prices that tick/update. (If web has issues with the WS transport, use the iOS simulator with `i` or Expo Go on device.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid

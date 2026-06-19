@@ -113,3 +113,47 @@ export interface DetailSubsLike {
   l2Book(coin: string, listener: (book: RawL2Book) => void): Promise<Subscription>;
   trades(coin: string, listener: (trades: RawTrade[]) => void): Promise<Subscription>;
 }
+
+// ---- Positions: raw shapes (clearinghouseState) ----
+export interface RawPosition {
+  coin: string;
+  szi: string; // signed size (negative = short)
+  entryPx: string;
+  positionValue: string;
+  unrealizedPnl: string;
+  liquidationPx: string | null;
+  marginUsed: string;
+  leverage: { type: string; value: number };
+}
+export interface RawClearinghouseState {
+  marginSummary: { accountValue: string; totalNtlPos: string; totalMarginUsed: string };
+  withdrawable: string;
+  assetPositions: { position: RawPosition }[];
+}
+
+// ---- Positions: normalized model ----
+export interface Position {
+  coin: string;
+  size: number; // absolute
+  side: "long" | "short";
+  entryPx: number;
+  positionValue: number;
+  unrealizedPnl: number;
+  liquidationPx: number | null;
+  marginUsed: number;
+  leverage: number;
+}
+export interface AccountSummary {
+  accountValue: number;
+  totalNtlPos: number;
+  totalMarginUsed: number;
+  withdrawable: number;
+  totalUnrealizedPnl: number;
+}
+export interface PortfolioSnapshot {
+  summary: AccountSummary;
+  positions: Position[];
+}
+export interface PositionsInfoLike {
+  clearinghouseState(address: string): Promise<RawClearinghouseState>;
+}

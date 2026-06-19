@@ -6,7 +6,7 @@ import {
 } from "@nktkas/hyperliquid";
 import type { Network } from "../../state/envStore";
 import { resolveIsTestnet } from "./network";
-import type { DetailInfoLike, DetailSubsLike, InfoLike, SubsLike } from "./types";
+import type { DetailInfoLike, DetailSubsLike, InfoLike, PositionsInfoLike, SubsLike } from "./types";
 
 export function createInfoClient(network: Network): InfoLike {
   const transport = new HttpTransport({ isTestnet: resolveIsTestnet(network) });
@@ -45,5 +45,16 @@ export function createDetailSubsClient(network: Network): DetailSubsLike {
   return {
     l2Book: (coin, listener) => subs.l2Book({ coin }, (b) => listener(b as never)) as never,
     trades: (coin, listener) => subs.trades({ coin }, (t) => listener(t as never)) as never,
+  };
+}
+
+export function createPositionsInfoClient(network: Network): PositionsInfoLike {
+  const info = new InfoClient({
+    transport: new HttpTransport({ isTestnet: resolveIsTestnet(network) }),
+  }) as unknown as {
+    clearinghouseState(args: { user: string }): Promise<unknown>;
+  };
+  return {
+    clearinghouseState: (address) => info.clearinghouseState({ user: address }) as never,
   };
 }

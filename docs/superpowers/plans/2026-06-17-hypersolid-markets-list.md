@@ -55,7 +55,7 @@ Test files are co-located as `*.test.ts(x)` next to each unit.
 - Create: `mobile/jest.config.js`
 - Create: `mobile/src/test-smoke.test.ts`
 
-- [ ] **Step 1: Scaffold the Expo app**
+- [x] **Step 1: Scaffold the Expo app**
 
 Run from the repo root:
 
@@ -66,7 +66,7 @@ npx create-expo-app@latest mobile --template blank-typescript
 
 Expected: a `mobile/` folder with `App.tsx`, `package.json`, `tsconfig.json`.
 
-- [ ] **Step 2: Install runtime and dev dependencies**
+- [x] **Step 2: Install runtime and dev dependencies**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -75,7 +75,7 @@ npm i @nktkas/hyperliquid zustand @shopify/flash-list @react-navigation/native @
 npm i -D jest jest-expo @testing-library/react-native @testing-library/jest-native @types/jest
 ```
 
-- [ ] **Step 3: Configure Jest**
+- [x] **Step 3: Configure Jest**
 
 Create `mobile/jest.config.js`:
 
@@ -95,7 +95,7 @@ Add a test script to `mobile/package.json` (`scripts` block):
 "test": "jest"
 ```
 
-- [ ] **Step 4: Add a smoke test**
+- [x] **Step 4: Add a smoke test**
 
 Create `mobile/src/test-smoke.test.ts`:
 
@@ -107,7 +107,7 @@ describe("test runner", () => {
 });
 ```
 
-- [ ] **Step 5: Run the smoke test**
+- [x] **Step 5: Run the smoke test**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -116,7 +116,7 @@ npm test -- src/test-smoke.test.ts
 
 Expected: PASS, 1 test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid
@@ -132,7 +132,7 @@ git commit -m "chore(mobile): scaffold Expo TS app + jest"
 - Create: `mobile/src/theme/tokens.ts`
 - Test: `mobile/src/theme/tokens.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `mobile/src/theme/tokens.test.ts`:
 
@@ -163,7 +163,7 @@ describe("theme tokens", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -172,7 +172,7 @@ npm test -- src/theme/tokens.test.ts
 
 Expected: FAIL with "Cannot find module './tokens'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `mobile/src/theme/tokens.ts`:
 
@@ -226,7 +226,7 @@ export const themes: Record<ThemeName, ThemeTokens> = {
 export const defaultTheme: ThemeName = "electrum";
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid/mobile
@@ -235,7 +235,7 @@ npm test -- src/theme/tokens.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/bill/Documents/GitHub/HyperSolid

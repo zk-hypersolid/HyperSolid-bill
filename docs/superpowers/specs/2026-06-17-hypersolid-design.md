@@ -3,7 +3,7 @@
 日期：2026-06-17
 版本：v2.1
 状态：现行（整合全部已确认决策 + Hyperliquid 官方文档缺口分析 + 评审修订）
-取代：session `plan.md` 中的散稿与早期 ADR；细节缺口见 `docs/HYPERLIQUID-GAP-ANALYSIS.md`；文档索引见 `docs/README.md`
+取代：session `plan.md` 中的散稿与早期 ADR；细节缺口见 `docs/HYPERLIQUID-GAP-ANALYSIS.md`；文档索引见根 `README.md`
 
 变更记录：
 - v2.0：整合架构/钱包/agentic/主题决策 + 官方文档缺口分析（新增 Builder Codes、入金 onboarding、HL 集成硬规则；修正 agent 生命周期）。

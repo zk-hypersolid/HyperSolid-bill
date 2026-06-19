@@ -2,13 +2,13 @@
 
 在手机上直接、流畅、安全地使用 **Hyperliquid** 交易永续合约的**非托管**移动 App，并提供"离线也能跑策略"的 **agentic 钱包**。
 
-> 状态：设计阶段（spec 已定稿 v2.1，首个实施计划 Phase 1 已就绪，尚未开始编码）。
+> 状态：实施中（spec 定稿 v2.1；**Phase 0 脚手架 + Phase 1 Task 0–1 已完成、测试通过、已提交 git**；Phase 1 行情列表开发进行中）。
 
 ---
 
 ## 一句话定位
 
-面向公众、应用商店上架的非托管 Hyperliquid 交易客户端。非功能优先级：**丝滑、稳定、高可用**。安全红线：**主资金私钥/签名永不离开设备，后端绝不托管，提现只能主钱包签**。
+面向公众、应用商店上架的非托管 Hyperliquid 交易客户端。非功能优先级：**丝滑、稳定、高可用**。安全红线：**主资金明文私钥/签名永不离开设备（云备份仅零知识密文，见 ADR-012），后端绝不托管，提现只能主钱包签**。
 
 ## 技术栈
 
@@ -22,8 +22,8 @@
 
 | Phase | 内容 | 状态 |
 |---|---|---|
-| 0 | 脚手架（Expo+TS、CI、geo-block、Sentry） | 计划中 |
-| 1 | 只读行情（市场列表/详情/view-only 持仓） | **计划就绪** |
+| 0 | 脚手架（Expo+TS、CI、geo-block、Sentry） | **进行中**（Expo+TS+Jest ✅；CI/geo-block/Sentry 待办） |
+| 1 | 只读行情（市场列表/详情/view-only 持仓） | **进行中**（Task 0 脚手架 + Task 1 主题 token ✅；行情列表开发中） |
 | 2 | 钱包与鉴权（Passkey 本地/Privy onboarding、approveAgent、approveBuilderFee、入金引导） | 待规划 |
 | 3 | 交易核心（下单/撤改/TP-SL/杠杆；精度·asset-id·状态码三件套） | 待规划 |
 | 4 | 持仓与历史 | 待规划 |
@@ -72,6 +72,6 @@
 HyperSolid/
 ├── README.md            # 本文件（项目概览 + 文档索引）
 ├── docs/                # 设计文档、缺口分析、视觉方向与渲染图
-├── mobile/              # Expo RN 客户端（Phase 0 起）
-└── backend/             # Node/TS BFF + agentic 执行引擎（Phase 5/6 起）
+├── mobile/              # Expo RN 客户端（✅ 已脚手架，Phase 0 起）
+└── backend/             # Node/TS BFF + agentic 执行引擎（规划中，Phase 5/6 起）
 ```

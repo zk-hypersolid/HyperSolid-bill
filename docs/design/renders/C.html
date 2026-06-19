@@ -1,0 +1,111 @@
+<!doctype html><html><head><meta charset="utf8">
+ <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+ <style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:1240px;height:960px;background:
+     radial-gradient(120% 80% at 50% -10%, #1a1408 0%, #0C0A07 60%);
+     font-family:'Inter Tight',system-ui,sans-serif;display:flex;flex-direction:column;color:#F3ECDD;-webkit-font-smoothing:antialiased}
+  .title{font-family:'Space Mono';font-weight:700;font-size:24px;padding:26px 0 4px 48px;color:#FFB454;letter-spacing:1px}
+  .titlesub{font-size:13px;color:#9A8E73;padding:0 0 14px 48px;letter-spacing:.3px}
+  .stage{display:flex;gap:30px;padding:6px 48px 40px;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .label{font-family:'Space Mono';font-size:12px;color:#9A8E73;letter-spacing:1px}
+  .phone{width:360px;height:768px;background:#14110B;border-radius:30px;overflow:hidden;position:relative;
+     border:1px solid #2A2418;box-shadow:0 0 0 1px rgba(255,180,84,.06),0 18px 50px rgba(0,0,0,.6)}
+  .trace{width:100%;background:linear-gradient(180deg,#100c06,#14110b);border-bottom:1px solid #2A2418;display:block}
+  .sb{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 6px;font-family:'Space Mono';font-size:11.5px;color:#9A8E73;letter-spacing:.5px}
+  .wm{color:#F3ECDD;font-weight:700}
+  .pill{background:rgba(255,180,84,.12);color:#FFB454;padding:3px 9px;border-radius:6px;font-size:10.5px;font-weight:700;letter-spacing:.5px}
+  .pill.up{background:rgba(111,224,192,.12);color:#6FE0C0}
+  .pad{padding:8px 16px 16px}
+  .readout{display:flex;align-items:center;gap:8px;margin:4px 0 12px}
+  .rlbl{font-family:'Space Mono';font-size:11px;color:#FFB454;letter-spacing:1.5px}
+  .rdot{width:7px;height:7px;border-radius:50%;background:#FFB454;box-shadow:0 0 8px #FFB454}
+  .search{background:#171309;border:1px solid #2A2418;color:#9A8E73;border-radius:8px;padding:10px 12px;font-size:13px;font-family:'Space Mono';margin-bottom:12px}
+  .tabs{display:flex;gap:16px;border-bottom:1px solid #2A2418;padding-bottom:10px;margin-bottom:4px}
+  .tab{font-family:'Space Mono';font-size:12px;color:#9A8E73;letter-spacing:.5px}
+  .tab.on{color:#FFB454}
+  .tab.on:after{content:'';display:block;height:2px;background:#FFB454;margin-top:9px;border-radius:2px;box-shadow:0 0 6px #FFB454}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid #2A2418}
+  .tk{font-family:'Space Mono';font-weight:700;font-size:16px;color:#F3ECDD;letter-spacing:.5px}
+  .perp{color:#9A8E73;font-weight:400;font-size:11px}
+  .sub{color:#9A8E73;font-size:11px;margin-top:3px;font-family:'Inter Tight'}
+  .pxblock{text-align:right}
+  .big{font-family:'JetBrains Mono';font-weight:500;font-size:16px;font-variant-numeric:tabular-nums;color:#FFD9A0}
+  .chg{font-family:'JetBrains Mono';font-size:12px;margin-top:3px;font-variant-numeric:tabular-nums}
+  .priceLg{font-family:'JetBrains Mono';font-weight:700;font-size:32px;color:#FFD9A0;font-variant-numeric:tabular-nums;margin:8px 0 10px;text-shadow:0 0 18px rgba(255,217,160,.25)}
+  .chips{display:flex;gap:8px;margin-bottom:10px}
+  .c{font-family:'JetBrains Mono';font-size:12px;color:#9A8E73;padding:4px 10px;border:1px solid #2A2418;border-radius:6px}
+  .c.on{color:#0C0A07;background:#FFB454;border-color:#FFB454;font-weight:700}
+  .grid{background-image:linear-gradient(rgba(255,180,84,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,180,84,.06) 1px,transparent 1px);background-size:18px 18px}
+  .chart{border:1px solid #2A2418;border-radius:10px;padding:8px;margin-bottom:10px;background-color:#171309}
+  .obwrap{display:flex;gap:8px;margin-bottom:12px}
+  .obcol{flex:1;display:flex;flex-direction:column;gap:3px}
+  .ob{display:flex;justify-content:space-between;padding:4px 8px;border-radius:3px;font-family:'JetBrains Mono';font-size:12px;font-variant-numeric:tabular-nums}
+  .ob .sz{color:#9A8E73}
+  .ladder{display:flex;gap:10px;margin-top:6px}
+  .btn{flex:1;text-align:center;padding:13px;border-radius:9px;font-family:'Space Mono';font-weight:700;font-size:14px;letter-spacing:.5px}
+  .btn.long{background:#6FE0C0;color:#06231c}
+  .btn.short{background:#FF7A6B;color:#2a0d09}
+  .btn.kill{background:#FF7A6B;color:#2a0d09}
+  .btn.new{border:1px solid #FFB454;color:#FFB454;background:transparent}
+  .agentHead{border:1px solid #2A2418;border-radius:10px;padding:14px;margin:6px 0 12px;background-color:#171309}
+  .aTitle{font-family:'Space Mono';font-weight:700;font-size:15px;color:#FFB454;letter-spacing:1px}
+  .sectlbl{font-family:'Space Mono';font-size:11px;color:#9A8E73;letter-spacing:2px;margin:6px 2px 8px}
+  .srow{display:flex;justify-content:space-between;align-items:center;padding:12px 2px;border-bottom:1px solid #2A2418}
+  .sname{font-family:'Space Mono';font-weight:700;font-size:14px;color:#F3ECDD;letter-spacing:.5px}
+  .smkt{color:#9A8E73;font-weight:400;font-size:12px}
+  .tog{width:42px;height:24px;border-radius:6px;position:relative;transition:.2s;background:#2A2418}
+  .tog.on{background:#FFB454;box-shadow:0 0 10px rgba(255,180,84,.5)}
+  .tog i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:4px;background:#0c0a07}
+  .tog.on i{left:21px;background:#0c0a07}
+  .guard{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;margin-top:4px}
+  .gv{font-family:'JetBrains Mono';font-size:12.5px;color:#FFD9A0}
+ </style></head><body>
+  <div class="title">C · OSCILLOSCOPE — PHOSPHOR INSTRUMENT</div>
+  <div class="titlesub">HyperSolid · Hyperliquid mobile terminal — the market as a live phosphor trace · Markets · Detail · Agent</div>
+  <div class="stage"><div class="col"><div class="label">MARKETS</div><div class="phone"><div class="trace" style="height:34px">
+   <svg viewBox="0 0 360 34" width="100%" height="34" preserveAspectRatio="none">
+    <defs><filter id="g"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+    <path d="M0 17 L5.6 10.5 L11.3 11.2 L16.9 10.8 L22.5 11.0 L28.1 14.7 L33.8 17.2 L39.4 17.3 L45.0 18.7 L50.6 19.4 L56.3 16.3 L61.9 14.4 L67.5 14.4 L73.1 12.7 L78.8 12.0 L84.4 15.3 L90.0 17.7 L95.6 18.8 L101.3 22.1 L106.9 24.3 L112.5 22.6 L118.1 21.5 L123.8 21.1 L129.4 17.7 L135.0 15.2 L140.6 16.2 L146.3 16.4 L151.9 16.3 L157.5 19.4 L163.1 21.9 L168.8 21.2 L174.4 21.3 L180.0 21.3 L185.6 17.6 L191.3 14.3 L196.9 13.6 L202.5 11.6 L208.1 10.0 L213.8 12.4 L219.4 14.7 L225.0 15.1 L230.6 17.4 L236.3 19.4 L241.9 17.6 L247.5 15.8 L253.1 15.5 L258.8 12.9 L264.4 10.5 L270.0 12.1 L275.6 13.5 L281.3 14.2 L286.9 17.8 L292.5 21.4 L298.1 21.5 L303.8 21.9 L309.4 22.8 L315.0 20.1 L320.6 17.1 L326.3 17.0 L331.9 16.2 L337.5 14.9 L343.1 17.4 L348.8 20.4 L354.4 20.7 L360.0 22.3" fill="none" stroke="#FFB454" stroke-width="3" opacity="0.30" filter="url(#g)"/>
+    <path d="M0 17 L5.6 10.5 L11.3 11.2 L16.9 10.8 L22.5 11.0 L28.1 14.7 L33.8 17.2 L39.4 17.3 L45.0 18.7 L50.6 19.4 L56.3 16.3 L61.9 14.4 L67.5 14.4 L73.1 12.7 L78.8 12.0 L84.4 15.3 L90.0 17.7 L95.6 18.8 L101.3 22.1 L106.9 24.3 L112.5 22.6 L118.1 21.5 L123.8 21.1 L129.4 17.7 L135.0 15.2 L140.6 16.2 L146.3 16.4 L151.9 16.3 L157.5 19.4 L163.1 21.9 L168.8 21.2 L174.4 21.3 L180.0 21.3 L185.6 17.6 L191.3 14.3 L196.9 13.6 L202.5 11.6 L208.1 10.0 L213.8 12.4 L219.4 14.7 L225.0 15.1 L230.6 17.4 L236.3 19.4 L241.9 17.6 L247.5 15.8 L253.1 15.5 L258.8 12.9 L264.4 10.5 L270.0 12.1 L275.6 13.5 L281.3 14.2 L286.9 17.8 L292.5 21.4 L298.1 21.5 L303.8 21.9 L309.4 22.8 L315.0 20.1 L320.6 17.1 L326.3 17.0 L331.9 16.2 L337.5 14.9 L343.1 17.4 L348.8 20.4 L354.4 20.7 L360.0 22.3" fill="none" stroke="#FFD9A0" stroke-width="1.3"/>
+   </svg></div><div class="sb"><span>9:41</span><span class="wm">HYPERSOLID</span><span class="pill">◷ TESTNET</span></div>
+   <div class="pad"><div class="readout"><span class="rlbl">SIGNAL · LIVE</span><span class="rdot"></span></div>
+   <div class="search">⌕ search markets</div>
+   <div class="tabs"><span class="tab on">PERPS</span><span class="tab">WATCH</span><span class="tab">GAINERS</span></div><div class="row"><div class="sym"><div class="tk">BTC<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.011% · vol 1.2B</div></div><div class="pxblock">
+    <div class="big">62,481.5</div><div class="chg" style="color:#6FE0C0">▲ +2.14%</div></div></div><div class="row"><div class="sym"><div class="tk">ETH<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.008% · vol 842M</div></div><div class="pxblock">
+    <div class="big">3,002.18</div><div class="chg" style="color:#FF7A6B">▼ -0.86%</div></div></div><div class="row"><div class="sym"><div class="tk">SOL<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.021% · vol 510M</div></div><div class="pxblock">
+    <div class="big">148.22</div><div class="chg" style="color:#6FE0C0">▲ +5.41%</div></div></div><div class="row"><div class="sym"><div class="tk">HYPE<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.014% · vol 333M</div></div><div class="pxblock">
+    <div class="big">28.74</div><div class="chg" style="color:#6FE0C0">▲ +1.07%</div></div></div><div class="row"><div class="sym"><div class="tk">ARB<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.006% · vol 119M</div></div><div class="pxblock">
+    <div class="big">1.182</div><div class="chg" style="color:#FF7A6B">▼ -2.30%</div></div></div><div class="row"><div class="sym"><div class="tk">DOGE<span class="perp">·PERP</span></div>
+    <div class="sub">fund 0.004% · vol 97M</div></div><div class="pxblock">
+    <div class="big">0.1642</div><div class="chg" style="color:#6FE0C0">▲ +0.92%</div></div></div></div></div></div><div class="col"><div class="label">MARKET DETAIL</div><div class="phone"><div class="trace" style="height:26px">
+   <svg viewBox="0 0 360 26" width="100%" height="26" preserveAspectRatio="none">
+    <defs><filter id="g"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+    <path d="M0 13 L5.6 8.5 L11.3 10.2 L16.9 10.6 L22.5 12.5 L28.1 15.5 L33.8 16.1 L39.4 15.7 L45.0 16.3 L50.6 15.3 L56.3 12.7 L61.9 12.3 L67.5 12.5 L73.1 11.7 L78.8 12.8 L84.4 15.5 L90.0 16.3 L95.6 16.7 L101.3 18.2 L106.9 17.4 L112.5 14.9 L118.1 13.9 L123.8 12.6 L129.4 10.0 L135.0 9.7 L140.6 11.1 L146.3 11.3 L151.9 12.1 L157.5 14.5 L163.1 14.7 L168.8 13.4 L174.4 13.3 L180.0 12.1 L185.6 9.2 L191.3 8.4 L196.9 8.8 L202.5 8.3 L208.1 9.3 L213.8 12.3 L219.4 13.6 L225.0 14.1 L230.6 15.8 L236.3 15.8 L241.9 13.6 L247.5 12.9 L253.1 12.6 L258.8 10.9 L264.4 11.0 L270.0 13.2 L275.6 14.2 L281.3 15.2 L286.9 17.7 L292.5 18.4 L298.1 17.0 L303.8 16.6 L309.4 15.6 L315.0 12.6 L320.6 11.3 L326.3 11.7 L331.9 11.0 L337.5 11.3 L343.1 13.8 L348.8 14.8 L354.4 14.4 L360.0 15.1" fill="none" stroke="#FFB454" stroke-width="3" opacity="0.30" filter="url(#g)"/>
+    <path d="M0 13 L5.6 8.5 L11.3 10.2 L16.9 10.6 L22.5 12.5 L28.1 15.5 L33.8 16.1 L39.4 15.7 L45.0 16.3 L50.6 15.3 L56.3 12.7 L61.9 12.3 L67.5 12.5 L73.1 11.7 L78.8 12.8 L84.4 15.5 L90.0 16.3 L95.6 16.7 L101.3 18.2 L106.9 17.4 L112.5 14.9 L118.1 13.9 L123.8 12.6 L129.4 10.0 L135.0 9.7 L140.6 11.1 L146.3 11.3 L151.9 12.1 L157.5 14.5 L163.1 14.7 L168.8 13.4 L174.4 13.3 L180.0 12.1 L185.6 9.2 L191.3 8.4 L196.9 8.8 L202.5 8.3 L208.1 9.3 L213.8 12.3 L219.4 13.6 L225.0 14.1 L230.6 15.8 L236.3 15.8 L241.9 13.6 L247.5 12.9 L253.1 12.6 L258.8 10.9 L264.4 11.0 L270.0 13.2 L275.6 14.2 L281.3 15.2 L286.9 17.7 L292.5 18.4 L298.1 17.0 L303.8 16.6 L309.4 15.6 L315.0 12.6 L320.6 11.3 L326.3 11.7 L331.9 11.0 L337.5 11.3 L343.1 13.8 L348.8 14.8 L354.4 14.4 L360.0 15.1" fill="none" stroke="#FFD9A0" stroke-width="1.3"/>
+   </svg></div><div class="sb"><span>‹ BACK</span><span class="wm">BTC·PERP</span><span class="pill up">▲ 2.14%</span></div>
+   <div class="pad"><div class="priceLg">62,481.5</div>
+   <div class="chips"><span class="c on">1H</span><span class="c">4H</span><span class="c">1D</span><span class="c">1W</span></div>
+   <div class="chart grid"><svg viewBox="0 0 320 150" width="100%" height="150" preserveAspectRatio="none"><line x1="13.5" y1="121.02325581395348" x2="13.5" y2="132.02325581395348" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="8" y="127.02325581395348" width="11" height="3" fill="#6FE0C0" rx="1"/><line x1="26.5" y1="92.90697674418604" x2="26.5" y2="135.02325581395348" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="21" y="101.90697674418604" width="11" height="25.116279069767444" fill="#6FE0C0" rx="1"/><line x1="39.5" y1="89.90697674418604" x2="39.5" y2="139" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="34" y="101.90697674418604" width="11" height="32.09302325581396" fill="#FF7A6B" rx="1"/><line x1="52.5" y1="76.37209302325581" x2="52.5" y2="142" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="47" y="82.37209302325581" width="11" height="51.627906976744185" fill="#6FE0C0" rx="1"/><line x1="65.5" y1="73.37209302325581" x2="65.5" y2="102.72093023255815" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="60" y="82.37209302325581" width="11" height="15.348837209302332" fill="#FF7A6B" rx="1"/><line x1="78.5" y1="48.04651162790698" x2="78.5" y2="105.72093023255815" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="73" y="60.04651162790698" width="11" height="37.674418604651166" fill="#6FE0C0" rx="1"/><line x1="91.5" y1="54.04651162790698" x2="91.5" y2="84.58139534883722" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="86" y="60.04651162790698" width="11" height="19.53488372093024" fill="#FF7A6B" rx="1"/><line x1="104.5" y1="39.883720930232556" x2="104.5" y2="87.58139534883722" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="99" y="48.883720930232556" width="11" height="30.697674418604663" fill="#6FE0C0" rx="1"/><line x1="117.5" y1="36.883720930232556" x2="117.5" y2="76.20930232558139" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="112" y="48.883720930232556" width="11" height="22.325581395348834" fill="#FF7A6B" rx="1"/><line x1="130.5" y1="34.51162790697674" x2="130.5" y2="79.20930232558139" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="125" y="40.51162790697674" width="11" height="30.69767441860465" fill="#6FE0C0" rx="1"/><line x1="143.5" y1="31.51162790697674" x2="143.5" y2="62.25581395348837" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="138" y="40.51162790697674" width="11" height="16.74418604651163" fill="#FF7A6B" rx="1"/><line x1="156.5" y1="17.34883720930233" x2="156.5" y2="65.25581395348837" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="151" y="29.34883720930233" width="11" height="27.90697674418604" fill="#6FE0C0" rx="1"/><line x1="169.5" y1="23.34883720930233" x2="169.5" y2="46.90697674418604" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="164" y="29.34883720930233" width="11" height="12.558139534883708" fill="#FF7A6B" rx="1"/><line x1="182.5" y1="9.186046511627907" x2="182.5" y2="49.90697674418604" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="177" y="18.186046511627907" width="11" height="23.720930232558132" fill="#6FE0C0" rx="1"/><line x1="195.5" y1="6.186046511627907" x2="195.5" y2="37.13953488372094" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="190" y="18.186046511627907" width="11" height="13.953488372093034" fill="#FF7A6B" rx="1"/><line x1="208.5" y1="8" x2="208.5" y2="40.13953488372094" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="203" y="14" width="11" height="18.13953488372094" fill="#6FE0C0" rx="1"/><line x1="221.5" y1="5" x2="221.5" y2="28.767441860465127" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="216" y="14" width="11" height="9.767441860465127" fill="#FF7A6B" rx="1"/><line x1="234.5" y1="11.767441860465127" x2="234.5" y2="65.25581395348837" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="229" y="23.767441860465127" width="11" height="33.488372093023244" fill="#FF7A6B" rx="1"/><line x1="247.5" y1="51.25581395348837" x2="247.5" y2="81.7906976744186" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="242" y="57.25581395348837" width="11" height="19.534883720930225" fill="#FF7A6B" rx="1"/><line x1="260.5" y1="55.23255813953487" x2="260.5" y2="84.7906976744186" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="255" y="64.23255813953487" width="11" height="12.558139534883722" fill="#6FE0C0" rx="1"/><line x1="273.5" y1="39.674418604651166" x2="273.5" y2="69.23255813953487" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="268" y="51.674418604651166" width="11" height="12.558139534883708" fill="#6FE0C0" rx="1"/><line x1="286.5" y1="34.51162790697674" x2="286.5" y2="59.674418604651166" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="281" y="40.51162790697674" width="11" height="11.162790697674424" fill="#6FE0C0" rx="1"/><line x1="299.5" y1="31.51162790697674" x2="299.5" y2="50.95348837209302" stroke="#FF7A6B" stroke-width="1.1" opacity="0.85"/><rect x="294" y="40.51162790697674" width="11" height="5.441860465116278" fill="#FF7A6B" rx="1"/><line x1="312.5" y1="29.20930232558139" x2="312.5" y2="53.95348837209302" stroke="#6FE0C0" stroke-width="1.1" opacity="0.85"/><rect x="307" y="41.20930232558139" width="11" height="4.744186046511629" fill="#6FE0C0" rx="1"/></svg></div>
+   <div class="obwrap"><div class="obcol"><div class="ob" style="background:linear-gradient(90deg,#FF7A6B1f 60%, transparent 60%)"><span class="px" style="color:#FF7A6B">62,492</span><span class="sz">0.66</span></div><div class="ob" style="background:linear-gradient(90deg,#FF7A6B1f 50%, transparent 50%)"><span class="px" style="color:#FF7A6B">62,490</span><span class="sz">1.31</span></div><div class="ob" style="background:linear-gradient(90deg,#FF7A6B1f 40%, transparent 40%)"><span class="px" style="color:#FF7A6B">62,488</span><span class="sz">0.39</span></div><div class="ob" style="background:linear-gradient(90deg,#FF7A6B1f 30%, transparent 30%)"><span class="px" style="color:#FF7A6B">62,486</span><span class="sz">1.74</span></div></div><div class="obcol"><div class="ob" style="background:linear-gradient(90deg,transparent 40%, #6FE0C01f 40%)"><span class="px" style="color:#6FE0C0">62,485</span><span class="sz">1.20</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 50%, #6FE0C01f 50%)"><span class="px" style="color:#6FE0C0">62,483</span><span class="sz">0.84</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 60%, #6FE0C01f 60%)"><span class="px" style="color:#6FE0C0">62,481</span><span class="sz">2.05</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 70%, #6FE0C01f 70%)"><span class="px" style="color:#6FE0C0">62,480</span><span class="sz">0.42</span></div></div></div>
+   <div class="ladder"><div class="btn long">LONG</div><div class="btn short">SHORT</div></div></div></div></div><div class="col"><div class="label">AGENT · L1</div><div class="phone"><div class="trace" style="height:40px">
+   <svg viewBox="0 0 360 40" width="100%" height="40" preserveAspectRatio="none">
+    <defs><filter id="g"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+    <path d="M0 20 L5.6 23.2 L11.3 25.9 L16.9 27.0 L22.5 31.0 L28.1 31.5 L33.8 26.6 L39.4 24.0 L45.0 21.8 L50.6 15.8 L56.3 13.1 L61.9 15.4 L67.5 15.7 L73.1 16.5 L78.8 21.8 L84.4 24.0 L90.0 21.8 L95.6 21.8 L101.3 20.5 L106.9 14.2 L112.5 10.7 L118.1 11.1 L123.8 9.2 L129.4 9.5 L135.0 15.5 L140.6 19.4 L146.3 20.6 L151.9 24.7 L157.5 26.6 L163.1 22.7 L168.8 20.5 L174.4 20.1 L180.0 16.1 L185.6 14.4 L191.3 18.4 L196.9 20.8 L202.5 22.3 L208.1 28.1 L213.8 31.7 L219.4 29.7 L225.0 29.1 L230.6 28.2 L236.3 22.1 L241.9 17.7 L247.5 17.9 L253.1 16.2 L258.8 15.2 L264.4 19.9 L270.0 23.4 L275.6 22.9 L281.3 24.8 L286.9 25.6 L292.5 20.3 L298.1 16.0 L303.8 14.7 L309.4 10.4 L315.0 7.5 L320.6 10.9 L326.3 13.8 L331.9 14.9 L337.5 20.0 L343.1 24.2 L348.8 22.5 L354.4 21.5 L360.0 21.7" fill="none" stroke="#FFB454" stroke-width="3" opacity="0.30" filter="url(#g)"/>
+    <path d="M0 20 L5.6 23.2 L11.3 25.9 L16.9 27.0 L22.5 31.0 L28.1 31.5 L33.8 26.6 L39.4 24.0 L45.0 21.8 L50.6 15.8 L56.3 13.1 L61.9 15.4 L67.5 15.7 L73.1 16.5 L78.8 21.8 L84.4 24.0 L90.0 21.8 L95.6 21.8 L101.3 20.5 L106.9 14.2 L112.5 10.7 L118.1 11.1 L123.8 9.2 L129.4 9.5 L135.0 15.5 L140.6 19.4 L146.3 20.6 L151.9 24.7 L157.5 26.6 L163.1 22.7 L168.8 20.5 L174.4 20.1 L180.0 16.1 L185.6 14.4 L191.3 18.4 L196.9 20.8 L202.5 22.3 L208.1 28.1 L213.8 31.7 L219.4 29.7 L225.0 29.1 L230.6 28.2 L236.3 22.1 L241.9 17.7 L247.5 17.9 L253.1 16.2 L258.8 15.2 L264.4 19.9 L270.0 23.4 L275.6 22.9 L281.3 24.8 L286.9 25.6 L292.5 20.3 L298.1 16.0 L303.8 14.7 L309.4 10.4 L315.0 7.5 L320.6 10.9 L326.3 13.8 L331.9 14.9 L337.5 20.0 L343.1 24.2 L348.8 22.5 L354.4 21.5 L360.0 21.7" fill="none" stroke="#FFD9A0" stroke-width="1.3"/>
+   </svg></div><div class="sb"><span>9:41</span><span class="wm">YOUR AGENT</span><span class="pill up">◉ ARMED</span></div>
+   <div class="pad"><div class="agentHead grid"><div class="aTitle">PHOSPHOR TRACE · ACTIVE</div>
+   <div class="sub">trade-only · no withdrawal · runs while you're offline</div></div>
+   <div class="sectlbl">STRATEGIES</div><div class="srow"><div><div class="sname">TP/SL <span class="smkt">BTC</span></div>
+    <div class="sub">+3% / −1.5%</div></div><div class="tog on"><i></i></div></div><div class="srow"><div><div class="sname">GRID <span class="smkt">ETH</span></div>
+    <div class="sub">2.9k–3.2k ×8</div></div><div class="tog on"><i></i></div></div><div class="srow"><div><div class="sname">DCA <span class="smkt">BTC</span></div>
+    <div class="sub">$50 / 8h</div></div><div class="tog "><i></i></div></div>
+   <div class="guard"><span class="sub">GUARDRAILS</span><span class="gv">max 5× · day −$200</span></div>
+   <div class="ladder"><div class="btn kill">▮ KILL SWITCH</div><div class="btn new">+ NEW</div></div></div></div></div></div>
+ </body></html>

@@ -1,0 +1,162 @@
+<!doctype html><html><head><meta charset="utf8">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+   *{box-sizing:border-box;margin:0;padding:0}
+   body{width:1240px;height:940px;background:#0A1217;font-family:Manrope,system-ui,sans-serif;
+        display:flex;flex-direction:column;color:#EAF1F4;-webkit-font-smoothing:antialiased}
+   .title{font-family:'Space Grotesk';font-weight:700;font-size:26px;padding:26px 0 6px 48px;color:#EAF1F4;letter-spacing:.2px}
+   .titlesub{font-size:13px;color:#7E929C;padding:0 0 14px 48px}
+   .stage{display:flex;gap:30px;padding:6px 48px 40px;justify-content:center}
+   .col{display:flex;flex-direction:column;align-items:center;gap:10px}
+   .label{font-family:'Space Grotesk';font-weight:500;font-size:13px;color:#7E929C}
+   .phone{width:360px;height:760px;background:#0F1A20;border-radius:34px;overflow:hidden;
+          box-shadow:0 0 0 1px rgba(232,201,143,.10), 0 10px 30px rgba(0,0,0,.45);border:1px solid #20303A;position:relative}
+   .pulse{height:4px;width:100%;opacity:.55}
+   .pulse.on{height:6px;opacity:1}
+   .sb{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 6px;font-size:12.5px;color:#7E929C;font-family:'Space Grotesk';font-weight:500}
+   .pill{background:rgba(232,201,143,.12);color:#E8C98F;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+   .pad{padding:8px 16px 16px}
+   .search{background:#13242B;border:1px solid #20303A;color:#7E929C;border-radius:12px;padding:10px 12px;font-size:13px;margin:6px 0 12px}
+   .tabs{display:flex;gap:18px;border-bottom:1px solid #20303A;padding-bottom:10px;margin-bottom:6px}
+   .tab{font-size:13px;color:#7E929C;font-weight:600}
+   .tab.on{color:#EAF1F4}
+   .tab.on:after{content:'';display:block;height:2px;background:#E8C98F;margin-top:8px;border-radius:2px}
+   .row{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid #20303A}
+   .tk{font-family:'Space Grotesk';font-weight:700;font-size:16px;color:#EAF1F4}
+   .perp{color:#7E929C;font-weight:500;font-size:12px}
+   .sub{color:#7E929C;font-size:11.5px;margin-top:3px}
+   .pxblock{text-align:right}
+   .big{font-family:'JetBrains Mono';font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+   .chg{font-family:'JetBrains Mono';font-size:12.5px;margin-top:3px;font-variant-numeric:tabular-nums}
+   .priceLg{font-family:'JetBrains Mono';font-weight:700;font-size:30px;font-variant-numeric:tabular-nums;margin:6px 0 10px}
+   .chips{display:flex;gap:8px;margin-bottom:8px}
+   .c{font-family:'JetBrains Mono';font-size:12px;color:#7E929C;padding:4px 10px;border:1px solid #20303A;border-radius:8px}
+   .c.on{color:#0A1217;background:#E8C98F;border-color:#E8C98F}
+   .chart{background:#13242B;border:1px solid #20303A;border-radius:12px;padding:8px;margin-bottom:10px}
+   .obwrap{display:flex;gap:8px;margin-bottom:12px}
+   .obcol{flex:1;display:flex;flex-direction:column;gap:3px}
+   .ob{display:flex;justify-content:space-between;padding:4px 8px;border-radius:4px;font-family:'JetBrains Mono';font-size:12px;font-variant-numeric:tabular-nums}
+   .ob .sz{color:#7E929C}
+   .ladder{display:flex;gap:10px;margin-top:6px}
+   .btn{flex:1;text-align:center;padding:13px;border-radius:12px;font-family:'Space Grotesk';font-weight:700;font-size:15px;color:#06120f}
+   .btn.short,.btn.kill{color:#fff}
+   .agentHead{background:#13242B;border:1px solid #20303A;border-radius:12px;padding:14px;margin:6px 0 12px}
+   .aTitle{font-family:'Space Grotesk';font-weight:700;font-size:16px}
+   .sectlbl{font-size:12px;color:#7E929C;text-transform:uppercase;letter-spacing:.12em;margin:6px 2px 8px}
+   .srow{display:flex;justify-content:space-between;align-items:center;padding:12px 2px;border-bottom:1px solid #20303A}
+   .sname{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:#EAF1F4}
+   .smkt{color:#7E929C;font-weight:500;font-size:12px}
+   .tog{width:42px;height:24px;border-radius:20px;position:relative;transition:.2s}
+   .tog i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+   .tog.on i{left:21px}
+   .guard{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;margin-top:4px}
+   .gv{font-family:'JetBrains Mono';font-size:12.5px;color:#EAF1F4}
+  </style></head><body>
+   <div class="title">A · Electrum Terminal</div>
+   <div class="titlesub">HyperSolid · Hyperliquid mobile trading terminal — Markets · Detail · Agent</div>
+   <div class="stage">
+     <div class="col"><div class="label">Markets</div><div class="phone">
+   <div class="pulse" style="background:linear-gradient(90deg,#0A1217,#E8C98F55,#F3E3B3,#57C8E655,#0A1217)"></div>
+   <div class="sb"><span>9:41</span><span>HyperSolid</span><span class="pill">◷ Testnet</span></div>
+   <div class="pad">
+     <div class="search">Search markets</div>
+     <div class="tabs"><span class="tab on">Perps</span><span class="tab">Watch</span><span class="tab">Gainers</span></div>
+     
+    <div class="row">
+      <div class="sym"><div class="tk">BTC<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.011% · vol 1.2B</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">62,481.5</div>
+        <div class="chg" style="color:#34C98B">▲ +2.14%</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="sym"><div class="tk">ETH<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.008% · vol 842M</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">3,002.18</div>
+        <div class="chg" style="color:#FF5C63">▼ -0.86%</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="sym"><div class="tk">SOL<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.021% · vol 510M</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">148.22</div>
+        <div class="chg" style="color:#34C98B">▲ +5.41%</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="sym"><div class="tk">HYPE<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.014% · vol 333M</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">28.74</div>
+        <div class="chg" style="color:#34C98B">▲ +1.07%</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="sym"><div class="tk">ARB<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.006% · vol 119M</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">1.182</div>
+        <div class="chg" style="color:#FF5C63">▼ -2.30%</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="sym"><div class="tk">DOGE<span class="perp">-PERP</span></div>
+        <div class="sub">funding 0.004% · vol 97M</div></div>
+      <div class="pxblock">
+        <div class="big" style="color:#EAF1F4">0.1642</div>
+        <div class="chg" style="color:#34C98B">▲ +0.92%</div>
+      </div>
+    </div>
+   </div></div></div>
+     <div class="col"><div class="label">Market Detail</div><div class="phone">
+   <div class="pulse" style="background:linear-gradient(90deg,#0A1217,#E8C98F55,#F3E3B3,#57C8E655,#0A1217)"></div>
+   <div class="sb"><span>‹ Back</span><span>BTC-PERP</span><span class="pill" style="color:#34C98B;background:rgba(52,201,139,.12)">▲ 2.14%</span></div>
+   <div class="pad">
+     <div class="priceLg" style="color:#EAF1F4">62,481.5</div>
+     <div class="chips"><span class="c on">1H</span><span class="c">4H</span><span class="c">1D</span><span class="c">1W</span></div>
+     <div class="chart"><svg viewBox="0 0 320 150" width="100%" height="150" preserveAspectRatio="none"><line x1="13.5" y1="121.02325581395348" x2="13.5" y2="132.02325581395348" stroke="#34C98B" stroke-width="1.2"/><rect x="8" y="127.02325581395348" width="11" height="3" fill="#34C98B" rx="1"/><line x1="26.5" y1="92.90697674418604" x2="26.5" y2="135.02325581395348" stroke="#34C98B" stroke-width="1.2"/><rect x="21" y="101.90697674418604" width="11" height="25.116279069767444" fill="#34C98B" rx="1"/><line x1="39.5" y1="89.90697674418604" x2="39.5" y2="139" stroke="#FF5C63" stroke-width="1.2"/><rect x="34" y="101.90697674418604" width="11" height="32.09302325581396" fill="#FF5C63" rx="1"/><line x1="52.5" y1="76.37209302325581" x2="52.5" y2="142" stroke="#34C98B" stroke-width="1.2"/><rect x="47" y="82.37209302325581" width="11" height="51.627906976744185" fill="#34C98B" rx="1"/><line x1="65.5" y1="73.37209302325581" x2="65.5" y2="102.72093023255815" stroke="#FF5C63" stroke-width="1.2"/><rect x="60" y="82.37209302325581" width="11" height="15.348837209302332" fill="#FF5C63" rx="1"/><line x1="78.5" y1="48.04651162790698" x2="78.5" y2="105.72093023255815" stroke="#34C98B" stroke-width="1.2"/><rect x="73" y="60.04651162790698" width="11" height="37.674418604651166" fill="#34C98B" rx="1"/><line x1="91.5" y1="54.04651162790698" x2="91.5" y2="84.58139534883722" stroke="#FF5C63" stroke-width="1.2"/><rect x="86" y="60.04651162790698" width="11" height="19.53488372093024" fill="#FF5C63" rx="1"/><line x1="104.5" y1="39.883720930232556" x2="104.5" y2="87.58139534883722" stroke="#34C98B" stroke-width="1.2"/><rect x="99" y="48.883720930232556" width="11" height="30.697674418604663" fill="#34C98B" rx="1"/><line x1="117.5" y1="36.883720930232556" x2="117.5" y2="76.20930232558139" stroke="#FF5C63" stroke-width="1.2"/><rect x="112" y="48.883720930232556" width="11" height="22.325581395348834" fill="#FF5C63" rx="1"/><line x1="130.5" y1="34.51162790697674" x2="130.5" y2="79.20930232558139" stroke="#34C98B" stroke-width="1.2"/><rect x="125" y="40.51162790697674" width="11" height="30.69767441860465" fill="#34C98B" rx="1"/><line x1="143.5" y1="31.51162790697674" x2="143.5" y2="62.25581395348837" stroke="#FF5C63" stroke-width="1.2"/><rect x="138" y="40.51162790697674" width="11" height="16.74418604651163" fill="#FF5C63" rx="1"/><line x1="156.5" y1="17.34883720930233" x2="156.5" y2="65.25581395348837" stroke="#34C98B" stroke-width="1.2"/><rect x="151" y="29.34883720930233" width="11" height="27.90697674418604" fill="#34C98B" rx="1"/><line x1="169.5" y1="23.34883720930233" x2="169.5" y2="46.90697674418604" stroke="#FF5C63" stroke-width="1.2"/><rect x="164" y="29.34883720930233" width="11" height="12.558139534883708" fill="#FF5C63" rx="1"/><line x1="182.5" y1="9.186046511627907" x2="182.5" y2="49.90697674418604" stroke="#34C98B" stroke-width="1.2"/><rect x="177" y="18.186046511627907" width="11" height="23.720930232558132" fill="#34C98B" rx="1"/><line x1="195.5" y1="6.186046511627907" x2="195.5" y2="37.13953488372094" stroke="#FF5C63" stroke-width="1.2"/><rect x="190" y="18.186046511627907" width="11" height="13.953488372093034" fill="#FF5C63" rx="1"/><line x1="208.5" y1="8" x2="208.5" y2="40.13953488372094" stroke="#34C98B" stroke-width="1.2"/><rect x="203" y="14" width="11" height="18.13953488372094" fill="#34C98B" rx="1"/><line x1="221.5" y1="5" x2="221.5" y2="28.767441860465127" stroke="#FF5C63" stroke-width="1.2"/><rect x="216" y="14" width="11" height="9.767441860465127" fill="#FF5C63" rx="1"/><line x1="234.5" y1="11.767441860465127" x2="234.5" y2="65.25581395348837" stroke="#FF5C63" stroke-width="1.2"/><rect x="229" y="23.767441860465127" width="11" height="33.488372093023244" fill="#FF5C63" rx="1"/><line x1="247.5" y1="51.25581395348837" x2="247.5" y2="81.7906976744186" stroke="#FF5C63" stroke-width="1.2"/><rect x="242" y="57.25581395348837" width="11" height="19.534883720930225" fill="#FF5C63" rx="1"/><line x1="260.5" y1="55.23255813953487" x2="260.5" y2="84.7906976744186" stroke="#34C98B" stroke-width="1.2"/><rect x="255" y="64.23255813953487" width="11" height="12.558139534883722" fill="#34C98B" rx="1"/><line x1="273.5" y1="39.674418604651166" x2="273.5" y2="69.23255813953487" stroke="#34C98B" stroke-width="1.2"/><rect x="268" y="51.674418604651166" width="11" height="12.558139534883708" fill="#34C98B" rx="1"/><line x1="286.5" y1="34.51162790697674" x2="286.5" y2="59.674418604651166" stroke="#34C98B" stroke-width="1.2"/><rect x="281" y="40.51162790697674" width="11" height="11.162790697674424" fill="#34C98B" rx="1"/><line x1="299.5" y1="31.51162790697674" x2="299.5" y2="50.95348837209302" stroke="#FF5C63" stroke-width="1.2"/><rect x="294" y="40.51162790697674" width="11" height="5.441860465116278" fill="#FF5C63" rx="1"/><line x1="312.5" y1="29.20930232558139" x2="312.5" y2="53.95348837209302" stroke="#34C98B" stroke-width="1.2"/><rect x="307" y="41.20930232558139" width="11" height="4.744186046511629" fill="#34C98B" rx="1"/></svg></div>
+     <div class="obwrap">
+       <div class="obcol"><div class="ob" style="background:linear-gradient(90deg,#FF5C6322 60%, transparent 60%)"><span class="px" style="color:#FF5C63">62,492</span><span class="sz">0.66</span></div><div class="ob" style="background:linear-gradient(90deg,#FF5C6322 50%, transparent 50%)"><span class="px" style="color:#FF5C63">62,490</span><span class="sz">1.31</span></div><div class="ob" style="background:linear-gradient(90deg,#FF5C6322 40%, transparent 40%)"><span class="px" style="color:#FF5C63">62,488</span><span class="sz">0.39</span></div><div class="ob" style="background:linear-gradient(90deg,#FF5C6322 30%, transparent 30%)"><span class="px" style="color:#FF5C63">62,486</span><span class="sz">1.74</span></div></div>
+       <div class="obcol"><div class="ob" style="background:linear-gradient(90deg,transparent 40%, #34C98B22 40%)"><span class="px" style="color:#34C98B">62,485</span><span class="sz">1.20</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 50%, #34C98B22 50%)"><span class="px" style="color:#34C98B">62,483</span><span class="sz">0.84</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 60%, #34C98B22 60%)"><span class="px" style="color:#34C98B">62,481</span><span class="sz">2.05</span></div><div class="ob" style="background:linear-gradient(90deg,transparent 70%, #34C98B22 70%)"><span class="px" style="color:#34C98B">62,480</span><span class="sz">0.42</span></div></div>
+     </div>
+     <div class="ladder">
+       <div class="btn long" style="background:#34C98B">Long</div>
+       <div class="btn short" style="background:#FF5C63">Short</div>
+     </div>
+   </div></div></div>
+     <div class="col"><div class="label">Agent (L1)</div><div class="phone">
+   <div class="pulse on" style="background:linear-gradient(90deg,#0A1217,#E8C98F55,#F3E3B3,#57C8E655,#0A1217)"></div>
+   <div class="sb"><span>9:41</span><span>Your Agent</span><span class="pill" style="color:#34C98B;background:rgba(52,201,139,.12)">◉ Armed</span></div>
+   <div class="pad">
+     <div class="agentHead">
+       <div class="aTitle" style="color:#E8C98F">Phase Pulse · ACTIVE</div>
+       <div class="sub">Trade-only · no withdrawal · runs while you're offline</div>
+     </div>
+     <div class="sectlbl">Strategies</div>
+     
+    <div class="srow">
+      <div><div class="sname">TP/SL <span class="smkt">BTC</span></div>
+      <div class="sub">+3% / −1.5%</div></div>
+      <div class="tog on" style="background:#E8C98F"><i></i></div>
+    </div>
+    <div class="srow">
+      <div><div class="sname">Grid <span class="smkt">ETH</span></div>
+      <div class="sub">2.9k–3.2k ×8</div></div>
+      <div class="tog on" style="background:#E8C98F"><i></i></div>
+    </div>
+    <div class="srow">
+      <div><div class="sname">DCA <span class="smkt">BTC</span></div>
+      <div class="sub">$50 / 8h</div></div>
+      <div class="tog " style="background:#20303A"><i></i></div>
+    </div>
+     <div class="guard"><span class="sub">Guardrails</span><span class="gv">max 5× · day −$200</span></div>
+     <div class="ladder">
+       <div class="btn kill" style="background:#FF5C63">▮ Kill switch</div>
+       <div class="btn new" style="border:1px solid #20303A;color:#EAF1F4;background:transparent">+ New</div>
+     </div>
+   </div></div></div>
+   </div>
+  </body></html>

@@ -66,7 +66,7 @@
 - **ADR-010**：避免每用户双付费；agent 签名器默认自托管 KMS/TEE，仅服务离线自动化用户。
 - **ADR-011**：Passkey 本地钱包为最优主推方案（硬件级安全 + 真非托管 + 零厂商依赖），Privy 降为便利性备选。
 - **ADR-012（拟定/可选）**：云端备份可行，但仅限零知识客户端加密（Argon2id + AES-GCM，密文上云、明文与口令绝不上服务器），补齐 Android 跨设备恢复缺口。
-- **ADR-013（2026-06-21，用户决策）**：**后端语言 = Go**（替代原 Node/TS BFF 规划）。理由：goroutine 并发模型契合 connector 池/WS 扇出、Temporal/NATS 一等公民、静态二进制 + 小依赖面利于签名核与供应链安全。**代价（需缓解）**：失去与 TS 客户端的 SDK/类型复用 → HL action msgpack 哈希 + EIP-712 签名须在 Go 重做（go-ethereum crypto），并与 `@nktkas/hyperliquid`(TS) 客户端用**跨语言黄金测试向量逐字节对拍**（守住「精度/asset-id/cloid 三件套」零漂移）；Go 为 GC 语言，签名核密钥须 `defer` 显式清零并优先配 KMS/Nitro Enclave。**先决**：投入前先做「Go 下单 testnet 成功」spike 验证社区 Go SDK 成熟度。客户端（Expo RN + TS）与整体架构（降级直连、§4.7 路由、§5.1a 签名边界、§6.2 HA）不变；中国边缘代理仍可保留 Cloudflare Workers(JS)。
+- **ADR-013（2026-06-21，用户决策）**：**后端语言 = Go**（替代原 Node/TS BFF 规划）。理由：goroutine 并发模型契合 connector 池/WS 扇出、Temporal/NATS 一等公民、静态二进制 + 小依赖面利于签名核与供应链安全。**代价（需缓解）**：失去与 TS 客户端的 SDK/类型复用 → HL action msgpack 哈希 + EIP-712 签名须在 Go 重做（go-ethereum crypto），并与 `@nktkas/hyperliquid`(TS) 客户端用**跨语言黄金测试向量逐字节对拍**（守住「精度/asset-id/cloid 三件套」零漂移）；Go 为 GC 语言，签名核密钥须 `defer` 显式清零并优先配 KMS/Nitro Enclave。**先决**：Hyperliquid **官方仅维护 Python SDK**（Rust/TS 均社区，**无官方 Go SDK**；第三方如 quiknode-labs 需自行审计）。故签名优先**自写最小 Go 签名核**（go-ethereum crypto + msgpack，依赖面最小），以官方 Python SDK / 社区 Rust SDK(infinitefield/hypersdk) 为权威参照，并先做「Go 下单 testnet 成功」spike 验证编码正确。客户端（Expo RN + TS）与整体架构（降级直连、§4.7 路由、§5.1a 签名边界、§6.2 HA）不变；中国边缘代理仍可保留 Cloudflare Workers(JS)。
 
 ## 仓库结构（规划）
 

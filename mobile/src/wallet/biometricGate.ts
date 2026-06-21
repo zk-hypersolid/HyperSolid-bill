@@ -15,7 +15,7 @@ export interface BiometricAvailability {
   supportedTypes: number[];
 }
 
-export type AuthResult = "success" | "failed" | "unavailable" | "cancelled";
+export type AuthResult = "success" | "failed" | "unavailable" | "cancelled" | "compromised";
 
 export class BiometricGate {
   constructor(private la: LocalAuthLike) {}

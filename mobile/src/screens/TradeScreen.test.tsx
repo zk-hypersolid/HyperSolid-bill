@@ -23,6 +23,7 @@ const btc: MarketTicker = {
   funding: 0.00011,
   dayNtlVlm: 1.2e9,
   maxLeverage: 50,
+  szDecimals: 5,
 };
 
 const localWallet = { getViemAccount: () => ({}), getAddress: () => "0xabc" } as never;
@@ -33,7 +34,7 @@ describe("TradeScreen", () => {
     useMarketStore.setState({ tickers: [btc], loading: false, error: null });
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     mockPlaceOrder.mockReset();
-    jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    jest.spyOn(Alert, "alert").mockReset().mockImplementation(() => {});
   });
 
   it("prompts to connect a wallet when none is set", () => {
@@ -74,12 +75,19 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder).not.toHaveBeenCalled();
   });
 
-  it("surfaces a precision rejection as a normalized Chinese message", () => {
+  it("surfaces a precision (sub-lot) rejection as a normalized Chinese message", () => {
+    // LOWP has szDecimals 0 (integer lots): ordering 0.4 units rounds to 0 -> sizeRejected,
+    // even though notional ($12) passes the $10 gate, so validateOrder catches it in Chinese.
+    useMarketStore.setState({
+      tickers: [btc, { ...btc, coin: "LOWP", midPx: 30, szDecimals: 0 }],
+      loading: false,
+      error: null,
+    });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    // size rounds to 0 at szDecimals=2 but notional passes the $10 gate -> validateOrder rejects
-    fireEvent.changeText(screen.getByTestId("field-size"), "0.001");
-    fireEvent.changeText(screen.getByTestId("field-price"), "20000");
+    fireEvent.changeText(screen.getByTestId("field-coin"), "LOWP");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.4");
+    fireEvent.changeText(screen.getByTestId("field-price"), "30");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("订单无效", expect.stringContaining("数量"));
@@ -102,15 +110,20 @@ describe("TradeScreen", () => {
     });
   });
 
-  it("shows the service's normalized Chinese error on failure", async () => {
-    mockPlaceOrder.mockResolvedValue({ ok: false, error: "保证金不足" });
+  it("uses the real szDecimals so a small BTC order is not wrongly rejected", async () => {
+    // BTC szDecimals=5: roundSize(0.001,5)=0.001 (valid). With the old hardcoded
+    // szDecimals=2 this rounded to 0 and was rejected before reaching the network.
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "订单已挂单" },
+    });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.001");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("submit-order"));
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith("下单失败", "保证金不足");
-    });
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(Alert.alert).not.toHaveBeenCalledWith("订单无效", expect.anything());
   });
 });

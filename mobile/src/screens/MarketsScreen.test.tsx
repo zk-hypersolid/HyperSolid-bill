@@ -6,8 +6,8 @@ import { useEnvStore } from "../state/envStore";
 import type { MarketTicker } from "../lib/hyperliquid/types";
 
 const tickers: MarketTicker[] = [
-  { coin: "BTC", midPx: 62481.5, prevDayPx: 61000, changePct: 2.43, funding: 0.0001, dayNtlVlm: 2, maxLeverage: 50 },
-  { coin: "ETH", midPx: 3002.18, prevDayPx: 3028, changePct: -0.86, funding: 0.00008, dayNtlVlm: 1, maxLeverage: 50 },
+  { coin: "BTC", midPx: 62481.5, prevDayPx: 61000, changePct: 2.43, funding: 0.0001, dayNtlVlm: 2, maxLeverage: 50, szDecimals: 5 },
+  { coin: "ETH", midPx: 3002.18, prevDayPx: 3028, changePct: -0.86, funding: 0.00008, dayNtlVlm: 1, maxLeverage: 50, szDecimals: 4 },
 ];
 
 describe("MarketsScreen", () => {

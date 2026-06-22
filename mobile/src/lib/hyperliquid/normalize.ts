@@ -19,6 +19,7 @@ export function normalizeMarkets(data: MetaAndAssetCtxs): MarketTicker[] {
       funding: Number(ctx?.funding ?? 0),
       dayNtlVlm: Number(ctx?.dayNtlVlm ?? 0),
       maxLeverage: asset.maxLeverage,
+      szDecimals: asset.szDecimals,
     };
   });
   return tickers.sort((a, b) => b.dayNtlVlm - a.dayNtlVlm);

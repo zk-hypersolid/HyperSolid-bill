@@ -2,8 +2,8 @@ import { applyMids } from "./normalize";
 import type { MarketTicker } from "./types";
 
 const base: MarketTicker[] = [
-  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 9, maxLeverage: 50 },
-  { coin: "ETH", midPx: 50, prevDayPx: 50, changePct: 0, funding: 0, dayNtlVlm: 8, maxLeverage: 50 },
+  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 9, maxLeverage: 50, szDecimals: 5 },
+  { coin: "ETH", midPx: 50, prevDayPx: 50, changePct: 0, funding: 0, dayNtlVlm: 8, maxLeverage: 50, szDecimals: 4 },
 ];
 
 describe("applyMids", () => {

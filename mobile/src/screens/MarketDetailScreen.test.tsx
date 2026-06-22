@@ -21,6 +21,7 @@ const btc: MarketTicker = {
   funding: 0.00011,
   dayNtlVlm: 1.2e9,
   maxLeverage: 50,
+  szDecimals: 5,
 };
 
 function renderDetail(nav: { goBack: jest.Mock }) {

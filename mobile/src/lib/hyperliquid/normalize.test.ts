@@ -24,6 +24,12 @@ describe("normalizeMarkets", () => {
     expect(btc.maxLeverage).toBe(50);
   });
 
+  it("propagates szDecimals from meta (needed for order precision)", () => {
+    const out = normalizeMarkets(sample);
+    expect(out.find((t) => t.coin === "BTC")!.szDecimals).toBe(5);
+    expect(out.find((t) => t.coin === "ETH")!.szDecimals).toBe(4);
+  });
+
   it("computes negative change", () => {
     const eth = normalizeMarkets(sample).find((t) => t.coin === "ETH")!;
     expect(eth.changePct).toBeCloseTo(-1, 5);

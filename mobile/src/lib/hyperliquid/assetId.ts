@@ -1,9 +1,37 @@
 import type { RawMeta } from "./types";
+import type { MarketKind } from "./order";
 
 export interface AssetIndex {
   id(coin: string): number | null;
   szDecimals(coin: string): number | null;
   coins: string[];
+}
+
+/**
+ * Spot asset ids are offset by 10000 from their spotInfo["index"].
+ * e.g. PURR/USDC has spotInfo index 0 -> asset id 10000.
+ */
+export const SPOT_ASSET_ID_OFFSET = 10000;
+
+/** Builder-deployed perps start at 100000 (100000 + perp_dex_index*10000 + index_in_meta). */
+const BUILDER_PERP_ASSET_ID_BASE = 100000;
+
+/**
+ * Classify an asset id as perp or spot. Spot occupies [10000, 100000);
+ * 0..9999 are native perps and >=100000 are builder-deployed perps.
+ */
+export function marketKindForAssetId(asset: number): MarketKind {
+  return asset >= SPOT_ASSET_ID_OFFSET && asset < BUILDER_PERP_ASSET_ID_BASE ? "spot" : "perp";
+}
+
+/** Spot pair entry from spotMeta.universe. asset id = 10000 + index. */
+export interface RawSpotAsset {
+  name: string;
+  index: number;
+  szDecimals?: number;
+}
+export interface RawSpotMeta {
+  universe: RawSpotAsset[];
 }
 
 /**
@@ -14,16 +42,57 @@ export function buildAssetIndex(meta: RawMeta): AssetIndex {
   const ids = new Map<string, number>();
   const decimals = new Map<string, number>();
   meta.universe.forEach((a, i) => {
-    ids.set(a.name, i);
-    decimals.set(a.name, a.szDecimals);
+    ids.set(normalizeCoin(a.name), i);
+    decimals.set(normalizeCoin(a.name), a.szDecimals);
   });
-  return {
-    id: (coin) => (ids.has(coin) ? ids.get(coin)! : null),
-    szDecimals: (coin) => (decimals.has(coin) ? decimals.get(coin)! : null),
-    coins: meta.universe.map((a) => a.name),
-  };
+  return makeAssetIndex(
+    ids,
+    decimals,
+    meta.universe.map((a) => a.name),
+  );
+}
+
+/**
+ * Build a spot pair -> {assetId, szDecimals} table from spotMeta at startup.
+ * Spot asset id = 10000 + spotInfo["index"] (use the explicit index field,
+ * NOT array position — they can differ, e.g. HYPE/USDC).
+ */
+export function buildSpotAssetIndex(meta: RawSpotMeta): AssetIndex {
+  const ids = new Map<string, number>();
+  const decimals = new Map<string, number>();
+  meta.universe.forEach((a) => {
+    ids.set(normalizeCoin(a.name), SPOT_ASSET_ID_OFFSET + a.index);
+    if (a.szDecimals !== undefined) decimals.set(normalizeCoin(a.name), a.szDecimals);
+  });
+  return makeAssetIndex(
+    ids,
+    decimals,
+    meta.universe.map((a) => a.name),
+  );
 }
 
 export function resolveAssetId(index: AssetIndex, coin: string): number | null {
   return index.id(coin);
+}
+
+function normalizeCoin(coin: string): string {
+  return coin.trim().toUpperCase();
+}
+
+function makeAssetIndex(
+  ids: Map<string, number>,
+  decimals: Map<string, number>,
+  coins: string[],
+): AssetIndex {
+  return {
+    id: (coin) => {
+      const key = normalizeCoin(coin);
+      return ids.has(key) ? ids.get(key)! : null;
+    },
+    szDecimals: (coin) => {
+      const key = normalizeCoin(coin);
+      return decimals.has(key) ? decimals.get(key)! : null;
+    },
+    coins,
+  };
 }

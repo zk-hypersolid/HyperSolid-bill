@@ -1,6 +1,9 @@
 import {
   buildAssetIndex,
+  buildSpotAssetIndex,
+  marketKindForAssetId,
   resolveAssetId,
+  SPOT_ASSET_ID_OFFSET,
 } from "./assetId";
 import type { RawMeta } from "./types";
 
@@ -25,9 +28,71 @@ describe("asset-id resolution", () => {
     expect(resolveAssetId(idx, "DOGE")).toBeNull();
   });
 
+  it("resolves coin names case-insensitively", () => {
+    const idx = buildAssetIndex(meta);
+    expect(resolveAssetId(idx, "btc")).toBe(0);
+    expect(resolveAssetId(idx, "Eth")).toBe(1);
+    expect(idx.szDecimals("sol")).toBe(2);
+  });
+
   it("exposes szDecimals per coin for precision rules", () => {
     const idx = buildAssetIndex(meta);
     expect(idx.szDecimals("BTC")).toBe(5);
     expect(idx.szDecimals("ETH")).toBe(4);
+  });
+});
+
+describe("spot asset-id resolution", () => {
+  // HL: spot asset = 10000 + spotInfo["index"] (NOT array position).
+  const spotMeta = {
+    universe: [
+      { name: "PURR/USDC", index: 0, szDecimals: 2 },
+      { name: "HYPE/USDC", index: 107 },
+    ],
+  };
+
+  it("offset constant is 10000", () => {
+    expect(SPOT_ASSET_ID_OFFSET).toBe(10000);
+  });
+
+  it("maps spot pair to 10000 + spotInfo.index", () => {
+    const idx = buildSpotAssetIndex(spotMeta);
+    expect(resolveAssetId(idx, "PURR/USDC")).toBe(10000);
+    expect(resolveAssetId(idx, "HYPE/USDC")).toBe(10107);
+  });
+
+  it("uses the explicit index field, not array position", () => {
+    const idx = buildSpotAssetIndex(spotMeta);
+    // HYPE is at array position 1 but spotInfo.index 107 -> 10107, not 10001
+    expect(resolveAssetId(idx, "HYPE/USDC")).toBe(10000 + 107);
+  });
+
+  it("resolves spot pairs case-insensitively", () => {
+    const idx = buildSpotAssetIndex(spotMeta);
+    expect(resolveAssetId(idx, "purr/usdc")).toBe(10000);
+    expect(resolveAssetId(idx, "Hype/Usdc")).toBe(10107);
+  });
+
+  it("returns null for unknown spot pairs", () => {
+    const idx = buildSpotAssetIndex(spotMeta);
+    expect(resolveAssetId(idx, "FOO/USDC")).toBeNull();
+  });
+
+  it("exposes spot szDecimals when provided, else null", () => {
+    const idx = buildSpotAssetIndex(spotMeta);
+    expect(idx.szDecimals("PURR/USDC")).toBe(2);
+    expect(idx.szDecimals("HYPE/USDC")).toBeNull();
+  });
+});
+
+describe("marketKindForAssetId", () => {
+  it("treats the spot range [10000, 100000) as spot, else perp", () => {
+    expect(marketKindForAssetId(0)).toBe("perp");
+    expect(marketKindForAssetId(5)).toBe("perp");
+    expect(marketKindForAssetId(10000)).toBe("spot");
+    expect(marketKindForAssetId(19999)).toBe("spot");
+    // builder-deployed perps use 100000+, which are perps not spot
+    expect(marketKindForAssetId(100000)).toBe("perp");
+    expect(marketKindForAssetId(110000)).toBe("perp");
   });
 });

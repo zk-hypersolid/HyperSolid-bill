@@ -1,6 +1,7 @@
 import {
   buildAssetIndex,
   buildSpotAssetIndex,
+  marketKindForAssetId,
   resolveAssetId,
   SPOT_ASSET_ID_OFFSET,
 } from "./assetId";
@@ -81,5 +82,17 @@ describe("spot asset-id resolution", () => {
     const idx = buildSpotAssetIndex(spotMeta);
     expect(idx.szDecimals("PURR/USDC")).toBe(2);
     expect(idx.szDecimals("HYPE/USDC")).toBeNull();
+  });
+});
+
+describe("marketKindForAssetId", () => {
+  it("treats the spot range [10000, 100000) as spot, else perp", () => {
+    expect(marketKindForAssetId(0)).toBe("perp");
+    expect(marketKindForAssetId(5)).toBe("perp");
+    expect(marketKindForAssetId(10000)).toBe("spot");
+    expect(marketKindForAssetId(19999)).toBe("spot");
+    // builder-deployed perps use 100000+, which are perps not spot
+    expect(marketKindForAssetId(100000)).toBe("perp");
+    expect(marketKindForAssetId(110000)).toBe("perp");
   });
 });

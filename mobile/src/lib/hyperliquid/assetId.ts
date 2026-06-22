@@ -1,4 +1,5 @@
 import type { RawMeta } from "./types";
+import type { MarketKind } from "./order";
 
 export interface AssetIndex {
   id(coin: string): number | null;
@@ -11,6 +12,17 @@ export interface AssetIndex {
  * e.g. PURR/USDC has spotInfo index 0 -> asset id 10000.
  */
 export const SPOT_ASSET_ID_OFFSET = 10000;
+
+/** Builder-deployed perps start at 100000 (100000 + perp_dex_index*10000 + index_in_meta). */
+const BUILDER_PERP_ASSET_ID_BASE = 100000;
+
+/**
+ * Classify an asset id as perp or spot. Spot occupies [10000, 100000);
+ * 0..9999 are native perps and >=100000 are builder-deployed perps.
+ */
+export function marketKindForAssetId(asset: number): MarketKind {
+  return asset >= SPOT_ASSET_ID_OFFSET && asset < BUILDER_PERP_ASSET_ID_BASE ? "spot" : "perp";
+}
 
 /** Spot pair entry from spotMeta.universe. asset id = 10000 + index. */
 export interface RawSpotAsset {

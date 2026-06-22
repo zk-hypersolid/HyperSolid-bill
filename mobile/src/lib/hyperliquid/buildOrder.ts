@@ -1,5 +1,7 @@
 import type { AssetIndex } from "./assetId";
+import { marketKindForAssetId } from "./assetId";
 import { formatPrice, roundSize, validateOrder, type OrderRejection } from "./order";
+import { isBuilderFeeWithinCap } from "./builderFee";
 import { generateCloid } from "./cloid";
 
 export type OrderSide = "buy" | "sell";
@@ -55,7 +57,7 @@ export interface HlOrderParams {
 
 export type BuildResult =
   | { ok: true; params: HlOrderParams; cloid: `0x${string}` }
-  | { ok: false; rejection: OrderRejection | "unknownAsset" };
+  | { ok: false; rejection: OrderRejection | "unknownAsset" | "builderFeeRejected" };
 
 /** Bracket = entry order + optional TP/SL siblings submitted together with grouping. */
 export interface BracketRequest {
@@ -93,6 +95,17 @@ function orderTuple(
   };
 }
 
+/** Validate + encode the optional builder fee field (cap by perp/spot, spec §7). */
+function builderField(
+  builder: OrderRequest["builder"],
+  asset: number,
+): { b: `0x${string}`; f: number } | { rejection: "builderFeeRejected" } | null {
+  if (!builder) return null;
+  const kind = marketKindForAssetId(asset);
+  if (!isBuilderFeeWithinCap(builder.feeTenthBps, kind)) return { rejection: "builderFeeRejected" };
+  return { b: builder.address, f: builder.feeTenthBps };
+}
+
 /**
  * Build validated HL order params from a high-level request.
  * Enforces the "三件套": asset-id resolution (never hardcoded), tick/lot precision,
@@ -106,14 +119,15 @@ export function buildOrder(req: OrderRequest, index: AssetIndex): BuildResult {
   const rejection = validateOrder({ price: req.price, size: req.size, szDecimals });
   if (rejection) return { ok: false, rejection };
 
+  const bf = builderField(req.builder, asset);
+  if (bf && "rejection" in bf) return { ok: false, rejection: bf.rejection };
+
   const cloid = generateCloid();
   const params: HlOrderParams = {
     orders: [orderTuple(req, asset, szDecimals, cloid)],
     grouping: "na",
   };
-  if (req.builder) {
-    params.builder = { b: req.builder.address, f: req.builder.feeTenthBps };
-  }
+  if (bf) params.builder = bf;
   return { ok: true, params, cloid };
 }
 
@@ -162,8 +176,8 @@ export function buildBracketOrder(req: BracketRequest, index: AssetIndex): Build
   }
 
   const params: HlOrderParams = { orders, grouping: req.grouping ?? "normalTpsl" };
-  if (entry.builder) {
-    params.builder = { b: entry.builder.address, f: entry.builder.feeTenthBps };
-  }
+  const bf = builderField(entry.builder, asset);
+  if (bf && "rejection" in bf) return { ok: false, rejection: bf.rejection };
+  if (bf) params.builder = bf;
   return { ok: true, params, cloid: entryCloid };
 }

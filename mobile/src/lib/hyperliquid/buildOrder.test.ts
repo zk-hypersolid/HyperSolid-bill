@@ -1,5 +1,5 @@
 import { buildOrder, buildBracketOrder } from "./buildOrder";
-import { buildAssetIndex } from "./assetId";
+import { buildAssetIndex, buildSpotAssetIndex } from "./assetId";
 import type { RawMeta } from "./types";
 import { isValidCloid } from "./cloid";
 
@@ -10,6 +10,10 @@ const meta: RawMeta = {
   ],
 };
 const index = buildAssetIndex(meta);
+const spotIndex = buildSpotAssetIndex({
+  universe: [{ name: "PURR/USDC", index: 0, szDecimals: 2 }],
+});
+const BUILDER = ("0x" + "a".repeat(40)) as `0x${string}`;
 
 describe("buildOrder", () => {
   it("builds valid params with resolved asset id and a cloid", () => {
@@ -78,6 +82,44 @@ describe("buildOrder", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.params.builder).toEqual({ b: addr, f: 10 });
+  });
+
+  it("accepts a perp builder fee at the 0.1% cap (100 tenth-bps)", () => {
+    const r = buildOrder(
+      { coin: "BTC", side: "buy", size: 0.01, price: 60000, builder: { address: BUILDER, feeTenthBps: 100 } },
+      index,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.params.builder).toEqual({ b: BUILDER, f: 100 });
+  });
+
+  it("rejects a perp builder fee above the 0.1% cap", () => {
+    const r = buildOrder(
+      { coin: "BTC", side: "buy", size: 0.01, price: 60000, builder: { address: BUILDER, feeTenthBps: 101 } },
+      index,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.rejection).toBe("builderFeeRejected");
+  });
+
+  it("allows a higher builder fee on spot (1% cap = 1000 tenth-bps)", () => {
+    const r = buildOrder(
+      { coin: "PURR/USDC", side: "buy", size: 50, price: 1, builder: { address: BUILDER, feeTenthBps: 1000 } },
+      spotIndex,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.params.builder).toEqual({ b: BUILDER, f: 1000 });
+
+    const over = buildOrder(
+      { coin: "PURR/USDC", side: "buy", size: 50, price: 1, builder: { address: BUILDER, feeTenthBps: 1001 } },
+      spotIndex,
+    );
+    expect(over.ok).toBe(false);
+    if (over.ok) return;
+    expect(over.rejection).toBe("builderFeeRejected");
   });
 
   it("formats price and size to asset precision", () => {

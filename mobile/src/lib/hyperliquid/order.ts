@@ -78,6 +78,7 @@ export const REJECTION_MESSAGES: Record<string, string> = {
   badTriggerPxRejected: "触发价位于错误一侧",
   iocCancelRejected: "IOC 订单未成交被取消",
   oracleRejected: "价格偏离预言机过大",
+  builderFeeRejected: "Builder 返佣费率超出上限（perps 0.1% / spot 1%）",
   unknownAsset: "未找到该交易对（asset 未知）",
 };
 

@@ -172,6 +172,12 @@ export interface PositionsSubsLike {
   allMids(listener: (data: { mids: Mids }) => void): Promise<Subscription>;
 }
 
+/** Injectable fills (trade history) info surface. */
+export interface FillsInfoLike {
+  userFills(address: string): Promise<RawUserFill[]>;
+  userFillsByTime(address: string, startTime: number, endTime: number): Promise<RawUserFill[]>;
+}
+
 // ---- User history: raw shapes (mirror @nktkas/hyperliquid commonSchemas) ----
 export interface RawUserFill {
   coin: string;

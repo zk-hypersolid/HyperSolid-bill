@@ -80,10 +80,10 @@
 - [x] 订阅句柄可注入可测，**绝不触真网**。
 - [x] 测试覆盖：live 推送更新、snapshot 不重复累计、unsubscribe、mark 合并。
 
-### - [ ] 单元 5：成交历史服务（`userFills`）
+### - [x] 单元 5：成交历史服务（`userFills`）
 
-- [ ] `userFills` 归一化 + 分页/去重(tid) + `builderFee` 字段；注入式。
-- [ ] 测试覆盖：分页拼接、tid 去重、builderFee 解析、按时间排序。
+- [x] `userFills` 归一化 + 分页/去重(tid) + `builderFee` 字段；注入式。
+- [x] 测试覆盖：分页拼接、tid 去重、builderFee 解析、按时间排序。
 
 ### - [ ] 单元 6：挂单 + 订单历史（`openOrders` / `orderUpdates`）
 
@@ -141,3 +141,4 @@
 - 2026-06-22 · 单元 2（mark 价 PnL 语义）· +10（291→301）· 新增 markPnl.ts 纯函数：unrealizedPnlFromMark（long (mark-entry)*size / short (entry-mark)*size，**用 mark 非 last-trade**）、distanceToLiqPct、roePct（DRY 替代 PositionRow 内联 ROE）、marginRatioPct（账户级）、applyMarks（按 marks 重算每仓 uPnl+positionValue 与账户 totalUnrealizedPnl/totalNtlPos，缺/非法 mark 回退快照值，接受 string|number marks）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 3：资金费（oracle 价）」开始。
 - 2026-06-22 · 单元 3（资金费 oracle 价）· +6（301→307）· 新增 funding.ts 纯函数：aggregateFundingByCoin（按 coin 聚合 net/paid/received/count，按 |net| 降序）、totalFunding（净额）、fundingSince（时间窗净额）；usdc 为 oracle 结算签名值，**不混用 mark 价**。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 4：实时持仓服务加固」开始。
 - 2026-06-22 · 单元 4（实时持仓服务加固）· +5（307→312）· types.ts 加 PositionsSubsLike/ClearinghouseStateEvent；positionsData.ts 新增 subscribeLive（注入式订阅 clearinghouseState + allMids，经 applyMarks mark 合并；保留 one-shot loadPortfolio）。clearinghouseState 为 replace-state，**重连快照重放不重复计**（已测）；订阅句柄可注入、全 fake 测试、绝不触真网；60s ping/keepalive 由 @nktkas WebSocketTransport 负责（非本服务）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 5：成交历史服务」开始。
+- 2026-06-22 · 单元 5（成交历史服务）· +4（312→316）· types.ts 加 FillsInfoLike；history.ts 加 mergeFills（跨页按 tid 去重 + newest first）；新增 services/fillsData.ts FillsService（loadRecent 复用 normalizeFills 去重 tid+builderFee；loadBefore 经 userFillsByTime 分页）；注入式，字段对照 @nktkas userFills/userFillsByTime。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 6：挂单 + 订单历史」开始。

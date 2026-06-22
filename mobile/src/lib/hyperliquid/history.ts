@@ -39,6 +39,18 @@ export function normalizeFills(raw: RawUserFill[]): Fill[] {
   return out.sort((a, b) => b.time - a.time);
 }
 
+/** Merge fill pages, de-duplicating by `tid`, newest first (pagination). */
+export function mergeFills(existing: Fill[], incoming: Fill[]): Fill[] {
+  const seen = new Set(existing.map((f) => f.tid));
+  const merged = [...existing];
+  for (const f of incoming) {
+    if (seen.has(f.tid)) continue;
+    seen.add(f.tid);
+    merged.push(f);
+  }
+  return merged.sort((a, b) => b.time - a.time);
+}
+
 /** Normalize userFundings (flatten the `delta`), newest first. usdc is signed (negative = paid). */
 export function normalizeFundings(raw: RawFunding[]): FundingEvent[] {
   return raw

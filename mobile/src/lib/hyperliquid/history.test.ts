@@ -1,4 +1,4 @@
-import { normalizeFills, normalizeFundings, normalizeOpenOrders } from "./history";
+import { normalizeFills, normalizeFundings, normalizeOpenOrders, mergeFills } from "./history";
 import type { RawUserFill, RawFunding, RawOpenOrder } from "./types";
 
 const fill = (over: Partial<RawUserFill>): RawUserFill => ({
@@ -46,6 +46,20 @@ describe("normalizeFills (userFills)", () => {
 
   it("handles empty input", () => {
     expect(normalizeFills([])).toEqual([]);
+  });
+});
+
+describe("mergeFills (cross-page pagination dedup)", () => {
+  it("merges pages, dedupes by tid, keeps newest first", () => {
+    const page1 = normalizeFills([fill({ tid: 3, time: 300 }), fill({ tid: 2, time: 200 })]);
+    const page2 = normalizeFills([fill({ tid: 2, time: 200 }), fill({ tid: 1, time: 100 })]); // tid 2 overlaps
+    const merged = mergeFills(page1, page2);
+    expect(merged.map((f) => f.tid)).toEqual([3, 2, 1]);
+  });
+
+  it("returns existing unchanged when incoming is empty", () => {
+    const page1 = normalizeFills([fill({ tid: 1, time: 100 })]);
+    expect(mergeFills(page1, []).map((f) => f.tid)).toEqual([1]);
   });
 });
 

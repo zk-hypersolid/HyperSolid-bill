@@ -112,11 +112,11 @@
 - [x] 错误用归一化中文提示；精度/名义违规即时反馈。
 - [x] 测试：未解锁不可提交、拒绝码中文展示、成功提示。
 
-### - [ ] 单元 10：全局收尾验证
+### - [x] 单元 10：全局收尾验证
 
-- [ ] 全量 `tsc --noEmit` + `jest` 收口。
-- [ ] 全仓 grep：改动源无 emoji、无硬编码十六进制色（UI 文件）。
-- [ ] 对照 spec §4.2-4.4/§6.2/§7 逐项自检（编码字段、精度、拒绝码、cloid 对账、gotchas、builder）。
+- [x] 全量 `tsc --noEmit` + `jest` 收口。
+- [x] 全仓 grep：改动源无 emoji、无硬编码十六进制色（UI 文件）。
+- [x] 对照 spec §4.2-4.4/§6.2/§7 逐项自检（编码字段、精度、拒绝码、cloid 对账、gotchas、builder）。
 
 ---
 
@@ -157,3 +157,4 @@
 - 2026-06-22 · 单元 7（撤改单 gotchas）· +10（260→270）· 新增 cancel.ts：buildCancel({a,o})、buildCancelByCloid（**字段名 asset 非 a**，断言 "a" 不在）、buildModify（{oid,order}，复用 buildOrder 做 DRY 校验/编码，oid 支持 number 或 cloid）；IntentLedger 新增 markCanceled（撤/改后置 canceled，单调不覆盖 filled/已终态）。字段名全部对照本地 @nktkas valibot schema 核对。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 8：ExchangeService 编排加固」开始。
 - 2026-06-22 · 单元 8（ExchangeService 编排加固）· +6（270→276）· ExchangeService 注入 IntentLedger（默认内存）；placeOrder 串起 buildOrder(精度/asset/builder) → ledger.open(pending,签名前) → markSubmitted → client.order → normalizeOrderStatus → reconcile，shouldSubmit 去重重试同 cloid（client.order 仅一次）；OrderRequest 加可选 cloid（重试复用）；新增 cancelOrderByCloid/modifyOrder（复用 Unit7 builders）+ cancelOrder 经 getByOid 对账 markCanceled；ExchangeLike 加 cancelByCloid/modify。全注入、绝不触真网。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 9：TradeScreen 接入加固层」开始。
 - 2026-06-22 · 单元 9（TradeScreen 接入加固层）· +4（276→280）· 修复下单前校验提示用 rejectionMessage 归一化中文（原直接显示拒绝码）；成功提示消费 res.status?.message（状态码）+ res.cloid；下单门禁要求 mode==="local" && wallet 存在（会话已解锁）；Field/提交按钮加 testID 便于交互测试；新增测试：未解锁不可提交（placeOrder 不被调用）、精度拒绝码中文展示、成功/失败中文提示。tsc 零错、jest 全绿、TradeScreen 无 emoji/硬编码色（全走 theme）。下一轮从「单元 10：收尾验证」开始。
+- 2026-06-22 · 单元 10（全局收尾验证）· 0（280）· 全量 tsc 零错 + jest 280/280（54 套件）；全仓 grep 改动源 emoji/硬编码色均 CLEAN（UI 全走 theme）；对照 spec §4.2-4.4/§6.2/§7 逐项自检通过（精度三件套/编码字段/拒绝码中文/cloid 对账/cancelByCloid asset gotcha/builder 上限）；核对真 @nktkas ExchangeClient 暴露 order/cancel/cancelByCloid/modify/updateLeverage，cast 运行期安全。**Phase 3 交易核心加固全 10 单元闭环完成。**

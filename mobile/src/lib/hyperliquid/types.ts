@@ -158,3 +158,118 @@ export interface PortfolioSnapshot {
 export interface PositionsInfoLike {
   clearinghouseState(address: string): Promise<RawClearinghouseState>;
 }
+
+/** WS clearinghouseState event (replace-state; reconnect snapshots simply re-replace). */
+export interface ClearinghouseStateEvent {
+  clearinghouseState: RawClearinghouseState;
+}
+/** Injectable user-position subscription surface. clearinghouseState carries HL's authoritative
+ *  MARK-based PnL (§4.5), so the live path consumes it directly (replace-state, snapshot-safe). */
+export interface PositionsSubsLike {
+  clearinghouseState(
+    address: string,
+    listener: (e: ClearinghouseStateEvent) => void,
+  ): Promise<Subscription>;
+}
+
+/** Injectable fills (trade history) info surface. */
+export interface FillsInfoLike {
+  userFills(address: string): Promise<RawUserFill[]>;
+  userFillsByTime(address: string, startTime: number, endTime: number): Promise<RawUserFill[]>;
+}
+
+/** Injectable open-orders info surface. */
+export interface OrdersInfoLike {
+  openOrders(address: string): Promise<RawOpenOrder[]>;
+}
+
+/** Injectable funding-history info surface. */
+export interface FundingsInfoLike {
+  userFunding(address: string, startTime: number, endTime?: number): Promise<RawFunding[]>;
+}
+
+// ---- User history: raw shapes (mirror @nktkas/hyperliquid commonSchemas) ----
+export interface RawUserFill {
+  coin: string;
+  px: string;
+  sz: string;
+  side: "B" | "A"; // B = buy, A = sell
+  time: number;
+  startPosition: string;
+  dir: string; // frontend direction label, e.g. "Open Long"
+  closedPnl: string;
+  hash: `0x${string}`;
+  oid: number;
+  crossed: boolean;
+  fee: string; // negative = rebate
+  builderFee?: string;
+  tid: number; // unique partial-fill id (dedup key)
+  feeToken: string;
+  twapId: number | null;
+}
+export interface RawFundingDelta {
+  type: "funding";
+  coin: string;
+  usdc: string; // signed; negative = paid
+  szi: string;
+  fundingRate: string;
+  nSamples: number | null;
+}
+export interface RawFunding {
+  time: number;
+  hash: `0x${string}`;
+  delta: RawFundingDelta;
+}
+export interface RawOpenOrder {
+  coin: string;
+  side: "B" | "A";
+  limitPx: string;
+  sz: string; // remaining size
+  oid: number;
+  timestamp: number;
+  origSz: string;
+  cloid?: `0x${string}`;
+  reduceOnly?: true;
+}
+export interface RawOrderUpdate {
+  order: RawOpenOrder;
+  status: string; // open/filled/canceled/triggered/rejected/marginCanceled/...
+  statusTimestamp: number;
+}
+
+// ---- User history: normalized model ----
+export interface Fill {
+  coin: string;
+  px: number;
+  sz: number;
+  side: "buy" | "sell";
+  time: number;
+  closedPnl: number;
+  dir: string;
+  fee: number;
+  builderFee: number; // 0 when absent
+  feeToken: string;
+  oid: number;
+  tid: number;
+  hash: string;
+  crossed: boolean;
+}
+export interface FundingEvent {
+  coin: string;
+  time: number;
+  usdc: number; // signed; negative = paid
+  szi: number;
+  fundingRate: number;
+  hash: string;
+}
+export interface OpenOrder {
+  coin: string;
+  side: "buy" | "sell";
+  limitPx: number;
+  sz: number;
+  origSz: number;
+  oid: number;
+  timestamp: number;
+  cloid: string | null;
+  reduceOnly: boolean;
+}

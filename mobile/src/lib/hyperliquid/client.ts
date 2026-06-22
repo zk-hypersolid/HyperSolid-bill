@@ -7,7 +7,7 @@ import {
 } from "@nktkas/hyperliquid";
 import type { Network } from "../../state/envStore";
 import { resolveIsTestnet } from "./network";
-import type { DetailInfoLike, DetailSubsLike, InfoLike, PositionsInfoLike, SubsLike } from "./types";
+import type { DetailInfoLike, DetailSubsLike, InfoLike, PositionsInfoLike, SubsLike, FillsInfoLike, OrdersInfoLike, FundingsInfoLike } from "./types";
 import type { ExchangeLike } from "../../services/exchange";
 
 export function createInfoClient(network: Network): InfoLike {
@@ -58,6 +58,43 @@ export function createPositionsInfoClient(network: Network): PositionsInfoLike {
   };
   return {
     clearinghouseState: (address) => info.clearinghouseState({ user: address }) as never,
+  };
+}
+
+export function createFillsInfoClient(network: Network): FillsInfoLike {
+  const info = new InfoClient({
+    transport: new HttpTransport({ isTestnet: resolveIsTestnet(network) }),
+  }) as unknown as {
+    userFills(args: { user: string }): Promise<unknown>;
+    userFillsByTime(args: { user: string; startTime: number; endTime: number }): Promise<unknown>;
+  };
+  return {
+    userFills: (address) => info.userFills({ user: address }) as never,
+    userFillsByTime: (address, startTime, endTime) =>
+      info.userFillsByTime({ user: address, startTime, endTime }) as never,
+  };
+}
+
+export function createOrdersInfoClient(network: Network): OrdersInfoLike {
+  const info = new InfoClient({
+    transport: new HttpTransport({ isTestnet: resolveIsTestnet(network) }),
+  }) as unknown as {
+    openOrders(args: { user: string }): Promise<unknown>;
+  };
+  return {
+    openOrders: (address) => info.openOrders({ user: address }) as never,
+  };
+}
+
+export function createFundingsInfoClient(network: Network): FundingsInfoLike {
+  const info = new InfoClient({
+    transport: new HttpTransport({ isTestnet: resolveIsTestnet(network) }),
+  }) as unknown as {
+    userFunding(args: { user: string; startTime: number; endTime?: number }): Promise<unknown>;
+  };
+  return {
+    userFunding: (address, startTime, endTime) =>
+      info.userFunding({ user: address, startTime, endTime }) as never,
   };
 }
 

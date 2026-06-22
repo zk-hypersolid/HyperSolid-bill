@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, TextInput, Alert } from "react-native";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
@@ -6,12 +6,24 @@ import { useEnvStore } from "../state/envStore";
 import { WalletManager } from "../wallet/walletManager";
 import { SecureStoreKeyStore } from "../wallet/secureKeyStore";
 import { isValidAddress } from "../hooks/useViewOnlyPortfolio";
+import { PositionsService } from "../services/positionsData";
+import { FundingsService } from "../services/fundingsData";
+import { createPositionsInfoClient, createFundingsInfoClient } from "../lib/hyperliquid/client";
+import { marginRatioPct } from "../lib/hyperliquid/markPnl";
+import { totalFunding } from "../lib/hyperliquid/funding";
+import { formatCompact } from "../lib/hyperliquid/format";
 import { Icon } from "../components/Icon";
 import { ScreenScaffold } from "../components/ScreenScaffold";
 import { Pill } from "../components/Pill";
 import { SectionLabel } from "../components/SectionLabel";
+import type { AccountSummary } from "../lib/hyperliquid/types";
 
-export function AccountScreen() {
+export interface AccountScreenDeps {
+  positions: PositionsService;
+  fundings: FundingsService;
+}
+
+export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   const theme = useTheme();
   const mode = useWalletStore((s) => s.mode);
   const address = useWalletStore((s) => s.address);
@@ -22,10 +34,41 @@ export function AccountScreen() {
   const toggleNetwork = useEnvStore((s) => s.toggleNetwork);
   const manager = useMemo(() => new WalletManager(new SecureStoreKeyStore()), []);
 
+  const services = useMemo<AccountScreenDeps>(
+    () =>
+      deps ?? {
+        positions: new PositionsService(createPositionsInfoClient(network)),
+        fundings: new FundingsService(createFundingsInfoClient(network)),
+      },
+    [deps, network],
+  );
+
   const [busy, setBusy] = useState(false);
   const [mnemonicInput, setMnemonicInput] = useState("");
   const [addrInput, setAddrInput] = useState("");
   const [newMnemonic, setNewMnemonic] = useState<string | null>(null);
+  const [summary, setSummary] = useState<AccountSummary | null>(null);
+  const [fundingTotal, setFundingTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (mode === "none" || !address || !isValidAddress(address)) {
+      setSummary(null);
+      setFundingTotal(null);
+      return;
+    }
+    let active = true;
+    services.positions
+      .loadPortfolio(address)
+      .then((p) => active && setSummary(p.summary))
+      .catch(() => active && setSummary(null));
+    services.fundings
+      .load(address, 0)
+      .then((f) => active && setFundingTotal(totalFunding(f)))
+      .catch(() => active && setFundingTotal(null));
+    return () => {
+      active = false;
+    };
+  }, [mode, address, services]);
 
   async function onCreate() {
     setBusy(true);
@@ -83,6 +126,41 @@ export function AccountScreen() {
             {address}
           </Text>
         </View>
+
+        {summary ? (
+          <View style={[styles.card, { borderColor: theme.line }]}>
+            <Text style={[styles.cardTitle, { color: theme.muted }]}>账户摘要</Text>
+            <View style={styles.metricRow}>
+              <Metric label="账户权益" value={`$${formatCompact(summary.accountValue)}`} theme={theme} />
+              <Metric label="可提现" value={`$${formatCompact(summary.withdrawable)}`} theme={theme} />
+              <Metric
+                label="保证金率"
+                value={(() => {
+                  const r = marginRatioPct(summary.accountValue, summary.totalMarginUsed);
+                  return r === null ? "—" : `${r.toFixed(1)}%`;
+                })()}
+                theme={theme}
+              />
+            </View>
+          </View>
+        ) : null}
+
+        {fundingTotal !== null ? (
+          <View style={[styles.card, { borderColor: theme.line }]}>
+            <Text style={[styles.cardTitle, { color: theme.muted }]}>资金费</Text>
+            <View style={styles.fundingRow}>
+              <Text style={[styles.label, { color: theme.muted }]}>累计资金费</Text>
+              <Text
+                style={[styles.value, { color: fundingTotal <= 0 ? theme.down : theme.up }]}
+              >
+                {`${fundingTotal >= 0 ? "+" : ""}${fundingTotal.toFixed(2)} USDC`}
+              </Text>
+            </View>
+            <Text style={[styles.fundingHint, { color: theme.muted }]}>
+              负值为已付资金费（oracle 价结算）
+            </Text>
+          </View>
+        ) : null}
 
         {newMnemonic ? (
           <View style={[styles.card, { borderColor: theme.brand }]}>
@@ -160,9 +238,33 @@ export function AccountScreen() {
   );
 }
 
+function Metric({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: { muted: string; text: string };
+}) {
+  return (
+    <View style={styles.metricCell}>
+      <Text style={[styles.metricLabel, { color: theme.muted }]}>{label}</Text>
+      <Text style={[styles.metricValue, { color: theme.text }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   subtitle: { fontSize: 13, marginBottom: 18 },
   card: { borderWidth: 1, borderRadius: 10, padding: 14, marginBottom: 12 },
+  cardTitle: { fontSize: 11, marginBottom: 10, fontWeight: "700" },
+  metricRow: { flexDirection: "row" },
+  metricCell: { flex: 1 },
+  metricLabel: { fontSize: 10, marginBottom: 3 },
+  metricValue: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  fundingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  fundingHint: { fontSize: 11, marginTop: 6 },
   label: { fontSize: 11, marginBottom: 4 },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
   warnRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },

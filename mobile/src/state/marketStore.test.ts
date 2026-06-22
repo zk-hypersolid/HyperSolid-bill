@@ -2,7 +2,7 @@ import { useMarketStore } from "./marketStore";
 import type { MarketTicker } from "../lib/hyperliquid/types";
 
 const tickers: MarketTicker[] = [
-  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 9, maxLeverage: 50 },
+  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 9, maxLeverage: 50, szDecimals: 5 },
 ];
 
 describe("marketStore", () => {

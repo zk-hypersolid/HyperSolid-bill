@@ -30,7 +30,7 @@ export function TradeScreen() {
   const index = useMemo(() => {
     if (tickers.length === 0) return null;
     return buildAssetIndex({
-      universe: tickers.map((t) => ({ name: t.coin, szDecimals: 2, maxLeverage: t.maxLeverage })),
+      universe: tickers.map((t) => ({ name: t.coin, szDecimals: t.szDecimals, maxLeverage: t.maxLeverage })),
     });
   }, [tickers]);
 

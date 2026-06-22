@@ -26,6 +26,7 @@ export interface MarketTicker {
   funding: number;
   dayNtlVlm: number;
   maxLeverage: number;
+  szDecimals: number;
 }
 
 // Subscription handle returned by the SDK.

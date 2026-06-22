@@ -7,7 +7,7 @@ import type { MarketTicker } from "../lib/hyperliquid/types";
 const t = themes.electrum;
 const up: MarketTicker = {
   coin: "BTC", midPx: 62481.5, prevDayPx: 61000, changePct: 2.43,
-  funding: 0.0001, dayNtlVlm: 1.2e9, maxLeverage: 50,
+  funding: 0.0001, dayNtlVlm: 1.2e9, maxLeverage: 50, szDecimals: 5,
 };
 const down: MarketTicker = { ...up, coin: "ETH", changePct: -0.86 };
 

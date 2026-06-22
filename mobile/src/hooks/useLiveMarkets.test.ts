@@ -5,7 +5,7 @@ import type { MarketDataService } from "../services/marketData";
 import type { MarketTicker, Mids, Subscription } from "../lib/hyperliquid/types";
 
 const tickers: MarketTicker[] = [
-  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 1, maxLeverage: 50 },
+  { coin: "BTC", midPx: 100, prevDayPx: 100, changePct: 0, funding: 0, dayNtlVlm: 1, maxLeverage: 50, szDecimals: 5 },
 ];
 
 function fakeService(midsToPush?: Mids) {

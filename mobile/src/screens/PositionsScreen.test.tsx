@@ -1,10 +1,39 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import { PositionsScreen } from "./PositionsScreen";
 import { useEnvStore } from "../state/envStore";
+import { useWalletStore } from "../state/walletStore";
+import type { PositionsService } from "../services/positionsData";
+import type { FillsService } from "../services/fillsData";
+import type { OrdersService } from "../services/ordersData";
+import type { PortfolioSnapshot, Fill, OpenOrder } from "../lib/hyperliquid/types";
+
+const ADDR = "0x" + "a".repeat(40);
+
+const portfolio: PortfolioSnapshot = {
+  summary: { accountValue: 1000, totalNtlPos: 500, totalMarginUsed: 100, withdrawable: 800, totalUnrealizedPnl: 50 },
+  positions: [
+    { coin: "BTC", size: 0.5, side: "long", entryPx: 60000, positionValue: 31000, unrealizedPnl: 50, liquidationPx: 45000, marginUsed: 60, leverage: 10 },
+  ],
+};
+const fills: Fill[] = [
+  { coin: "ETH", px: 3000, sz: 1, side: "buy", time: 1000, closedPnl: 0, dir: "Open Long", fee: 0.3, builderFee: 0, feeToken: "USDC", oid: 1, tid: 9, hash: "0x", crossed: true },
+];
+const orders: OpenOrder[] = [
+  { coin: "SOL", side: "sell", limitPx: 200, sz: 2, origSz: 2, oid: 7, timestamp: 1000, cloid: null, reduceOnly: false },
+];
+
+const fakeDeps = {
+  positions: { loadPortfolio: jest.fn(async () => portfolio) } as unknown as PositionsService,
+  fills: { loadRecent: jest.fn(async () => fills) } as unknown as FillsService,
+  orders: { loadOpenOrders: jest.fn(async () => orders) } as unknown as OrdersService,
+};
 
 describe("PositionsScreen", () => {
-  beforeEach(() => useEnvStore.setState({ network: "mainnet" }));
+  beforeEach(() => {
+    useEnvStore.setState({ network: "mainnet" });
+    useWalletStore.setState({ mode: "none", wallet: null, address: null });
+  });
 
   it("renders the phosphor chrome, view-only banner and query control", () => {
     render(<PositionsScreen />);
@@ -16,9 +45,36 @@ describe("PositionsScreen", () => {
   });
 
   it("shows a format error for an invalid address without hitting the network", () => {
-    render(<PositionsScreen />);
+    render(<PositionsScreen deps={fakeDeps} />);
     fireEvent.changeText(screen.getByPlaceholderText("0x… 钱包地址"), "not-an-address");
     fireEvent.press(screen.getByText("查询"));
     expect(screen.getByText(/地址格式无效/)).toBeTruthy();
+    expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
+    expect(fakeDeps.fills.loadRecent).not.toHaveBeenCalled();
+  });
+
+  it("prefills the connected wallet address (own address, read-only)", () => {
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={fakeDeps} />);
+    expect(screen.getByDisplayValue(ADDR)).toBeTruthy();
+  });
+
+  it("loads positions/fills/orders on query and switches tabs", async () => {
+    render(<PositionsScreen deps={fakeDeps} />);
+    fireEvent.changeText(screen.getByPlaceholderText("0x… 钱包地址"), ADDR);
+    fireEvent.press(screen.getByText("查询"));
+
+    // positions tab (default) shows the position + summary
+    await waitFor(() => expect(screen.getByText(/BTC/)).toBeTruthy());
+    expect(fakeDeps.fills.loadRecent).toHaveBeenCalledWith(ADDR);
+    expect(fakeDeps.orders.loadOpenOrders).toHaveBeenCalledWith(ADDR);
+
+    // switch to 成交 (fills)
+    fireEvent.press(screen.getByText("成交"));
+    expect(screen.getByText(/ETH/)).toBeTruthy();
+
+    // switch to 订单 (orders)
+    fireEvent.press(screen.getByText("订单"));
+    expect(screen.getByText(/挂单 2\/2/)).toBeTruthy();
   });
 });

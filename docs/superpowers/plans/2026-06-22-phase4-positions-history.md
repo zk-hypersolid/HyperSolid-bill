@@ -90,11 +90,11 @@
 - [x] 归一化 openOrders / orderUpdates；**只读消费** Phase 3 cloid 账本对账（不改账本写入路径）。
 - [x] 测试覆盖：归一化字段、状态映射复用 normalizeOrderStatus、与 cloid 关联（只读）。
 
-### - [ ] 单元 7：PositionsScreen 接入实时层
+### - [x] 单元 7：PositionsScreen 接入实时层
 
-- [ ] 实时 PnL(mark) / 资金费 / 成交·订单 tab；保留 view-only 零私钥预览。
-- [ ] 连接钱包后默认本人地址（只读，不需签名）；错误归一化中文。
-- [ ] 测试：view-only 预览仍可用、实时数据渲染、tab 切换、本人地址自动填充。
+- [x] 实时 PnL(mark) / 资金费 / 成交·订单 tab；保留 view-only 零私钥预览。
+- [x] 连接钱包后默认本人地址（只读，不需签名）；错误归一化中文。
+- [x] 测试：view-only 预览仍可用、实时数据渲染、tab 切换、本人地址自动填充。
 
 ### - [ ] 单元 8：AccountScreen 账户摘要 + 资金费历史
 
@@ -143,3 +143,4 @@
 - 2026-06-22 · 单元 4（实时持仓服务加固）· +5（307→312）· types.ts 加 PositionsSubsLike/ClearinghouseStateEvent；positionsData.ts 新增 subscribeLive（注入式订阅 clearinghouseState + allMids，经 applyMarks mark 合并；保留 one-shot loadPortfolio）。clearinghouseState 为 replace-state，**重连快照重放不重复计**（已测）；订阅句柄可注入、全 fake 测试、绝不触真网；60s ping/keepalive 由 @nktkas WebSocketTransport 负责（非本服务）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 5：成交历史服务」开始。
 - 2026-06-22 · 单元 5（成交历史服务）· +4（312→316）· types.ts 加 FillsInfoLike；history.ts 加 mergeFills（跨页按 tid 去重 + newest first）；新增 services/fillsData.ts FillsService（loadRecent 复用 normalizeFills 去重 tid+builderFee；loadBefore 经 userFillsByTime 分页）；注入式，字段对照 @nktkas userFills/userFillsByTime。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 6：挂单 + 订单历史」开始。
 - 2026-06-22 · 单元 6（挂单 + 订单历史）· +4（316→320）· types.ts 加 RawOrderUpdate；history.ts 加 normalizeOrderUpdates（复用 normalizeOpenOrders + **DRY 复用 Phase 3 normalizeOrderStatus** 映射 status→{kind,中文}）+ reconcileOpenOrders（经结构化 IntentLookup **只读消费** cloid 账本，annotate tracked/intentStatus）。git 确认 intentLedger/exchange/buildOrder 未改（只读消费）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 7：PositionsScreen 接入实时层」开始。
+- 2026-06-22 · 单元 7（PositionsScreen 接入实时层）· +3（320→323）· PositionsScreen 重构：可注入 deps（PositionsService/FillsService/OrdersService，默认工厂构造）+ 3 tab（持仓/成交/订单）+ 连接钱包自动填本人地址 + 只读查询（loadPortfolio/loadRecent/loadOpenOrders，无签名）；新增 OrdersService(ordersData.ts) + types OrdersInfoLike + client 工厂 createFillsInfoClient/createOrdersInfoClient；FillRow/OrderRow 全走 theme。资金费聚合显示归入单元 8（AccountScreen 资金费历史入口）；live WS subscribeLive 已就绪但 view-only 用 one-shot（避免测试开 socket）。tsc 零错、jest 全绿、UI 无 emoji/硬编码色。下一轮从「单元 8：AccountScreen」开始。

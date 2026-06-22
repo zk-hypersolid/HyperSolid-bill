@@ -178,6 +178,11 @@ export interface FillsInfoLike {
   userFillsByTime(address: string, startTime: number, endTime: number): Promise<RawUserFill[]>;
 }
 
+/** Injectable open-orders info surface. */
+export interface OrdersInfoLike {
+  openOrders(address: string): Promise<RawOpenOrder[]>;
+}
+
 // ---- User history: raw shapes (mirror @nktkas/hyperliquid commonSchemas) ----
 export interface RawUserFill {
   coin: string;

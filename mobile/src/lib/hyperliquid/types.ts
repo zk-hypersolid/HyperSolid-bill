@@ -183,6 +183,11 @@ export interface OrdersInfoLike {
   openOrders(address: string): Promise<RawOpenOrder[]>;
 }
 
+/** Injectable funding-history info surface. */
+export interface FundingsInfoLike {
+  userFunding(address: string, startTime: number, endTime?: number): Promise<RawFunding[]>;
+}
+
 // ---- User history: raw shapes (mirror @nktkas/hyperliquid commonSchemas) ----
 export interface RawUserFill {
   coin: string;

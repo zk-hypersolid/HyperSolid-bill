@@ -7,7 +7,7 @@ import {
 } from "@nktkas/hyperliquid";
 import type { Network } from "../../state/envStore";
 import { resolveIsTestnet } from "./network";
-import type { DetailInfoLike, DetailSubsLike, InfoLike, PositionsInfoLike, SubsLike, FillsInfoLike, OrdersInfoLike } from "./types";
+import type { DetailInfoLike, DetailSubsLike, InfoLike, PositionsInfoLike, SubsLike, FillsInfoLike, OrdersInfoLike, FundingsInfoLike } from "./types";
 import type { ExchangeLike } from "../../services/exchange";
 
 export function createInfoClient(network: Network): InfoLike {
@@ -83,6 +83,18 @@ export function createOrdersInfoClient(network: Network): OrdersInfoLike {
   };
   return {
     openOrders: (address) => info.openOrders({ user: address }) as never,
+  };
+}
+
+export function createFundingsInfoClient(network: Network): FundingsInfoLike {
+  const info = new InfoClient({
+    transport: new HttpTransport({ isTestnet: resolveIsTestnet(network) }),
+  }) as unknown as {
+    userFunding(args: { user: string; startTime: number; endTime?: number }): Promise<unknown>;
+  };
+  return {
+    userFunding: (address, startTime, endTime) =>
+      info.userFunding({ user: address, startTime, endTime }) as never,
   };
 }
 

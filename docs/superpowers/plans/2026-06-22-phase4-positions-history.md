@@ -96,10 +96,10 @@
 - [x] 连接钱包后默认本人地址（只读，不需签名）；错误归一化中文。
 - [x] 测试：view-only 预览仍可用、实时数据渲染、tab 切换、本人地址自动填充。
 
-### - [ ] 单元 8：AccountScreen 账户摘要 + 资金费历史
+### - [x] 单元 8：AccountScreen 账户摘要 + 资金费历史
 
-- [ ] 账户摘要（accountValue / withdrawable / 保证金率）+ 资金费历史入口；归一化中文。
-- [ ] 测试：摘要渲染、保证金率显示、资金费入口、view-only/local 分支。
+- [x] 账户摘要（accountValue / withdrawable / 保证金率）+ 资金费历史入口；归一化中文。
+- [x] 测试：摘要渲染、保证金率显示、资金费入口、view-only/local 分支。
 
 ### - [ ] 单元 9：全局收尾验证
 
@@ -144,3 +144,4 @@
 - 2026-06-22 · 单元 5（成交历史服务）· +4（312→316）· types.ts 加 FillsInfoLike；history.ts 加 mergeFills（跨页按 tid 去重 + newest first）；新增 services/fillsData.ts FillsService（loadRecent 复用 normalizeFills 去重 tid+builderFee；loadBefore 经 userFillsByTime 分页）；注入式，字段对照 @nktkas userFills/userFillsByTime。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 6：挂单 + 订单历史」开始。
 - 2026-06-22 · 单元 6（挂单 + 订单历史）· +4（316→320）· types.ts 加 RawOrderUpdate；history.ts 加 normalizeOrderUpdates（复用 normalizeOpenOrders + **DRY 复用 Phase 3 normalizeOrderStatus** 映射 status→{kind,中文}）+ reconcileOpenOrders（经结构化 IntentLookup **只读消费** cloid 账本，annotate tracked/intentStatus）。git 确认 intentLedger/exchange/buildOrder 未改（只读消费）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 7：PositionsScreen 接入实时层」开始。
 - 2026-06-22 · 单元 7（PositionsScreen 接入实时层）· +3（320→323）· PositionsScreen 重构：可注入 deps（PositionsService/FillsService/OrdersService，默认工厂构造）+ 3 tab（持仓/成交/订单）+ 连接钱包自动填本人地址 + 只读查询（loadPortfolio/loadRecent/loadOpenOrders，无签名）；新增 OrdersService(ordersData.ts) + types OrdersInfoLike + client 工厂 createFillsInfoClient/createOrdersInfoClient；FillRow/OrderRow 全走 theme。资金费聚合显示归入单元 8（AccountScreen 资金费历史入口）；live WS subscribeLive 已就绪但 view-only 用 one-shot（避免测试开 socket）。tsc 零错、jest 全绿、UI 无 emoji/硬编码色。下一轮从「单元 8：AccountScreen」开始。
+- 2026-06-22 · 单元 8（AccountScreen 账户摘要 + 资金费历史）· +4（323→327）· AccountScreen 可注入 deps（PositionsService/FundingsService，默认工厂）；连接钱包（有效地址）useEffect 一次性加载 → 账户摘要卡（账户权益/可提现/保证金率，复用 markPnl.marginRatioPct）+ 资金费卡（累计资金费，复用 funding.totalFunding + FundingsService 归一化 userFunding）；invalid 地址（如 0xabc）不加载，归一化中文。新增 services/fundingsData.ts + types FundingsInfoLike + client createFundingsInfoClient。tsc 零错、jest 全绿、UI 无 emoji/硬编码色。下一轮从「单元 9：全局收尾验证」开始。

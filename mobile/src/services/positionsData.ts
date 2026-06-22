@@ -1,12 +1,10 @@
 import type {
-  Mids,
   PortfolioSnapshot,
   PositionsInfoLike,
   PositionsSubsLike,
   Subscription,
 } from "../lib/hyperliquid/types";
 import { normalizePortfolio } from "../lib/hyperliquid/positions";
-import { applyMarks } from "../lib/hyperliquid/markPnl";
 
 export class PositionsService {
   constructor(
@@ -20,10 +18,10 @@ export class PositionsService {
   }
 
   /**
-   * Live portfolio: clearinghouseState (replace-state, snapshot-safe) merged with allMids marks
-   * via applyMarks (mark-priced PnL, §4.5). Reconnect snapshots simply re-replace state and are
-   * never double-counted (§4.6). Transport-level 60s ping/keepalive is the @nktkas
-   * WebSocketTransport's responsibility, not this service.
+   * Live portfolio via the clearinghouseState subscription. Each event carries HL's authoritative
+   * MARK-based unrealizedPnl / positionValue (§4.5 — mark, never last trade), updated ~3s. It is
+   * replace-state, so reconnect snapshots simply re-replace and are never double-counted (§4.6).
+   * Transport-level 60s ping/keepalive is the @nktkas WebSocketTransport's responsibility.
    */
   async subscribeLive(
     address: string,
@@ -32,26 +30,8 @@ export class PositionsService {
     if (!this.subs) {
       throw new Error("PositionsService: no subscription client injected");
     }
-    let snapshot: PortfolioSnapshot | null = null;
-    let marks: Mids = {};
-    const emit = () => {
-      if (snapshot) onUpdate(applyMarks(snapshot, marks));
-    };
-
-    const subState = await this.subs.clearinghouseState(address, (e) => {
-      snapshot = normalizePortfolio(e.clearinghouseState);
-      emit();
+    return this.subs.clearinghouseState(address, (e) => {
+      onUpdate(normalizePortfolio(e.clearinghouseState));
     });
-    const subMids = await this.subs.allMids((d) => {
-      marks = d.mids;
-      emit();
-    });
-
-    return {
-      unsubscribe: async () => {
-        await subState.unsubscribe();
-        await subMids.unsubscribe();
-      },
-    };
   }
 }

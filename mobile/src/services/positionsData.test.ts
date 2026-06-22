@@ -4,7 +4,6 @@ import type {
   PositionsSubsLike,
   RawClearinghouseState,
   PortfolioSnapshot,
-  Mids,
   Subscription,
 } from "../lib/hyperliquid/types";
 
@@ -32,20 +31,13 @@ class FakeInfo implements PositionsInfoLike {
 }
 
 type ChListener = (e: { clearinghouseState: RawClearinghouseState }) => void;
-type MidsListener = (d: { mids: Mids }) => void;
 
 class FakeSubs implements PositionsSubsLike {
   chListener?: ChListener;
-  midsListener?: MidsListener;
   unsubCh = jest.fn(async () => {});
-  unsubMids = jest.fn(async () => {});
   clearinghouseState = jest.fn(async (_a: string, l: ChListener): Promise<Subscription> => {
     this.chListener = l;
     return { unsubscribe: this.unsubCh };
-  });
-  allMids = jest.fn(async (l: MidsListener): Promise<Subscription> => {
-    this.midsListener = l;
-    return { unsubscribe: this.unsubMids };
   });
 }
 
@@ -61,7 +53,7 @@ describe("PositionsService", () => {
 });
 
 describe("PositionsService.subscribeLive", () => {
-  it("emits a normalized portfolio on each clearinghouseState event", async () => {
+  it("emits the clearinghouseState portfolio (authoritative MARK-based PnL) on each event", async () => {
     const subs = new FakeSubs();
     const svc = new PositionsService(new FakeInfo(), subs);
     const updates: PortfolioSnapshot[] = [];
@@ -71,22 +63,8 @@ describe("PositionsService.subscribeLive", () => {
     subs.chListener!({ clearinghouseState: raw });
     expect(updates).toHaveLength(1);
     expect(updates[0].positions[0].coin).toBe("BTC");
-  });
-
-  it("merges allMids marks (mark-priced PnL) once a snapshot exists", async () => {
-    const subs = new FakeSubs();
-    const svc = new PositionsService(new FakeInfo(), subs);
-    const updates: PortfolioSnapshot[] = [];
-    await svc.subscribeLive("0xabc", (p) => updates.push(p));
-
-    // marks before any snapshot -> no emit
-    subs.midsListener!({ mids: { BTC: "64000" } });
-    expect(updates).toHaveLength(0);
-
-    subs.chListener!({ clearinghouseState: raw }); // emit with current marks
-    const last = updates[updates.length - 1];
-    expect(last.positions[0].unrealizedPnl).toBe(2000); // (64000-60000)*0.5
-    expect(last.positions[0].positionValue).toBe(32000);
+    // mark-based unrealizedPnl comes straight from HL's clearinghouseState (not recomputed from mids)
+    expect(updates[0].positions[0].unrealizedPnl).toBe(1000);
   });
 
   it("does NOT double-count on snapshot replay (replace-state, §4.6)", async () => {
@@ -101,13 +79,12 @@ describe("PositionsService.subscribeLive", () => {
     expect(last.summary.totalUnrealizedPnl).toBe(1000); // not doubled to 2000
   });
 
-  it("unsubscribes both feeds", async () => {
+  it("unsubscribes the feed", async () => {
     const subs = new FakeSubs();
     const svc = new PositionsService(new FakeInfo(), subs);
     const handle = await svc.subscribeLive("0xabc", () => {});
     await handle.unsubscribe();
     expect(subs.unsubCh).toHaveBeenCalled();
-    expect(subs.unsubMids).toHaveBeenCalled();
   });
 
   it("throws if no subscription client was injected", async () => {

@@ -35,9 +35,11 @@ function markOf(marks: Record<string, string | number>, coin: string): number | 
 }
 
 /**
- * Re-price a portfolio against live MARK prices (allMids/markPx). Recomputes each position's
- * unrealizedPnl + positionValue from mark (never last trade) and the account's totalUnrealizedPnl
- * + totalNtlPos. Positions without a (valid, positive) mark keep their snapshot values.
+ * Re-price a portfolio against live MARK prices (e.g. assetCtxs `markPx` — NOT allMids mids).
+ * Recomputes each position's unrealizedPnl + positionValue from mark (never last trade) and the
+ * account's totalUnrealizedPnl + totalNtlPos. Positions without a (valid, positive) mark keep their
+ * snapshot values. Utility for re-pricing view-only snapshots; the live subscription path instead
+ * consumes clearinghouseState's authoritative mark-based PnL directly.
  */
 export function applyMarks(
   snapshot: PortfolioSnapshot,

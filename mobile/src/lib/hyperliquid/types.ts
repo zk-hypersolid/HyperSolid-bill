@@ -163,13 +163,13 @@ export interface PositionsInfoLike {
 export interface ClearinghouseStateEvent {
   clearinghouseState: RawClearinghouseState;
 }
-/** Injectable user-position subscription surface (clearinghouseState + allMids marks). */
+/** Injectable user-position subscription surface. clearinghouseState carries HL's authoritative
+ *  MARK-based PnL (§4.5), so the live path consumes it directly (replace-state, snapshot-safe). */
 export interface PositionsSubsLike {
   clearinghouseState(
     address: string,
     listener: (e: ClearinghouseStateEvent) => void,
   ): Promise<Subscription>;
-  allMids(listener: (data: { mids: Mids }) => void): Promise<Subscription>;
 }
 
 /** Injectable fills (trade history) info surface. */

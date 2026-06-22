@@ -101,11 +101,11 @@
 - [x] 账户摘要（accountValue / withdrawable / 保证金率）+ 资金费历史入口；归一化中文。
 - [x] 测试：摘要渲染、保证金率显示、资金费入口、view-only/local 分支。
 
-### - [ ] 单元 9：全局收尾验证
+### - [x] 单元 9：全局收尾验证
 
-- [ ] 全量 `tsc --noEmit` + `jest` 收口。
-- [ ] 全仓 grep：改动源无 emoji、无硬编码十六进制色（UI 文件）。
-- [ ] 对照 spec §3.1 / §4.5 / §4.6 / §4.7 逐项自检（价格语义、WS 纪律、user feed 字段、去重、view-only）。
+- [x] 全量 `tsc --noEmit` + `jest` 收口。
+- [x] 全仓 grep：改动源无 emoji、无硬编码十六进制色（UI 文件）。
+- [x] 对照 spec §3.1 / §4.5 / §4.6 / §4.7 逐项自检（价格语义、WS 纪律、user feed 字段、去重、view-only）。
 
 ---
 
@@ -145,3 +145,4 @@
 - 2026-06-22 · 单元 6（挂单 + 订单历史）· +4（316→320）· types.ts 加 RawOrderUpdate；history.ts 加 normalizeOrderUpdates（复用 normalizeOpenOrders + **DRY 复用 Phase 3 normalizeOrderStatus** 映射 status→{kind,中文}）+ reconcileOpenOrders（经结构化 IntentLookup **只读消费** cloid 账本，annotate tracked/intentStatus）。git 确认 intentLedger/exchange/buildOrder 未改（只读消费）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 7：PositionsScreen 接入实时层」开始。
 - 2026-06-22 · 单元 7（PositionsScreen 接入实时层）· +3（320→323）· PositionsScreen 重构：可注入 deps（PositionsService/FillsService/OrdersService，默认工厂构造）+ 3 tab（持仓/成交/订单）+ 连接钱包自动填本人地址 + 只读查询（loadPortfolio/loadRecent/loadOpenOrders，无签名）；新增 OrdersService(ordersData.ts) + types OrdersInfoLike + client 工厂 createFillsInfoClient/createOrdersInfoClient；FillRow/OrderRow 全走 theme。资金费聚合显示归入单元 8（AccountScreen 资金费历史入口）；live WS subscribeLive 已就绪但 view-only 用 one-shot（避免测试开 socket）。tsc 零错、jest 全绿、UI 无 emoji/硬编码色。下一轮从「单元 8：AccountScreen」开始。
 - 2026-06-22 · 单元 8（AccountScreen 账户摘要 + 资金费历史）· +4（323→327）· AccountScreen 可注入 deps（PositionsService/FundingsService，默认工厂）；连接钱包（有效地址）useEffect 一次性加载 → 账户摘要卡（账户权益/可提现/保证金率，复用 markPnl.marginRatioPct）+ 资金费卡（累计资金费，复用 funding.totalFunding + FundingsService 归一化 userFunding）；invalid 地址（如 0xabc）不加载，归一化中文。新增 services/fundingsData.ts + types FundingsInfoLike + client createFundingsInfoClient。tsc 零错、jest 全绿、UI 无 emoji/硬编码色。下一轮从「单元 9：全局收尾验证」开始。
+- 2026-06-22 · 单元 9（全局收尾验证）· 0（327）· 全量 tsc 零错 + jest 327/327（60 套件）；全仓 grep 改动源 emoji/硬编码色均 CLEAN（UI 全走 theme）；git diff 确认改动仅 lib/services/UI，**未触碰 Phase 2 安全层与 Phase 3 交易核心**；对照 spec §3.1/§4.5/§4.6/§4.7 逐项自检通过（mark PnL/oracle funding/replace-state 快照安全/view-only/本人地址直连）。**Phase 4 持仓与历史全 9 单元闭环完成。**

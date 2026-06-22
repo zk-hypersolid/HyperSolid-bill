@@ -69,11 +69,11 @@
 - [x] 未知 coin 返回 `null`；大小写/symbol 归一。
 - [x] 测试覆盖 perp、spot（+10000）、未知。
 
-### - [ ] 单元 3：状态码映射（`order.ts`）
+### - [x] 单元 3：状态码映射（`order.ts`）
 
-- [ ] 补全全套拒绝码常量（tickRejected/minTradeNtlRejected/perpMarginRejected/badAloPxRejected/badTriggerPxRejected/oracleRejected…）→ 中文。
-- [ ] 新增纯函数：从 HL response `status`（含 resting/filled/error 形态）解析归一化为 `{ kind, message }`。
-- [ ] 测试覆盖各拒绝码 → 中文、未知码兜底、成功态。
+- [x] 补全全套拒绝码常量（tickRejected/minTradeNtlRejected/perpMarginRejected/badAloPxRejected/badTriggerPxRejected/oracleRejected…）→ 中文。
+- [x] 新增纯函数：从 HL response `status`（含 resting/filled/error 形态）解析归一化为 `{ kind, message }`。
+- [x] 测试覆盖各拒绝码 → 中文、未知码兜底、成功态。
 
 ### - [ ] 单元 4：cloid 幂等 + 意图账本
 
@@ -150,3 +150,4 @@
 - 2026-06-22 · 单元 0（计划创建）· — · 建立可重入计划与 10 单元拆分，下一轮从「单元 1：精度校验加固」开始。
 - 2026-06-22 · 单元 1（精度校验加固）· +3（193→196）· formatPrice 新增 MarketKind(perp/spot) 支持 spot 8 位小数上限 + clamp，补边界测试；tsc 零错、jest 全绿、order.ts 无 emoji/硬编码色。下一轮从「单元 2：asset-id 解析」开始。
 - 2026-06-22 · 单元 2（asset-id 解析）· +7（196→203）· 新增 buildSpotAssetIndex（spot 资产 id = 10000 + spotInfo.index，按官方文档用显式 index 字段而非数组下标）+ SPOT_ASSET_ID_OFFSET 常量；perp/spot 解析均 case-insensitive、未知 coin 返回 null；DRY 抽出 makeAssetIndex/normalizeCoin 复用。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 3：状态码映射」开始。
+- 2026-06-22 · 单元 3（状态码映射）· +27（203→230）· 补全 STATUS_MESSAGES（open/filled/canceled/triggered/marginCanceled/reduceOnlyCanceled/siblingFilledCanceled/scheduledCancel/openInterestCapCanceled/liquidatedCanceled）+ REJECTION_MESSAGES 补 unknownAsset；新增纯函数 normalizeOrderStatus 解析官方 status 形态（resting/filled/error/waitingForFill/waitingForTrigger + bare 字符串）→ {kind,message,code?,oid?,cloid?,totalSz?,avgPx?}，error 串内嵌码与 $10 英文短语均可归一。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。下一轮从「单元 4：cloid 幂等 + 意图账本」开始。

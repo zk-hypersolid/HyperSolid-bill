@@ -158,3 +158,84 @@ export interface PortfolioSnapshot {
 export interface PositionsInfoLike {
   clearinghouseState(address: string): Promise<RawClearinghouseState>;
 }
+
+// ---- User history: raw shapes (mirror @nktkas/hyperliquid commonSchemas) ----
+export interface RawUserFill {
+  coin: string;
+  px: string;
+  sz: string;
+  side: "B" | "A"; // B = buy, A = sell
+  time: number;
+  startPosition: string;
+  dir: string; // frontend direction label, e.g. "Open Long"
+  closedPnl: string;
+  hash: `0x${string}`;
+  oid: number;
+  crossed: boolean;
+  fee: string; // negative = rebate
+  builderFee?: string;
+  tid: number; // unique partial-fill id (dedup key)
+  feeToken: string;
+  twapId: number | null;
+}
+export interface RawFundingDelta {
+  type: "funding";
+  coin: string;
+  usdc: string; // signed; negative = paid
+  szi: string;
+  fundingRate: string;
+  nSamples: number | null;
+}
+export interface RawFunding {
+  time: number;
+  hash: `0x${string}`;
+  delta: RawFundingDelta;
+}
+export interface RawOpenOrder {
+  coin: string;
+  side: "B" | "A";
+  limitPx: string;
+  sz: string; // remaining size
+  oid: number;
+  timestamp: number;
+  origSz: string;
+  cloid?: `0x${string}`;
+  reduceOnly?: true;
+}
+
+// ---- User history: normalized model ----
+export interface Fill {
+  coin: string;
+  px: number;
+  sz: number;
+  side: "buy" | "sell";
+  time: number;
+  closedPnl: number;
+  dir: string;
+  fee: number;
+  builderFee: number; // 0 when absent
+  feeToken: string;
+  oid: number;
+  tid: number;
+  hash: string;
+  crossed: boolean;
+}
+export interface FundingEvent {
+  coin: string;
+  time: number;
+  usdc: number; // signed; negative = paid
+  szi: number;
+  fundingRate: number;
+  hash: string;
+}
+export interface OpenOrder {
+  coin: string;
+  side: "buy" | "sell";
+  limitPx: number;
+  sz: number;
+  origSz: number;
+  oid: number;
+  timestamp: number;
+  cloid: string | null;
+  reduceOnly: boolean;
+}

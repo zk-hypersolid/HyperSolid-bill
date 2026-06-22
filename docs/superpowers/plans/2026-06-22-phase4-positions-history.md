@@ -55,11 +55,11 @@
 
 ## 单元清单（按顺序执行）
 
-### - [ ] 单元 1：用户级原始类型 + 归一化器（`types.ts` + 新归一化模块）
+### - [x] 单元 1：用户级原始类型 + 归一化器（`types.ts` + 新归一化模块）
 
-- [ ] 新增 Raw 类型：RawUserFill / RawFunding / RawOpenOrder / RawOrderUpdate（字段对照 @nktkas SDK schema）。
-- [ ] 归一化纯函数：→ `Fill[]` / `FundingEvent[]` / `OpenOrder[]`；fill 按 `tid` 去重、order 按 `oid` 去重。
-- [ ] 测试覆盖：字段映射、去重、空输入、方向(B/A)与符号。
+- [x] 新增 Raw 类型：RawUserFill / RawFunding / RawOpenOrder（字段对照 @nktkas SDK schema）。
+- [x] 归一化纯函数：→ `Fill[]` / `FundingEvent[]` / `OpenOrder[]`；fill 按 `tid` 去重、order 按 `oid` 去重。
+- [x] 测试覆盖：字段映射、去重、空输入、方向(B/A)与符号。
 
 ### - [ ] 单元 2：mark 价 PnL 语义（`positions.ts`，§4.5）
 
@@ -137,3 +137,4 @@
 > 每完成一个单元追加一行：`YYYY-MM-DD · 单元 N · 测试数 · 一句话结论`
 
 - 2026-06-22 · 单元 0（计划创建）· — · 建立可重入计划与 9 单元拆分（只读消费链路），下一轮从「单元 1：用户级原始类型 + 归一化器」开始。
+- 2026-06-22 · 单元 1（用户级原始类型 + 归一化器）· +8（283→291）· types.ts 新增 RawUserFill/RawFunding/RawOpenOrder + 归一化 Fill/FundingEvent/OpenOrder（字段对照本地 @nktkas commonSchemas：UserFillSchema/UserFundingResponse/OpenOrderSchema）；新增 history.ts（normalizeFills 按 tid 去重+newest first+side B/A→buy/sell+builderFee 缺省 0；normalizeFundings 展开 delta+signed usdc；normalizeOpenOrders 按 oid 去重+cloid null/reduceOnly false 缺省）。tsc 零错、jest 全绿、改动文件无 emoji/硬编码色。RawOrderUpdate/orderUpdates 归入单元 6。下一轮从「单元 2：mark 价 PnL 语义」开始。

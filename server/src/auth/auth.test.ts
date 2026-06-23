@@ -48,4 +48,20 @@ describe("Auth", () => {
     const signature = await account.signMessage({ message: nonce });
     await expect(auth.session(OWNER, nonce, signature, 60_001)).rejects.toThrow(/nonce/i);
   });
+
+  it("sweeps expired pending nonces so the pending map stays bounded", () => {
+    const auth = makeAuth();
+    for (let i = 0; i < 5; i++) auth.challenge(`0xowner${i}`, 0);
+    expect(auth.pendingCount()).toBe(5);
+    // a new challenge after the TTL prunes all the stale ones, leaving only the fresh one
+    auth.challenge(OWNER, 60_001);
+    expect(auth.pendingCount()).toBe(1);
+  });
+
+  it("does not sweep a still-valid pending nonce", () => {
+    const auth = makeAuth();
+    auth.challenge("0xa", 0);
+    auth.challenge("0xb", 30_000); // still valid at 30_000 (ttl 60_000)
+    expect(auth.pendingCount()).toBe(2);
+  });
 });

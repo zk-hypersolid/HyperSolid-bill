@@ -41,6 +41,7 @@ export class Auth {
   }
 
   challenge(owner: string, now: number): { nonce: string } {
+    this.sweep(now);
     const nonce = `HyperSolid strategy login: ${this.genNonce()}`;
     this.pending.set(this.key(owner, nonce), { owner: owner.toLowerCase(), nonce, expiresAt: now + this.nonceTtlMs });
     return { nonce };
@@ -65,6 +66,18 @@ export class Auth {
 
   verify(token: string, now: number): string | null {
     return verifyToken(token, this.secret, now);
+  }
+
+  /** Number of outstanding (un-consumed) challenges — for tests/observability. */
+  pendingCount(): number {
+    return this.pending.size;
+  }
+
+  /** Drop challenges that have passed their TTL so abandoned ones can't grow the map unbounded. */
+  private sweep(now: number): void {
+    for (const [k, c] of this.pending) {
+      if (c.expiresAt <= now) this.pending.delete(k);
+    }
   }
 
   private key(owner: string, nonce: string): string {

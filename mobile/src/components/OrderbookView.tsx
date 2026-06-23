@@ -17,16 +17,18 @@ export function OrderbookView({ book, theme }: { book: Orderbook; theme: ThemeTo
     return levels.slice(0, 8).map((l, i) => (
       <View key={`${side}-${i}`} style={styles.row}>
         <View style={[styles.depth, { backgroundColor: color, opacity: 0.12, width: `${(l.total / maxTotal) * 100}%` }]} />
-        <Text style={[styles.px, { color }]}>{l.px}</Text>
-        <Text style={[styles.sz, { color: theme.muted }]}>{l.sz}</Text>
+        <Text style={[styles.cell, styles.price, { color }]}>{l.px}</Text>
+        <Text style={[styles.cell, styles.num, { color: theme.text }]}>{l.sz}</Text>
+        <Text style={[styles.cell, styles.num, { color: theme.muted }]}>{l.total}</Text>
       </View>
     ));
   };
   return (
     <View>
       <View style={styles.head}>
-        <Text style={[styles.h, { color: theme.muted }]}>{t("orderbook.price")}</Text>
-        <Text style={[styles.h, { color: theme.muted }]}>{t("orderbook.size")}</Text>
+        <Text style={[styles.h, styles.price, { color: theme.muted }]}>{t("orderbook.price")}</Text>
+        <Text style={[styles.h, styles.num, { color: theme.muted }]}>{t("orderbook.size")}</Text>
+        <Text style={[styles.h, styles.num, { color: theme.muted }]}>{t("orderbook.sum")}</Text>
       </View>
       {rows("ask")}
       <Text style={[styles.spread, { color: theme.text }]}>
@@ -38,11 +40,12 @@ export function OrderbookView({ book, theme }: { book: Orderbook; theme: ThemeTo
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  head: { flexDirection: "row", paddingVertical: 4 },
   h: { fontSize: 10 },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2, position: "relative" },
+  row: { flexDirection: "row", paddingVertical: 2, position: "relative" },
   depth: { position: "absolute", right: 0, top: 0, bottom: 0, borderRadius: 2 },
-  px: { fontSize: 12, fontVariant: ["tabular-nums"] },
-  sz: { fontSize: 12, fontVariant: ["tabular-nums"] },
+  cell: { flex: 1, fontSize: 12, fontVariant: ["tabular-nums"] },
+  price: { flex: 1, textAlign: "left" },
+  num: { flex: 1, textAlign: "right" },
   spread: { fontSize: 11, textAlign: "center", paddingVertical: 5 },
 });

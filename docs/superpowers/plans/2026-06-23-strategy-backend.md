@@ -276,3 +276,19 @@ The tick: for each due strategy, build a cloid, call an injected `placer.place({
 ## Progress
 
 > Append one line per task.
+
+- T1 scaffold — done (commit adee679).
+- T2 pure DCA logic (`dueStrategies`/`nextRunAt`/`dcaOrderSize`) — done (4c66dc9).
+- T3 risk guards (`withinCaps`) — done (4c66dc9).
+- T4 strategy store (`MemoryStrategyStore`) — done (1af5309).
+- T5 idempotent scheduler `tick` + `cloidFor` + `OrderPlacer` — done (1af5309).
+- T6 agent manager (keypair custody/status/expiry/revoke) + HL `makeHlPlacer` + ported `hl/format` — done (a80f327).
+- T7 wallet-signature auth: single-use nonce challenge + viem `verifyMessage` + HMAC bearer token — done (99c2d97).
+- T8 Fastify HTTP contract (auth/agent/strategies/kill-switch, owner from token) + composition root + HL runtime glue — done (4c88234, e24b858).
+- T9 durable `SqliteStrategyStore` (better-sqlite3, WAL) wired as the default store — done (53abdc0).
+
+**Status: backend complete.** 12 jest suites / 43 tests green; `tsc --noEmit` 0; boots on testnet by
+default and serves the App contract (smoke-tested `/auth/challenge` + 401 gating + SQLite file
+creation). Follow-ups (out of this plan): encrypted/persistent agent-key custody (currently in-memory
+`MemoryAgentStore`; expired/missing agents fail closed), real activity persistence (route returns `[]`),
+and per-coin risk caps.

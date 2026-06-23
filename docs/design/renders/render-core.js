@@ -22,7 +22,8 @@ function findChrome() {
   const page = await browser.newPage();
   await page.setViewport({ width: 1320, height: 1000, deviceScaleFactor: 2 });
   await page.goto('file://' + path.join(__dirname, inFile), { waitUntil: 'networkidle0' });
-  await new Promise((r) => setTimeout(r, 700));
+  await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; });
+  await new Promise((r) => setTimeout(r, 900));
   const el = await page.$('.stage');
   await el.screenshot({ path: path.join(__dirname, outFile) });
   await browser.close();

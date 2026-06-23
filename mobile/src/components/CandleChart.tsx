@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import Svg, { Line, Rect } from "react-native-svg";
+import Svg, { Line, Rect, Path } from "react-native-svg";
 import type { Candle } from "../lib/hyperliquid/types";
 import type { ThemeTokens } from "../theme/tokens";
 import { fonts } from "../theme/fonts";
@@ -19,12 +19,14 @@ export function CandleChart({
   currentPrice,
   height = 176,
   axisCount = 4,
+  overlays,
 }: {
   candles: Candle[];
   theme: ThemeTokens;
   currentPrice: number;
   height?: number;
   axisCount?: number;
+  overlays?: Array<{ values: (number | null)[]; color: string }>;
 }) {
   if (candles.length === 0) {
     return <View testID="candle-chart-empty" style={{ height }} />;
@@ -76,6 +78,17 @@ export function CandleChart({
               />
             </React.Fragment>
           );
+        })}
+        {(overlays ?? []).map((o, oi) => {
+          const d = o.values
+            .map((v, i) =>
+              v == null
+                ? null
+                : `${i === 0 || o.values[i - 1] == null ? "M" : "L"}${(i * cw + cw / 2).toFixed(1)} ${y(v).toFixed(1)}`,
+            )
+            .filter(Boolean)
+            .join(" ");
+          return d ? <Path key={`o${oi}`} d={d} fill="none" stroke={o.color} strokeWidth={1.2} /> : null;
         })}
         <Line
           x1={0}

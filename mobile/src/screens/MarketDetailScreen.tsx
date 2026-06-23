@@ -21,6 +21,7 @@ import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { formatCompact, formatFundingPct } from "../lib/hyperliquid/format";
 import { periodReturns } from "../lib/hyperliquid/performance";
+import { sma, ema, bollinger } from "../lib/hyperliquid/indicators";
 
 type Props = NativeStackScreenProps<MarketsStackParamList, "MarketDetail">;
 
@@ -50,6 +51,7 @@ export function MarketDetailScreen({ route, navigation }: Props) {
   // (DetailDataService.loadCandles currently uses a fixed interval — service-layer change).
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1H");
   const [bookTab, setBookTab] = useState<(typeof BOOK_TABS)[number]>("book");
+  const [indicator, setIndicator] = useState<"none" | "MA" | "EMA" | "BOLL">("none");
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -79,6 +81,20 @@ export function MarketDetailScreen({ route, navigation }: Props) {
 
   const price = ticker?.midPx ?? 0;
   const pct = ticker?.changePct ?? 0;
+  const closes = candles.map((c) => c.close);
+  const overlays = (() => {
+    if (indicator === "MA") return [{ values: sma(closes, 7), color: theme.brand }];
+    if (indicator === "EMA") return [{ values: ema(closes, 7), color: theme.brand }];
+    if (indicator === "BOLL") {
+      const b = bollinger(closes, 20, 2);
+      return [
+        { values: b.upper, color: theme.muted },
+        { values: b.mid, color: theme.brand },
+        { values: b.lower, color: theme.muted },
+      ];
+    }
+    return [];
+  })();
   const high24 = candles.length ? Math.max(...candles.map((c) => c.high)) : null;
   const low24 = candles.length ? Math.min(...candles.map((c) => c.low)) : null;
 
@@ -142,7 +158,19 @@ export function MarketDetailScreen({ route, navigation }: Props) {
         ))}
       </View>
 
-      <CandleChart candles={candles} theme={theme} currentPrice={price} />
+      <View style={styles.tfs}>
+        {(["none", "MA", "EMA", "BOLL"] as const).map((ind) => (
+          <Chip
+            key={ind}
+            theme={theme}
+            label={ind === "none" ? "—" : ind}
+            active={indicator === ind}
+            onPress={() => setIndicator(ind)}
+          />
+        ))}
+      </View>
+
+      <CandleChart candles={candles} theme={theme} currentPrice={price} overlays={overlays} />
 
       <MultiPeriodReturns theme={theme} data={perf} />
 

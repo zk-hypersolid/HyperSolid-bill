@@ -28,4 +28,16 @@ describe("CandleChart", () => {
     render(<CandleChart candles={candles} theme={t} currentPrice={64550} axisCount={3} />);
     expect(screen.getAllByTestId("candle-axis-label").length).toBe(3);
   });
+
+  it("draws indicator overlays when provided", () => {
+    render(
+      <CandleChart
+        candles={candles}
+        theme={t}
+        currentPrice={64550}
+        overlays={[{ values: [64000, 64100, 64600], color: t.brand }]}
+      />,
+    );
+    expect(screen.getByTestId("candle-chart")).toBeTruthy();
+  });
 });

@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react-nativ
 import { AccountScreen } from "./AccountScreen";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
+import { useLocaleStore } from "../state/localeStore";
 import { useRuntimeConfigStore } from "../state/runtimeConfigStore";
 import type { PositionsService } from "../services/positionsData";
 import type { FundingsService } from "../services/fundingsData";
@@ -78,6 +79,17 @@ describe("AccountScreen", () => {
     expect(screen.getByText("Withdraw")).toBeTruthy();
     expect(screen.getByText("Sign out / switch wallet")).toBeTruthy();
     expect(screen.getByText("Network")).toBeTruthy();
+  });
+
+  it("shows a Language row that toggles the locale (en <-> zh)", () => {
+    useLocaleStore.setState({ locale: "en" });
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    expect(screen.getByText("Language")).toBeTruthy();
+    expect(screen.getByText("English")).toBeTruthy();
+    fireEvent.press(screen.getByText("English"));
+    expect(screen.getByText("中文")).toBeTruthy();
+    expect(useLocaleStore.getState().locale).toBe("zh");
   });
 
   it("labels the view-only connected state correctly", () => {

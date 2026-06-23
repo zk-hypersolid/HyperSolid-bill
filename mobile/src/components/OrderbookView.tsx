@@ -2,8 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { Orderbook } from "../lib/hyperliquid/types";
 import type { ThemeTokens } from "../theme/tokens";
+import { useT } from "../i18n/useT";
 
 export function OrderbookView({ book, theme }: { book: Orderbook; theme: ThemeTokens }) {
+  const t = useT();
   const maxTotal = Math.max(
     book.bids[book.bids.length - 1]?.total ?? 1,
     book.asks[book.asks.length - 1]?.total ?? 1,
@@ -23,12 +25,12 @@ export function OrderbookView({ book, theme }: { book: Orderbook; theme: ThemeTo
   return (
     <View>
       <View style={styles.head}>
-        <Text style={[styles.h, { color: theme.muted }]}>价格</Text>
-        <Text style={[styles.h, { color: theme.muted }]}>数量</Text>
+        <Text style={[styles.h, { color: theme.muted }]}>{t("orderbook.price")}</Text>
+        <Text style={[styles.h, { color: theme.muted }]}>{t("orderbook.size")}</Text>
       </View>
       {rows("ask")}
       <Text style={[styles.spread, { color: theme.text }]}>
-        价差 {book.spread.toFixed(2)} ({book.spreadPct.toFixed(3)}%)
+        {t("orderbook.spread", { spread: book.spread.toFixed(2), pct: book.spreadPct.toFixed(3) })}
       </Text>
       {rows("bid")}
     </View>

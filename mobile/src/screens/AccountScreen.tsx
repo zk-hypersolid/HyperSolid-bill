@@ -4,6 +4,9 @@ import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import { useThemeStore } from "../state/themeStore";
+import { useLocaleStore } from "../state/localeStore";
+import { useT } from "../i18n/useT";
+import type { Locale } from "../i18n/messages";
 import { WalletManager } from "../wallet/walletManager";
 import { SecureStoreKeyStore } from "../wallet/secureKeyStore";
 import { isValidAddress } from "../hooks/useViewOnlyPortfolio";
@@ -47,6 +50,11 @@ const THEME_LABEL: Record<ThemeName, string> = {
   oscilloscope: "Oscilloscope",
 };
 
+const LOCALE_LABEL: Record<Locale, string> = {
+  en: "English",
+  zh: "中文",
+};
+
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
@@ -63,6 +71,9 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   const toggleNetwork = useEnvStore((s) => s.toggleNetwork);
   const themeName = useThemeStore((s) => s.name);
   const setTheme = useThemeStore((s) => s.setTheme);
+  const locale = useLocaleStore((s) => s.locale);
+  const toggleLocale = useLocaleStore((s) => s.toggleLocale);
+  const t = useT();
   const { count: unconfirmedCount } = useUnconfirmedIntents();
   const manager = useMemo(() => new WalletManager(new SecureStoreKeyStore()), []);
 
@@ -471,6 +482,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
 
         <SettingRow theme={theme} icon="swap" name="Network" value={network} onPress={toggleNetwork} />
         <SettingRow theme={theme} icon="agent" name="Theme" value={THEME_LABEL[themeName]} onPress={cycleTheme} />
+        <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
 
         <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>
           <Text style={[styles.signOutText, { color: theme.down }]}>Sign out / switch wallet</Text>

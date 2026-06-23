@@ -6,6 +6,9 @@ import { useT } from "../i18n/useT";
 
 export function OrderbookView({ book, theme, coin }: { book: Orderbook; theme: ThemeTokens; coin?: string }) {
   const t = useT();
+  // Cumulative totals accumulate floating-point noise (e.g. 18.68313000000000002); round to a clean
+  // 5-decimal display value.
+  const fmt = (n: number) => String(Math.round(n * 1e5) / 1e5);
   const maxTotal = Math.max(
     book.bids[book.bids.length - 1]?.total ?? 1,
     book.asks[book.asks.length - 1]?.total ?? 1,
@@ -18,8 +21,8 @@ export function OrderbookView({ book, theme, coin }: { book: Orderbook; theme: T
       <View key={`${side}-${i}`} style={styles.row}>
         <View style={[styles.depth, { backgroundColor: color, opacity: 0.12, width: `${(l.total / maxTotal) * 100}%` }]} />
         <Text style={[styles.cell, styles.price, { color }]}>{l.px}</Text>
-        <Text style={[styles.cell, styles.num, { color: theme.text }]}>{l.sz}</Text>
-        <Text style={[styles.cell, styles.num, { color: theme.muted }]}>{l.total}</Text>
+        <Text style={[styles.cell, styles.num, { color: theme.text }]}>{fmt(l.sz)}</Text>
+        <Text style={[styles.cell, styles.num, { color: theme.muted }]}>{fmt(l.total)}</Text>
       </View>
     ));
   };

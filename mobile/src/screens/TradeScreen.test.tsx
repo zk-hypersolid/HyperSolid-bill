@@ -18,6 +18,14 @@ jest.mock("../services/exchange", () => ({
 }));
 jest.mock("../lib/hyperliquid/client", () => ({
   createExchangeClient: jest.fn(() => ({})),
+  createPositionsInfoClient: jest.fn(() => ({})),
+}));
+jest.mock("../services/positionsData", () => ({
+  PositionsService: class {
+    async loadPortfolio() {
+      return { summary: { withdrawable: 800 }, positions: [] };
+    }
+  },
 }));
 
 const btc: MarketTicker = {
@@ -272,5 +280,18 @@ describe("TradeScreen", () => {
     expect(arg.entry.coin).toBe("BTC");
     expect(arg.stopLoss.triggerPx).toBe(58000);
     expect(mockPlaceOrder).not.toHaveBeenCalled();
+  });
+
+  it("percent row sets size from available balance × leverage / price", async () => {
+    const VALID = "0x" + "a".repeat(40);
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: VALID });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-price"), "64000");
+    // wait until the balance hook has loaded withdrawable=800
+    await waitFor(() => {
+      fireEvent.press(screen.getByText("50%"));
+      // 0.5 * (800 * 20) / 64000 = 0.125 (default leverage 20)
+      expect(screen.getByTestId("field-size").props.value).toBe("0.125");
+    });
   });
 });

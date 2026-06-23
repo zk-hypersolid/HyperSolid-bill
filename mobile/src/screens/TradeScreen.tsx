@@ -7,13 +7,16 @@ import { useMarketStore } from "../state/marketStore";
 import { useLedgerStore } from "../state/ledgerStore";
 import { useExchangeStore } from "../state/exchangeStore";
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
-import { createExchangeClient } from "../lib/hyperliquid/client";
+import { createExchangeClient, createPositionsInfoClient } from "../lib/hyperliquid/client";
 import { buildAssetIndex } from "../lib/hyperliquid/assetId";
 import { ScreenScaffold } from "../components/ScreenScaffold";
 import { NetworkWarning } from "../components/NetworkWarning";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { Chip } from "../components/Chip";
+import { SizePercentRow } from "../components/SizePercentRow";
+import { PositionsService } from "../services/positionsData";
+import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { Toggle } from "../components/Toggle";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
@@ -47,6 +50,7 @@ export function TradeScreen() {
   const theme = useTheme();
   const mode = useWalletStore((s) => s.mode);
   const wallet = useWalletStore((s) => s.wallet);
+  const walletAddress = useWalletStore((s) => s.address);
   const network = useEnvStore((s) => s.network);
   const tickers = useMarketStore((s) => s.tickers);
   const ledger = useLedgerStore((s) => s.ledger);
@@ -94,6 +98,11 @@ export function TradeScreen() {
   }, [client, index, ledger]);
 
   const notional = (Number(size) || 0) * (Number(price) || 0);
+  const positionsSvc = useMemo(
+    () => new PositionsService(createPositionsInfoClient(network)),
+    [network],
+  );
+  const available = useAvailableBalance(positionsSvc, walletAddress);
   const hasTp = Number(tpPrice) > 0;
   const hasSl = Number(slPrice) > 0;
   const canSubmit =
@@ -289,6 +298,14 @@ export function TradeScreen() {
       <Field label="Symbol" value={coin} onChange={edit(setCoin)} theme={theme} autoCap testID="field-coin" />
       <Field label="Price · USDC" value={price} onChange={edit(setPrice)} theme={theme} keyboard testID="field-price" />
       <Field label={`Size · ${coin.toUpperCase()}`} value={size} onChange={edit(setSize)} theme={theme} keyboard testID="field-size" />
+
+      <SizePercentRow
+        theme={theme}
+        available={available}
+        leverage={leverage}
+        price={Number(price)}
+        onPick={edit(setSize)}
+      />
 
       <Text style={[styles.hint, { color: notional >= 10 ? theme.muted : theme.down }]}>
         Order value ${notional.toFixed(2)} {notional < 10 ? "(min $10)" : ""}

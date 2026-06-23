@@ -1,0 +1,55 @@
+import { ExchangeClient, HttpTransport, InfoClient } from "@nktkas/hyperliquid";
+import { privateKeyToAccount } from "viem/accounts";
+import type { AgentManager } from "./agentManager";
+import type { ExchangeLike } from "./placer";
+import { assetIndexFromMeta, priceFromMids, type PerpMeta } from "./hlMeta";
+
+/**
+ * Build the placer's `clientFor`: an agent-signed HL ExchangeClient per owner, but only while the
+ * owner's agent is approved and unexpired. Clients are cached per owner; the underlying key never
+ * leaves the process. A revoked/expired owner yields `undefined`, so the placer fails closed.
+ */
+export function makeClientFor(
+  agents: AgentManager,
+  transport: HttpTransport,
+  now: () => number,
+): (owner: string) => ExchangeLike | undefined {
+  const cache = new Map<string, ExchangeLike>();
+  return (owner: string) => {
+    if (!agents.status(owner, now()).approved) return undefined;
+    const key = agents.privateKeyFor(owner);
+    if (!key) return undefined;
+    let client = cache.get(owner);
+    if (!client) {
+      const wallet = privateKeyToAccount(key);
+      client = new ExchangeClient({ wallet, transport }) as unknown as ExchangeLike;
+      cache.set(owner, client);
+    }
+    return client;
+  };
+}
+
+/** Asset/price resolvers for the placer, backed by a shared InfoClient (meta cached for `metaTtlMs`). */
+export function makeResolvers(info: InfoClient, metaTtlMs = 60_000, now: () => number = () => Date.now()) {
+  let metaCache: { at: number; meta: PerpMeta } | null = null;
+  const getMeta = async (): Promise<PerpMeta> => {
+    if (!metaCache || now() - metaCache.at > metaTtlMs) {
+      metaCache = { at: now(), meta: (await info.meta()) as unknown as PerpMeta };
+    }
+    return metaCache.meta;
+  };
+  return {
+    resolveAsset: async (coin: string) => assetIndexFromMeta(await getMeta(), coin),
+    resolvePrice: async (coin: string) => priceFromMids((await info.allMids()) as Record<string, string>, coin),
+  };
+}
+
+/** A ready-to-use HttpTransport for the configured network. */
+export function makeTransport(isTestnet: boolean): HttpTransport {
+  return new HttpTransport({ isTestnet });
+}
+
+/** A shared InfoClient for the configured network. */
+export function makeInfoClient(transport: HttpTransport): InfoClient {
+  return new InfoClient({ transport });
+}

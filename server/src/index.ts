@@ -1,1 +1,65 @@
+import { generatePrivateKey } from "viem/accounts";
+import { Auth } from "./auth/auth";
+import { AgentManager, MemoryAgentStore } from "./agent/agentManager";
+import { MemoryStrategyStore, type StrategyStore } from "./strategies/store";
+import { makeClientFor, makeResolvers, makeTransport, makeInfoClient } from "./agent/hlRuntime";
+import { makeHlPlacer } from "./agent/placer";
+import { tick } from "./engine/scheduler";
+import { buildApp } from "./http/app";
+
 export const VERSION = "0.1.0";
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`missing required env: ${name}`);
+  return v;
+}
+
+/**
+ * Composition root: wire auth + agent custody + strategy store + the agent-signed HL placer, start the
+ * scheduler interval, and serve the contract. Secrets come from env (never hard-coded); the network
+ * defaults to testnet so a misconfig can't trade real funds. Run with `ts-node`/compiled `dist`.
+ */
+export async function main(): Promise<void> {
+  const port = Number(process.env.PORT ?? 8787);
+  const isTestnet = process.env.HL_NETWORK !== "mainnet";
+  const authSecret = requireEnv("AUTH_SECRET");
+  const slippageBps = Number(process.env.SLIPPAGE_BPS ?? 50);
+  const maxNotionalUsdc = Number(process.env.MAX_NOTIONAL_USDC ?? 1000);
+  const tickMs = Number(process.env.TICK_MS ?? 60_000);
+
+  const now = () => Date.now();
+  const auth = new Auth({ secret: authSecret });
+  const agents = new AgentManager(new MemoryAgentStore(), generatePrivateKey);
+  const store: StrategyStore = new MemoryStrategyStore(now);
+
+  const transport = makeTransport(isTestnet);
+  const info = makeInfoClient(transport);
+  const placer = makeHlPlacer({
+    clientFor: makeClientFor(agents, transport, now),
+    ...makeResolvers(info, 60_000, now),
+    slippageBps,
+  });
+
+  const killSwitch = process.env.GLOBAL_KILL === "1";
+  const timer = setInterval(() => {
+    void tick(store, placer, { maxNotionalUsdc }, killSwitch, now()).catch((e) =>
+      // eslint-disable-next-line no-console
+      console.error("scheduler tick failed", e),
+    );
+  }, tickMs);
+  timer.unref?.();
+
+  const app = buildApp({ auth, agents, store, now });
+  await app.listen({ port, host: "0.0.0.0" });
+  // eslint-disable-next-line no-console
+  console.log(`strategy backend listening on :${port} (testnet=${isTestnet})`);
+}
+
+if (require.main === module) {
+  main().catch((e) => {
+    // eslint-disable-next-line no-console
+    console.error(e);
+    process.exit(1);
+  });
+}

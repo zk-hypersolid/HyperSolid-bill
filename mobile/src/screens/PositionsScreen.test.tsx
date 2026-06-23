@@ -38,13 +38,11 @@ describe("PositionsScreen", () => {
     useLedgerStore.setState({ ledger: null, scope: null, revision: 0 });
   });
 
-  it("renders the phosphor chrome, view-only banner and query control", () => {
+  it("renders the v8 chrome, view-only banner and query control", () => {
     render(<PositionsScreen />);
-    expect(screen.getByText("HYPERSOLID")).toBeTruthy();
-    expect(screen.getByText("◷ MAINNET")).toBeTruthy();
-    expect(screen.getByText("持仓 Positions")).toBeTruthy();
-    expect(screen.getByText(/view-only 预览/)).toBeTruthy();
-    expect(screen.getByText("查询")).toBeTruthy();
+    expect(screen.getByText("Positions")).toBeTruthy();
+    expect(screen.getByText(/View-only/)).toBeTruthy();
+    expect(screen.getByText("Query")).toBeTruthy();
   });
 
   it("surfaces unconfirmed intents from the persistent ledger as a disclosure-only banner", () => {
@@ -60,8 +58,8 @@ describe("PositionsScreen", () => {
 
   it("shows a format error for an invalid address without hitting the network", () => {
     render(<PositionsScreen deps={fakeDeps} />);
-    fireEvent.changeText(screen.getByPlaceholderText("0x… 钱包地址"), "not-an-address");
-    fireEvent.press(screen.getByText("查询"));
+    fireEvent.changeText(screen.getByPlaceholderText("0x… wallet address"), "not-an-address");
+    fireEvent.press(screen.getByText("Query"));
     expect(screen.getByText(/地址格式无效/)).toBeTruthy();
     expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
     expect(fakeDeps.fills.loadRecent).not.toHaveBeenCalled();
@@ -75,20 +73,20 @@ describe("PositionsScreen", () => {
 
   it("loads positions/fills/orders on query and switches tabs", async () => {
     render(<PositionsScreen deps={fakeDeps} />);
-    fireEvent.changeText(screen.getByPlaceholderText("0x… 钱包地址"), ADDR);
-    fireEvent.press(screen.getByText("查询"));
+    fireEvent.changeText(screen.getByPlaceholderText("0x… wallet address"), ADDR);
+    fireEvent.press(screen.getByText("Query"));
 
     // positions tab (default) shows the position + summary
     await waitFor(() => expect(screen.getByText(/BTC/)).toBeTruthy());
     expect(fakeDeps.fills.loadRecent).toHaveBeenCalledWith(ADDR);
     expect(fakeDeps.orders.loadOpenOrders).toHaveBeenCalledWith(ADDR);
 
-    // switch to 成交 (fills)
-    fireEvent.press(screen.getByText("成交"));
+    // switch to Fills
+    fireEvent.press(screen.getByText(/Fills/));
     expect(screen.getByText(/ETH/)).toBeTruthy();
 
-    // switch to 订单 (orders)
-    fireEvent.press(screen.getByText("订单"));
-    expect(screen.getByText(/挂单 2\/2/)).toBeTruthy();
+    // switch to Orders
+    fireEvent.press(screen.getByText(/Orders/));
+    expect(screen.getByText(/Filled 2\/2/)).toBeTruthy();
   });
 });

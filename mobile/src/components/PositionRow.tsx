@@ -2,47 +2,76 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { Position } from "../lib/hyperliquid/types";
 import type { ThemeTokens } from "../theme/tokens";
-import { formatSignedPct } from "../lib/hyperliquid/format";
+import { SurfaceCard } from "./SurfaceCard";
+import { ChangeText } from "./ChangeText";
+import { formatPrice } from "./PriceText";
+import { fonts } from "../theme/fonts";
+import { withAlpha } from "../theme/color";
 
+/** v8 position card: header (coin · PERP · Long/Short tag · ▲▼ PnL) + Size/Entry/Mark/ROE grid. */
 export function PositionRow({ position, theme }: { position: Position; theme: ThemeTokens }) {
-  const pnlColor = position.unrealizedPnl >= 0 ? theme.up : theme.down;
+  const up = position.unrealizedPnl >= 0;
+  const dir = up ? theme.up : theme.down;
   const sideColor = position.side === "long" ? theme.up : theme.down;
   const roe = position.marginUsed ? (position.unrealizedPnl / position.marginUsed) * 100 : 0;
-  return (
-    <View style={[styles.row, { borderBottomColor: theme.line }]}>
-      <View>
-        <Text style={[styles.coin, { color: theme.text }]}>
-          {position.coin}{" "}
-          <Text style={{ color: sideColor }}>
-            {position.side === "long" ? "多" : "空"} {position.leverage}x
-          </Text>
-        </Text>
-        <Text style={[styles.sub, { color: theme.muted }]}>
-          {`${position.size} @ ${position.entryPx}  强平 ${position.liquidationPx ?? "—"}`}
-        </Text>
-      </View>
-      <View style={styles.right}>
-        <Text style={[styles.pnl, { color: pnlColor }]}>
-          {position.unrealizedPnl >= 0 ? "+" : ""}
-          {position.unrealizedPnl.toFixed(2)}
-        </Text>
-        <Text style={[styles.roe, { color: pnlColor }]}>{formatSignedPct(roe)}</Text>
-      </View>
+  const mark = position.size ? position.positionValue / position.size : 0;
+  const pnl = `${up ? "▲ " : "▼ "}${up ? "+" : ""}${position.unrealizedPnl.toFixed(2)} USDC`;
+
+  const cell = (label: string, value: string, color?: string) => (
+    <View style={styles.cell}>
+      <Text style={[styles.gl, { color: theme.faint }]}>{label}</Text>
+      <Text style={[styles.gv, { color: color ?? theme.text }]}>{value}</Text>
     </View>
+  );
+
+  return (
+    <SurfaceCard theme={theme} rule={false} style={styles.card}>
+      <View style={styles.head}>
+        <Text style={[styles.coin, { color: theme.text }]}>
+          {position.coin}
+          <Text style={[styles.perp, { color: theme.faint }]}> PERP</Text>
+        </Text>
+        <Text
+          style={[
+            styles.tag,
+            { color: sideColor, backgroundColor: withAlpha(sideColor, 0.13) },
+          ]}
+        >
+          {position.side === "long" ? "Long" : "Short"} · {position.leverage}×
+        </Text>
+        <Text style={[styles.pnl, { color: dir }]}>{pnl}</Text>
+      </View>
+      <View style={styles.grid}>
+        {cell("Size", String(position.size))}
+        {cell("Entry", formatPrice(position.entryPx))}
+        {cell("Mark", formatPrice(mark))}
+        <View style={styles.cell}>
+          <Text style={[styles.gl, { color: theme.faint }]}>ROE</Text>
+          <ChangeText theme={theme} value={roe} size={12} showArrow={false} />
+        </View>
+      </View>
+    </SurfaceCard>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+  card: { padding: 14, marginBottom: 10 },
+  head: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  coin: { fontFamily: fonts.display.bold, fontSize: 14 },
+  perp: { fontFamily: fonts.mono.bold, fontSize: 8, letterSpacing: 0.4 },
+  tag: {
+    fontFamily: fonts.mono.bold,
+    fontSize: 9.5,
+    letterSpacing: 0.3,
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: "hidden",
+    marginLeft: 8,
   },
-  coin: { fontSize: 15, fontWeight: "700" },
-  sub: { fontSize: 11, marginTop: 3 },
-  right: { alignItems: "flex-end" },
-  pnl: { fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  roe: { fontSize: 11, marginTop: 2, fontVariant: ["tabular-nums"] },
+  pnl: { fontFamily: fonts.mono.bold, fontSize: 12.5, marginLeft: "auto" },
+  grid: { flexDirection: "row", justifyContent: "space-between" },
+  cell: { flex: 1 },
+  gl: { fontFamily: fonts.body.regular, fontSize: 10, marginBottom: 3 },
+  gv: { fontFamily: fonts.mono.medium, fontSize: 12.5 },
 });

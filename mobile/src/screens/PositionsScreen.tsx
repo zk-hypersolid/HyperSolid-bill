@@ -15,12 +15,15 @@ import { useViewOnlyPortfolio, isValidAddress } from "../hooks/useViewOnlyPortfo
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
 import { PositionRow } from "../components/PositionRow";
 import { ScreenScaffold } from "../components/ScreenScaffold";
-import { Pill } from "../components/Pill";
+import { NetworkWarning } from "../components/NetworkWarning";
+import { SurfaceCard } from "../components/SurfaceCard";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
+import { PriceText, formatPrice } from "../components/PriceText";
 import { Icon } from "../components/Icon";
-import { formatCompact } from "../lib/hyperliquid/format";
+import { fonts } from "../theme/fonts";
+import { withAlpha } from "../theme/color";
 import type { ThemeTokens } from "../theme/tokens";
-import type { Fill, OpenOrder } from "../lib/hyperliquid/types";
+import type { Fill, OpenOrder, AccountSummary } from "../lib/hyperliquid/types";
 
 export interface PositionsScreenDeps {
   positions: PositionsService;
@@ -60,20 +63,20 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
     void services.orders.loadOpenOrders(addr).then(setOrders).catch(() => setOrders([]));
   }, [address, load, services]);
 
-  const pnlColor = (portfolio?.summary.totalUnrealizedPnl ?? 0) >= 0 ? theme.up : theme.down;
+  const tabs: Array<[Tab, string, number]> = [
+    ["positions", "Positions", portfolio?.positions.length ?? 0],
+    ["orders", "Orders", orders.length],
+    ["fills", "Fills", fills.length],
+  ];
 
   return (
-    <ScreenScaffold
-      theme={theme}
-      statusTitle="HYPERSOLID"
-      pill={<Pill theme={theme} label={`◷ ${network.toUpperCase()}`} />}
-      heading="持仓 Positions"
-    >
+    <ScreenScaffold theme={theme} statusTitle="Positions" pill={<NetworkWarning variant="chip" />}>
       <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
       <View style={[styles.banner, { borderColor: theme.line }]}>
-        <Icon name="eye" color={theme.muted} size={16} />
+        <Icon name="eye" color={theme.faint} size={16} />
         <Text style={[styles.bannerText, { color: theme.muted }]}>
-          view-only 预览：输入任意地址查看其持仓（零私钥）。连接钱包后将自动填充本人地址。
+          View-only: enter any address to inspect its positions (zero private keys). Connecting a
+          wallet auto-fills your own address.
         </Text>
       </View>
 
@@ -81,14 +84,14 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
         <TextInput
           value={address}
           onChangeText={setAddress}
-          placeholder="0x… 钱包地址"
-          placeholderTextColor={theme.muted}
+          placeholder="0x… wallet address"
+          placeholderTextColor={theme.faint}
           autoCapitalize="none"
           autoCorrect={false}
           style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
         />
         <Pressable onPress={onQuery} accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.brand }]}>
-          <Text style={[styles.btnText, { color: theme.bg }]}>查询</Text>
+          <Text style={[styles.btnText, { color: theme.bg }]}>Query</Text>
         </Pressable>
       </View>
 
@@ -97,31 +100,26 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
       {portfolio ? (
         <>
-          <View style={[styles.summary, { borderColor: theme.line }]}>
-            <Summary label="账户权益" value={`$${formatCompact(portfolio.summary.accountValue)}`} theme={theme} />
-            <Summary label="可提现" value={`$${formatCompact(portfolio.summary.withdrawable)}`} theme={theme} />
-            <Summary
-              label="未实现盈亏"
-              value={`${portfolio.summary.totalUnrealizedPnl >= 0 ? "+" : ""}${portfolio.summary.totalUnrealizedPnl.toFixed(2)}`}
-              color={pnlColor}
-              theme={theme}
-            />
-          </View>
+          <EquityCard theme={theme} summary={portfolio.summary} />
 
-          <View style={styles.tabs}>
-            {([
-              ["positions", "持仓"],
-              ["fills", "成交"],
-              ["orders", "订单"],
-            ] as [Tab, string][]).map(([key, label]) => (
+          <View style={[styles.tabs, { borderBottomColor: theme.line }]}>
+            {tabs.map(([key, label, n]) => (
               <Pressable
                 key={key}
                 onPress={() => setTab(key)}
                 accessibilityRole="button"
-                style={[styles.tab, { borderBottomColor: tab === key ? theme.brand : "transparent" }]}
+                accessibilityState={{ selected: tab === key }}
               >
-                <Text style={{ color: tab === key ? theme.text : theme.muted, fontWeight: "700", fontSize: 13 }}>
-                  {label}
+                <Text
+                  style={[
+                    styles.tab,
+                    {
+                      color: tab === key ? theme.brand : theme.muted,
+                      borderBottomColor: tab === key ? theme.brand : "transparent",
+                    },
+                  ]}
+                >
+                  {label} · {n}
                 </Text>
               </Pressable>
             ))}
@@ -129,7 +127,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "positions" ? (
             portfolio.positions.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>该地址暂无持仓</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>No open positions for this address</Text>
             ) : (
               portfolio.positions.map((p) => <PositionRow key={p.coin} position={p} theme={theme} />)
             )
@@ -137,7 +135,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "fills" ? (
             fills.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>暂无成交</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>No recent fills</Text>
             ) : (
               fills.map((f) => <FillRow key={`${f.tid}`} fill={f} theme={theme} />)
             )
@@ -145,7 +143,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "orders" ? (
             orders.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>暂无挂单</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>No open orders</Text>
             ) : (
               orders.map((o) => <OrderRow key={`${o.oid}`} order={o} theme={theme} />)
             )
@@ -156,19 +154,79 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
   );
 }
 
+function EquityCard({ theme, summary }: { theme: ThemeTokens; summary: AccountSummary }) {
+  const up = summary.totalUnrealizedPnl >= 0;
+  const marginRatio = summary.accountValue ? (summary.totalMarginUsed / summary.accountValue) * 100 : 0;
+  const fill = Math.max(2, Math.min(100, marginRatio));
+  const healthColor = marginRatio < 50 ? theme.up : marginRatio < 80 ? theme.warn : theme.down;
+  const healthLabel = marginRatio < 50 ? "Healthy" : marginRatio < 80 ? "Caution" : "At risk";
+
+  return (
+    <SurfaceCard theme={theme} style={styles.eqCard}>
+      <View style={styles.eqTop}>
+        <Text style={[styles.eqLabel, { color: theme.muted }]}>Equity · USDC</Text>
+        <Text style={[styles.eqPill, { color: theme.brand, borderColor: theme.lineStrong }]}>Cross</Text>
+      </View>
+      <PriceText value={summary.accountValue} color={theme.text} size={28} glow glowColor={theme.glow} />
+
+      <View style={styles.eqRow}>
+        <EqCell theme={theme} label="Available" value={formatPrice(summary.withdrawable)} />
+        <EqCell
+          theme={theme}
+          label="Unrealized PnL"
+          value={`${up ? "▲ +" : "▼ "}${summary.totalUnrealizedPnl.toFixed(2)}`}
+          color={up ? theme.up : theme.down}
+        />
+        <EqCell theme={theme} label="Margin ratio" value={`${marginRatio.toFixed(1)}%`} />
+      </View>
+
+      <View style={styles.health}>
+        <View style={[styles.healthBar, { backgroundColor: withAlpha(healthColor, 0.18) }]}>
+          <View style={[styles.healthFill, { width: `${fill}%`, backgroundColor: healthColor }]} />
+        </View>
+        <View style={styles.healthRow}>
+          <Text style={[styles.healthLabel, { color: theme.muted }]}>Account health</Text>
+          <Text style={[styles.healthLabel, { color: healthColor }]}>
+            {healthLabel} · {marginRatio.toFixed(1)}% margin
+          </Text>
+        </View>
+      </View>
+    </SurfaceCard>
+  );
+}
+
+function EqCell({
+  theme,
+  label,
+  value,
+  color,
+}: {
+  theme: ThemeTokens;
+  label: string;
+  value: string;
+  color?: string;
+}) {
+  return (
+    <View style={styles.eqCell}>
+      <Text style={[styles.eqCellLabel, { color: theme.faint }]}>{label}</Text>
+      <Text style={[styles.eqCellValue, { color: color ?? theme.text }]}>{value}</Text>
+    </View>
+  );
+}
+
 function FillRow({ fill, theme }: { fill: Fill; theme: ThemeTokens }) {
   const sideColor = fill.side === "buy" ? theme.up : theme.down;
   return (
     <View style={[styles.row, { borderBottomColor: theme.line }]}>
       <View>
         <Text style={[styles.rowCoin, { color: theme.text }]}>
-          {fill.coin} <Text style={{ color: sideColor }}>{fill.side === "buy" ? "买" : "卖"}</Text>
+          {fill.coin} <Text style={{ color: sideColor }}>{fill.side === "buy" ? "Buy" : "Sell"}</Text>
         </Text>
         <Text style={[styles.rowSub, { color: theme.muted }]}>{fill.dir}</Text>
       </View>
       <View style={styles.right}>
         <Text style={[styles.rowVal, { color: theme.text }]}>{`${fill.sz} @ ${fill.px}`}</Text>
-        <Text style={[styles.rowSub, { color: theme.muted }]}>{`费 ${fill.fee} ${fill.feeToken}`}</Text>
+        <Text style={[styles.rowSub, { color: theme.muted }]}>{`fee ${fill.fee} ${fill.feeToken}`}</Text>
       </View>
     </View>
   );
@@ -180,10 +238,10 @@ function OrderRow({ order, theme }: { order: OpenOrder; theme: ThemeTokens }) {
     <View style={[styles.row, { borderBottomColor: theme.line }]}>
       <View>
         <Text style={[styles.rowCoin, { color: theme.text }]}>
-          {order.coin} <Text style={{ color: sideColor }}>{order.side === "buy" ? "买" : "卖"}</Text>
-          {order.reduceOnly ? <Text style={{ color: theme.muted }}> 只减仓</Text> : null}
+          {order.coin} <Text style={{ color: sideColor }}>{order.side === "buy" ? "Buy" : "Sell"}</Text>
+          {order.reduceOnly ? <Text style={{ color: theme.muted }}> Reduce-only</Text> : null}
         </Text>
-        <Text style={[styles.rowSub, { color: theme.muted }]}>{`挂单 ${order.sz}/${order.origSz}`}</Text>
+        <Text style={[styles.rowSub, { color: theme.muted }]}>{`Filled ${order.sz}/${order.origSz}`}</Text>
       </View>
       <View style={styles.right}>
         <Text style={[styles.rowVal, { color: theme.text }]}>{order.limitPx}</Text>
@@ -192,42 +250,32 @@ function OrderRow({ order, theme }: { order: OpenOrder; theme: ThemeTokens }) {
   );
 }
 
-function Summary({
-  label,
-  value,
-  color,
-  theme,
-}: {
-  label: string;
-  value: string;
-  color?: string;
-  theme: { muted: string; text: string };
-}) {
-  return (
-    <View style={styles.summaryCell}>
-      <Text style={[styles.summaryLabel, { color: theme.muted }]}>{label}</Text>
-      <Text style={[styles.summaryValue, { color: color ?? theme.text }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  banner: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 12 },
-  bannerText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  banner: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12 },
+  bannerText: { flex: 1, fontFamily: fonts.body.regular, fontSize: 12, lineHeight: 18 },
   inputRow: { flexDirection: "row", gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
-  btn: { paddingHorizontal: 18, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  btnText: { fontSize: 14, fontWeight: "700" },
-  msg: { fontSize: 13, marginTop: 14 },
-  summary: { flexDirection: "row", borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 16, marginBottom: 8 },
-  summaryCell: { flex: 1 },
-  summaryLabel: { fontSize: 10, marginBottom: 3 },
-  summaryValue: { fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  tabs: { flexDirection: "row", gap: 18, marginTop: 6, marginBottom: 4 },
-  tab: { paddingVertical: 8, borderBottomWidth: 2 },
+  input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.mono.regular, fontSize: 13 },
+  btn: { paddingHorizontal: 18, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  btnText: { fontFamily: fonts.display.bold, fontSize: 14 },
+  msg: { fontFamily: fonts.body.regular, fontSize: 13, marginTop: 14 },
+  eqCard: { marginTop: 16, padding: 16 },
+  eqTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  eqLabel: { fontFamily: fonts.body.regular, fontSize: 11 },
+  eqPill: { fontFamily: fonts.mono.bold, fontSize: 9, letterSpacing: 0.4, borderWidth: 1, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, overflow: "hidden" },
+  eqRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 14 },
+  eqCell: { flex: 1 },
+  eqCellLabel: { fontFamily: fonts.body.regular, fontSize: 10, marginBottom: 3 },
+  eqCellValue: { fontFamily: fonts.mono.medium, fontSize: 13 },
+  health: { marginTop: 14 },
+  healthBar: { height: 6, borderRadius: 3, overflow: "hidden" },
+  healthFill: { height: 6, borderRadius: 3 },
+  healthRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+  healthLabel: { fontFamily: fonts.body.medium, fontSize: 10.5 },
+  tabs: { flexDirection: "row", gap: 18, borderBottomWidth: 1, marginTop: 8, marginBottom: 6 },
+  tab: { fontFamily: fonts.display.bold, fontSize: 12.5, letterSpacing: 0.3, paddingBottom: 8, borderBottomWidth: 2 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1 },
-  rowCoin: { fontSize: 14, fontWeight: "700" },
-  rowSub: { fontSize: 11, marginTop: 3 },
+  rowCoin: { fontFamily: fonts.display.bold, fontSize: 14 },
+  rowSub: { fontFamily: fonts.body.regular, fontSize: 11, marginTop: 3 },
   right: { alignItems: "flex-end" },
-  rowVal: { fontSize: 13, fontVariant: ["tabular-nums"] },
+  rowVal: { fontFamily: fonts.mono.medium, fontSize: 13 },
 });

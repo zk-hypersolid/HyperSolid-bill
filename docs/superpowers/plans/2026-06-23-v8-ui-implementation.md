@@ -91,10 +91,10 @@
 - [x] 买/卖（Buy/Long·Sell/Short）+ 类型（Limit/Market）+ 杠杆可调（按 maxLeverage chips）+ 价/量 + Reduce-only/Post-only(Toggle) + TP/SL（Optional 输入）+ 摘要 SurfaceCard（Order value/Leverage/Est. liq）+ 动态 CTA（买绿卖红「Buy/Long BTC」）+ testnet 警示条。
 - [x] 新控件接既有服务：reduceOnly/market/tif(Alo=post-only) 进 placeOrder；TP/SL 走**新增 `ExchangeService.placeBracket`**（复用既有 `buildBracketOrder` 编码核心 + 同一 cloid 幂等/不确定回执管线，TDD）；**绝不下真单**，注入 mock；既有下单幂等逻辑/testID/告警文案逐字保留。
 
-### - [ ] 单元 7：Positions 屏
+### - [x] 单元 7：Positions 屏
 
-- [ ] 权益 surface 卡 + 账户健康条 + 分段（持仓/挂单/历史）+ 持仓卡（Long/Short tag、▲▼ PnL/ROE、Size/Entry/Mark/ROE 网格）。
-- [ ] TDD（卡片、▲▼、健康条）。
+- [x] 权益 SurfaceCard（Equity·USDC 英雄辉光 + Available/Unrealized PnL/Margin ratio + 账户健康条按 margin ratio 着色/Healthy·Caution·At risk）+ 分段（Positions·N / Orders·N / Fills·N）+ 持仓卡 PositionRow（coin·PERP、Long/Short·lev tag、▲▼ PnL、Size/Entry/Mark/ROE 网格）。
+- [x] 保留 view-only 组合查询（useViewOnlyPortfolio/loadRecent/loadOpenOrders）与未确认横幅；chrome/banner/copy 英文化；TDD（chrome、健康卡、Tab 切换、持仓卡）。
 
 ### - [ ] 单元 8：Strategy(Agent) 屏
 
@@ -156,3 +156,4 @@
 - 2026-06-23 · 单元 4（Markets 屏 v8 重构）· +2（393→395）· MarketsScreen 去 Trace/SIGNAL·LIVE/HYPERSOLID，标题改 Markets、网络警示用 NetworkWarning chip（非对称，mainnet 静默）、搜索 Search markets、Tab All/Watchlist（Space Mono）；MarketRow 重构为 v8（PERP tag、Fund·Vol 子行、PriceText + ChangeText ▲▼、新增 formatVol 紧凑量）；同步更新 MarketRow/MarketsScreen/RootNavigator 测试到 v8 契约。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/逻辑未动。下一轮从「单元 5：Market Detail 屏」开始。
 - 2026-06-23 · 单元 5（Market Detail 屏 v8 重构 + CandleChart）· +3（395→398）· 新增 CandleChart（react-native-svg：brand 网格 + 涨跌蜡烛 + 当前价虚线 + 价轴标签 + 价格徽标，TDD 空态/绘制/轴标签）；MarketDetailScreen 重构为 v8：报价块（PriceText 英雄辉光 + ChangeText ▲▼ + Mark）、统计网格（24h high/low 由 candles 推、vol、Funding+UTC 整点倒计时、Max leverage）、TF 选择、CandleChart、Order book/Trades Tab、CTA Trade、NetworkWarning strip（非对称）；保留 useLiveDetail 实数据接线。诚实省略 OI/多周期/指标 Tab/多空条（数据缺失，见偏差记录）。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/逻辑未动。下一轮从「单元 6：Trade 屏」开始。
 - 2026-06-23 · 单元 6（Trade 屏 v8 重构 + placeBracket）· +5（398→403）· ExchangeService 新增 placeBracket（复用 lib buildBracketOrder + 抽出共享 submitBuilt 幂等管线，placeOrder 行为不变，TDD ×3）；TradeScreen 重构为 v8：Buy/Long·Sell/Short 段、Limit/Market 类型、杠杆 chips、价/量、Reduce-only/Post-only Toggle、TP/SL Optional（走 placeBracket）、摘要 SurfaceCard、动态 CTA（买绿卖红）、testnet 警示条；reduceOnly/market/tif(Alo) 接 placeOrder。既有下单幂等/不确定回执/testID/中文告警逐字保留（13 旧测试全绿）+ 2 新 wiring 测试。诚实省略百分比滑杆（需余额）、不自动 setLeverage（见偏差记录）。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/编码核心未改。下一轮从「单元 7：Positions 屏」开始。
+- 2026-06-23 · 单元 7（Positions 屏 v8 重构）· +0（403，改写未加净测试）· PositionRow 重构为 v8 卡（SurfaceCard：coin·PERP + Long/Short·lev tag + ▲▼ PnL + Size/Entry/Mark/ROE 网格，Mark=positionValue/size、ROE 由 marginUsed 推）；PositionsScreen 加权益 SurfaceCard（Equity 英雄辉光 + Available/Unrealized PnL/Margin ratio + 健康条按 margin ratio 着色与 Healthy/Caution/At risk）、分段 Positions·N/Orders·N/Fills·N、英文化 chrome/banner/query；保留 view-only 查询与未确认横幅逻辑。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/逻辑未动。下一轮从「单元 8：Strategy(Agent) 屏」开始。

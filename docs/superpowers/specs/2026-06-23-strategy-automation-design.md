@@ -1,9 +1,11 @@
 # Strategy Automation Engine (Phase C) — Design
 
-> **Status:** Design. User chose **B/C (server-side execution + HL agent wallet)** as the execution
-> model. **User to review this spec before implementation.** First strategy = **DCA** (assumed per
-> recommendation; adjust if wanted). The backend execution engine is a **separate project** — this
-> spec defines the App-side control plane + the App↔backend contract, and outlines the backend.
+> **Status:** ✅ **Approved (decisions locked 2026-06-23).** Execution model = **B/C (server-side +
+> trade-only HL agent wallet)**. First strategy = **DCA**. Locked sub-decisions: **(1) we build the
+> backend** (separate spec `2026-06-23-strategy-backend-design.md`, Node/TS in `server/`); **(2) agent
+> approval carries a `valid_until` ≈ 90-day expiry**; **(3) backend auth = wallet-signature session**
+> (sign-in-with-wallet challenge → session token). The backend is its own sub-project; this spec is the
+> App-side control plane + the App↔backend contract.
 
 ## Goal
 
@@ -61,18 +63,24 @@ status); the backend is the **execution plane** (runs the loops, places orders w
 ## App↔Backend API contract (the backend implements this)
 
 ```
+# Auth (wallet-signature session)
+POST /auth/challenge { owner }   -> { nonce }                   // backend issues a one-time nonce
+POST /auth/session   { owner, nonce, signature } -> { token }   // app signs the nonce with the main key
+
+# All routes below require Authorization: Bearer <token>; owner is taken from the verified session.
 POST /agent/provision            -> { agentAddress }            // backend mints a trade-only agent
-POST /agent/confirm  { agentAddress, owner }                    // app reports the on-chain approval
-GET  /agent/status?owner=        -> { approved, agentAddress? }
-POST /agent/revoke   { owner }                                  // backend stops using the agent
-GET  /strategies?owner=          -> Strategy[]
-POST /strategies     { owner, type:"dca", params }              -> Strategy
+POST /agent/confirm  { agentAddress }                           // app reports the on-chain approval
+GET  /agent/status               -> { approved, agentAddress?, validUntil? }
+POST /agent/revoke                                              // backend stops using the agent
+GET  /strategies                 -> Strategy[]
+POST /strategies     { type:"dca", params }                     -> Strategy
 PATCH /strategies/:id { status:"paused"|"running" }             -> Strategy
 DELETE /strategies/:id
 GET  /strategies/:id/activity    -> Activity[]                  // recent child fills/actions
-POST /kill-switch    { owner }                                  // pause all strategies
+POST /kill-switch                                               // pause all strategies
 ```
-`owner` = the user's main address; the backend authenticates requests (auth scheme = backend's spec).
+The app signs the `/auth/challenge` nonce with its on-device main key; the backend recovers + verifies
+the `owner` address and issues a bearer token. `owner` is never trusted from the body on authed routes.
 
 ## First strategy — DCA
 
@@ -105,11 +113,12 @@ stored (KMS/secret manager).
 - Grid / TWAP / TP-SL strategies (after DCA proves the loop).
 - On-device 24/7 execution (rejected — unreliable in background).
 
-## Open questions (for the user)
+## Decisions (locked)
 
-1. **Backend ownership:** will you build the backend to this contract, or should I also write a
-   separate backend spec (and pick a stack)? (App side proceeds either way.)
-2. **Agent expiry:** set an `agentName` `valid_until` expiry (auto-expiring approval), or no expiry +
-   manual revoke? (Default: include a `valid_until` ~90 days for safety.)
-3. **Auth:** how does the backend authenticate the app (sign-in-with-wallet signature, token)? (Needed
-   to finalize the contract; default assumption: a wallet-signature session.)
+1. **Backend ownership:** we build the backend (`server/`, Node/TS, reusing `@nktkas/hyperliquid` +
+   `viem`). Its design is the separate `2026-06-23-strategy-backend-design.md`.
+2. **Agent expiry:** the approval's `agentName` encodes `valid_until <unix-ms ≈ now+90d>`; after expiry
+   the agent stops being usable and the app prompts re-approval. The app computes the expiry.
+3. **Auth (App→backend):** wallet-signature session — the app requests a challenge nonce, signs it with
+   the on-device main key (sign-in-with-wallet), and the backend returns a session token used as a
+   bearer on subsequent calls. `owner` is the recovered/verified main address.

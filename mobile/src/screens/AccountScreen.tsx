@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
@@ -10,7 +11,9 @@ import { isValidAddress } from "../hooks/useViewOnlyPortfolio";
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
 import { PositionsService } from "../services/positionsData";
 import { FundingsService } from "../services/fundingsData";
-import { createPositionsInfoClient, createFundingsInfoClient } from "../lib/hyperliquid/client";
+import { createPositionsInfoClient, createFundingsInfoClient, createExchangeClient } from "../lib/hyperliquid/client";
+import { ExchangeService } from "../services/exchange";
+import { buildAssetIndex } from "../lib/hyperliquid/assetId";
 import { marginRatioPct } from "../lib/hyperliquid/markPnl";
 import { totalFunding } from "../lib/hyperliquid/funding";
 import { Icon, type IconName } from "../components/Icon";
@@ -24,6 +27,7 @@ import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
 import type { ThemeName, ThemeTokens } from "../theme/tokens";
 import type { AccountSummary } from "../lib/hyperliquid/types";
+import type { LocalWalletService } from "../wallet/localWallet";
 
 export interface AccountScreenDeps {
   positions: PositionsService;
@@ -45,6 +49,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   const theme = useTheme();
   const mode = useWalletStore((s) => s.mode);
   const address = useWalletStore((s) => s.address);
+  const wallet = useWalletStore((s) => s.wallet);
   const setLocalWallet = useWalletStore((s) => s.setLocalWallet);
   const setViewOnly = useWalletStore((s) => s.setViewOnly);
   const reset = useWalletStore((s) => s.reset);
@@ -70,6 +75,10 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   const [newMnemonic, setNewMnemonic] = useState<string | null>(null);
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [fundingTotal, setFundingTotal] = useState<number | null>(null);
+  const [sheet, setSheet] = useState<"none" | "deposit" | "withdraw">("none");
+  const [amountInput, setAmountInput] = useState("");
+  const [destInput, setDestInput] = useState("");
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
 
   useEffect(() => {
     if (mode === "none" || !address || !isValidAddress(address)) {
@@ -136,14 +145,42 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
     setTheme(next);
   }
 
-  // Deposit/Withdraw are non-custodial money in/out entry points. The actual transfer flow
-  // (bridge deposit / HL withdraw) is not implemented yet — surface an honest notice rather than
-  // a silent dead button.
+  // Deposit/Withdraw are non-custodial money in/out entry points (spec §B). Deposit shows the
+  // wallet's own address to fund on Arbitrum; Withdraw signs a real HL withdraw3 via the service.
   function onDeposit() {
-    Alert.alert("Deposit", "充值流程即将上线：向 Hyperliquid 桥地址转入 USDC（Arbitrum）。");
+    setSheet((s) => (s === "deposit" ? "none" : "deposit"));
   }
   function onWithdraw() {
-    Alert.alert("Withdraw", "提现流程即将上线：从 Hyperliquid 提取 USDC 到你的地址。");
+    setDestInput((d) => d || address || "");
+    setSheet((s) => (s === "withdraw" ? "none" : "withdraw"));
+  }
+  function onCopyAddress() {
+    if (address) void Clipboard.setStringAsync(address);
+  }
+  async function onConfirmWithdraw() {
+    const local = wallet as Partial<LocalWalletService> | null;
+    if (!local || typeof local.getViemAccount !== "function") return;
+    setWithdrawBusy(true);
+    try {
+      const client = createExchangeClient(network, local.getViemAccount());
+      const svc = new ExchangeService(client, buildAssetIndex({ universe: [] }));
+      const res = await svc.withdrawUsdc({
+        destination: destInput.trim(),
+        amount: Number(amountInput),
+        withdrawable: summary?.withdrawable ?? 0,
+      });
+      if (res.ok) {
+        Alert.alert("提现已提交", `${amountInput} USDC -> ${shortAddr(destInput.trim())}`);
+        setSheet("none");
+        setAmountInput("");
+      } else if (res.uncertain) {
+        Alert.alert("回执不确定", `${res.error}。提现可能已提交，请在重试前先核对余额。`);
+      } else {
+        Alert.alert("提现失败", res.error);
+      }
+    } finally {
+      setWithdrawBusy(false);
+    }
   }
 
   if (mode !== "none") {
@@ -187,6 +224,69 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
               <Text style={[styles.actionText, { color: theme.text }]}>Withdraw</Text>
             </Pressable>
           </View>
+        ) : null}
+
+        {mode === "local" && sheet === "deposit" ? (
+          <SurfaceCard theme={theme} testID="deposit-panel" style={styles.card}>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Deposit USDC</Text>
+            <Text style={[styles.sheetHint, { color: theme.muted }]}>
+              Send USDC on Arbitrum to this address — it is your Hyperliquid deposit address. Only USDC
+              on Arbitrum; other tokens or chains may be lost.
+            </Text>
+            <Text style={[styles.depAddr, { color: theme.text }]} selectable>
+              {address}
+            </Text>
+            <View style={styles.sheetRow}>
+              <Pressable onPress={onCopyAddress} accessibilityRole="button" testID="copy-address" style={[styles.sheetBtn, { backgroundColor: theme.brand }]}>
+                <Text style={[styles.sheetBtnText, { color: theme.bg }]}>Copy address</Text>
+              </Pressable>
+              <Pressable onPress={() => setSheet("none")} accessibilityRole="button" style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}>
+                <Text style={[styles.sheetBtnText, { color: theme.text }]}>Close</Text>
+              </Pressable>
+            </View>
+          </SurfaceCard>
+        ) : null}
+
+        {mode === "local" && sheet === "withdraw" ? (
+          <SurfaceCard theme={theme} testID="withdraw-panel" style={styles.card}>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Withdraw USDC</Text>
+            <Text style={[styles.sheetHint, { color: theme.muted }]}>
+              {`Withdrawable ${summary ? formatPrice(summary.withdrawable) : "—"} USDC · a network fee applies.`}
+            </Text>
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>Amount · USDC</Text>
+            <TextInput
+              value={amountInput}
+              onChangeText={setAmountInput}
+              testID="withdraw-amount"
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={theme.faint}
+              style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
+            />
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>Destination</Text>
+            <TextInput
+              value={destInput}
+              onChangeText={setDestInput}
+              testID="withdraw-dest"
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="0x…"
+              placeholderTextColor={theme.faint}
+              style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
+            />
+            <View style={styles.sheetRow}>
+              <Pressable disabled={withdrawBusy} onPress={onConfirmWithdraw} accessibilityRole="button" testID="withdraw-confirm" style={[styles.sheetBtn, { backgroundColor: theme.brand }]}>
+                {withdrawBusy ? (
+                  <ActivityIndicator color={theme.bg} />
+                ) : (
+                  <Text style={[styles.sheetBtnText, { color: theme.bg }]}>Confirm withdrawal</Text>
+                )}
+              </Pressable>
+              <Pressable onPress={() => setSheet("none")} accessibilityRole="button" style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}>
+                <Text style={[styles.sheetBtnText, { color: theme.text }]}>Close</Text>
+              </Pressable>
+            </View>
+          </SurfaceCard>
         ) : null}
 
         {summary ? (
@@ -348,6 +448,14 @@ const styles = StyleSheet.create({
   action: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center" },
   actionOutline: { borderWidth: 1, backgroundColor: "transparent" },
   actionText: { fontFamily: fonts.display.bold, fontSize: 14, letterSpacing: 0.3 },
+  sheetTitle: { fontFamily: fonts.display.bold, fontSize: 14, marginBottom: 8 },
+  sheetHint: { fontFamily: fonts.body.regular, fontSize: 11.5, lineHeight: 17, marginBottom: 12 },
+  depAddr: { fontFamily: fonts.mono.regular, fontSize: 13, marginBottom: 14 },
+  fieldLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4 },
+  sheetRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  sheetBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  sheetBtnOutline: { borderWidth: 1, backgroundColor: "transparent" },
+  sheetBtnText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
   card: { padding: 14, marginBottom: 12 },
   cardTitle: { fontFamily: fonts.body.medium, fontSize: 11 },
   metricRow: { flexDirection: "row", marginTop: 10 },

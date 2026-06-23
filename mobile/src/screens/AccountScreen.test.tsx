@@ -1,11 +1,23 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react-native";
+import * as Clipboard from "expo-clipboard";
 import { AccountScreen } from "./AccountScreen";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import type { PositionsService } from "../services/positionsData";
 import type { FundingsService } from "../services/fundingsData";
 import type { PortfolioSnapshot, FundingEvent } from "../lib/hyperliquid/types";
+
+const mockWithdraw = jest.fn(async () => ({ ok: true }));
+jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => true) }));
+jest.mock("../lib/hyperliquid/client", () => ({
+  createPositionsInfoClient: jest.fn(() => ({})),
+  createFundingsInfoClient: jest.fn(() => ({})),
+  createExchangeClient: jest.fn(() => ({})),
+}));
+jest.mock("../services/exchange", () => ({
+  ExchangeService: jest.fn().mockImplementation(() => ({ withdrawUsdc: mockWithdraw })),
+}));
 
 const ADDR = "0x7f3aabcdef0123456789abcdefabcdef0123c2e9";
 
@@ -29,6 +41,8 @@ describe("AccountScreen", () => {
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     fakeDeps.positions.loadPortfolio = jest.fn(async () => portfolio);
     fakeDeps.fundings.load = jest.fn(async () => fundingEvents);
+    mockWithdraw.mockClear();
+    (Clipboard.setStringAsync as jest.Mock).mockClear();
   });
 
   it("renders the onboarding state with create / restore / view-only actions", () => {
@@ -73,5 +87,34 @@ describe("AccountScreen", () => {
     useWalletStore.setState({ mode: "viewOnly", wallet: null, address: "0xabc" });
     render(<AccountScreen deps={fakeDeps} />);
     expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
+  });
+
+  it("opens the deposit panel with the address and copies it", () => {
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    fireEvent.press(screen.getByText("Deposit"));
+    expect(screen.getByTestId("deposit-panel")).toBeTruthy();
+    expect(screen.getByText(ADDR)).toBeTruthy();
+    fireEvent.press(screen.getByTestId("copy-address"));
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith(ADDR);
+  });
+
+  it("confirms a withdrawal through the service with the entered amount + destination", async () => {
+    const localWallet = { getViemAccount: () => ({}), getAddress: () => ADDR } as never;
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    await waitFor(() => expect(fakeDeps.positions.loadPortfolio).toHaveBeenCalled());
+    fireEvent.press(screen.getByText("Withdraw"));
+    fireEvent.changeText(screen.getByTestId("withdraw-amount"), "100");
+    fireEvent.press(screen.getByTestId("withdraw-confirm"));
+    await waitFor(() => expect(mockWithdraw).toHaveBeenCalled());
+    expect(mockWithdraw).toHaveBeenCalledWith({ destination: ADDR, amount: 100, withdrawable: 800 });
+  });
+
+  it("does not show deposit/withdraw actions in view-only mode", () => {
+    useWalletStore.setState({ mode: "viewOnly", wallet: null, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    expect(screen.queryByText("Deposit")).toBeNull();
+    expect(screen.queryByText("Withdraw")).toBeNull();
   });
 });

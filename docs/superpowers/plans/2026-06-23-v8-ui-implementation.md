@@ -81,10 +81,10 @@
 - [x] 简洁列表（星标 / 代号 PERP / Fund·Vol / 价格 / ▲▼）+ 搜索（Search markets）+ All/Watchlist + 警示 chip（仅 testnet）。
 - [x] MarketRow 重构为 v8（PERP tag、Fund·Vol 子行、PriceText/ChangeText、formatVol）；接真实 marketStore；去 Trace/SIGNAL/HYPERSOLID；NetworkWarning chip 非对称；TDD（行渲染、▲▼ 标记、警示按 network、搜索过滤）。
 
-### - [ ] 单元 5：Market Detail 屏
+### - [x] 单元 5：Market Detail 屏
 
-- [ ] 报价块 + 统计网格（含资金费倒计时）+ 周期选择 + K 线（轴 + 当前价虚线）+ 指标 Tab + 多周期涨跌 + 委托簿/最新成交 + 多空条 + 深度盘口 + CTA + testnet 警示条。
-- [ ] K 线/深度用 react-native-svg；TDD 关键元素与文案。
+- [x] 报价块（英雄价 PriceText 辉光 + ChangeText ▲▼ + Mark）+ 统计网格（24h high/low 由 candles 推导、24h vol、Funding+倒计时、Max leverage）+ 周期选择（1H/4H/1D/1W）+ K 线（CandleChart：brand 网格 + 涨跌蜡烛 + 当前价虚线 + 价轴标签 + 价格徽标）+ 委托簿/最新成交 Tab + CTA Trade + testnet 警示条（NetworkWarning strip）。
+- [x] CandleChart 用 react-native-svg；TDD 关键元素与文案（detail 屏 + CandleChart 组件）。
 
 ### - [ ] 单元 6：Trade 屏
 
@@ -139,6 +139,8 @@
 
 > 单元 3：v8 Markets 警示 chip 原设计为「warn 实底 + 深色文字 (#241400)」。深色文字在三套主题（含 daylight 浅底）上无法保证对比；为生产对比安全，改为「warn 描边 + warn 文字 + warn 16% 底」的同色调 chip，与警示条统一。属视觉等价的主题安全适配，语义/非对称行为不变。
 
+> 单元 5：Market Detail 部分 v8 区块依赖现有数据模型没有的字段，为「不改业务逻辑 + 不编造数据」而诚实省略：① Open interest（MarketTicker 无 OI）；② 多周期涨跌 7D/30D/90D/180D/1Y（无历史，仅 24h 可由 candles 推）；③ 指标 Tab MA/EMA/BOLL/SAR、VOL/MACD/KDJ/RSI（无指标计算管线，避免装饰性失效控件）；④ 多空比条 L/S（无持仓分布数据）；⑤ 周期保留功能性的 1H/4H/1D/1W（service 当前固定 interval）。以上需 service 层扩展，列为后续；24h high/low 由 candles 诚实推导，资金费倒计时按 UTC 整点实时计算。
+
 ---
 
 ## Progress
@@ -150,3 +152,4 @@
 - 2026-06-23 · 单元 2（字体基座 JetBrains Mono/Space Mono/Inter Tight）· +3（375→378）· 装 expo-font + @expo-google-fonts ×3（config plugin 注册）；fonts.ts 暴露 fonts.mono/display/body 家族名 token（纯字符串 jest 安全）+ fontAssets.ts 持 .ttf 映射（仅 App 导入、隔离不入 jest）；App.tsx useFonts(fontMap) 启动加载 + 首帧 gate（错误回退系统字体）；fonts.test 断言 token 形状/角色映射/家族唯一。tsc 零错、jest 全绿、改动文件无硬编码色/emoji。下一轮从「单元 3：共享原语」开始。
 - 2026-06-23 · 单元 3（共享原语 PriceText/ChangeText/SurfaceCard/NetworkWarning）· +15（378→393）· PriceText 改 mono tabular + 可选英雄辉光（textShadow，仅传 glowColor 时启用）；ChangeText 新增（▲▼ 几何 + 带符号 pct + up/down 色 + mono bold）；SurfaceCard 新增（surface + lineStrong 描边 + 3px brand 顶线 + overflow hidden）；NetworkWarning 新增（自读 envStore/useTheme，testnet→chip/strip，mainnet→null，warn token tint/描边 + alert 图标 + 诚实文案）。TDD 各组件全绿；tsc 零错、jest 全绿、4 文件无硬编码色/pictographic emoji（▲▼ 几何允许）。chip 同色调适配见偏差记录。下一轮从「单元 4：Markets 屏」开始。
 - 2026-06-23 · 单元 4（Markets 屏 v8 重构）· +2（393→395）· MarketsScreen 去 Trace/SIGNAL·LIVE/HYPERSOLID，标题改 Markets、网络警示用 NetworkWarning chip（非对称，mainnet 静默）、搜索 Search markets、Tab All/Watchlist（Space Mono）；MarketRow 重构为 v8（PERP tag、Fund·Vol 子行、PriceText + ChangeText ▲▼、新增 formatVol 紧凑量）；同步更新 MarketRow/MarketsScreen/RootNavigator 测试到 v8 契约。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/逻辑未动。下一轮从「单元 5：Market Detail 屏」开始。
+- 2026-06-23 · 单元 5（Market Detail 屏 v8 重构 + CandleChart）· +3（395→398）· 新增 CandleChart（react-native-svg：brand 网格 + 涨跌蜡烛 + 当前价虚线 + 价轴标签 + 价格徽标，TDD 空态/绘制/轴标签）；MarketDetailScreen 重构为 v8：报价块（PriceText 英雄辉光 + ChangeText ▲▼ + Mark）、统计网格（24h high/low 由 candles 推、vol、Funding+UTC 整点倒计时、Max leverage）、TF 选择、CandleChart、Order book/Trades Tab、CTA Trade、NetworkWarning strip（非对称）；保留 useLiveDetail 实数据接线。诚实省略 OI/多周期/指标 Tab/多空条（数据缺失，见偏差记录）。tsc 零错、jest 全绿、改动文件无硬编码色/emoji、IA/逻辑未动。下一轮从「单元 6：Trade 屏」开始。

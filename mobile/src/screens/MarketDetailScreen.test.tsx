@@ -36,24 +36,26 @@ function renderDetail(nav: { goBack: jest.Mock }) {
 describe("MarketDetailScreen", () => {
   beforeEach(() => useMarketStore.setState({ tickers: [btc], loading: false, error: null }));
 
-  it("renders the back header, price and signed change", () => {
+  it("renders the back header, hero price and signed change", () => {
     renderDetail({ goBack: jest.fn() });
     expect(screen.getByText("BTC-PERP")).toBeTruthy();
-    expect(screen.getAllByText("62481.5").length).toBeGreaterThan(0);
-    expect(screen.getByText("▲ 2.43%")).toBeTruthy();
+    expect(screen.getAllByText("62,481.5").length).toBeGreaterThan(0);
+    const chg = screen.getByText(/\+2\.43%/);
+    expect(chg).toHaveTextContent(/▲/);
   });
 
-  it("renders timeframe chips and the orderbook section label", () => {
+  it("renders timeframe chips and the order book / trades tabs", () => {
     renderDetail({ goBack: jest.fn() });
     for (const tf of ["1H", "4H", "1D", "1W"]) {
       expect(screen.getByText(tf)).toBeTruthy();
     }
-    expect(screen.getByText("盘口 ORDERBOOK")).toBeTruthy();
+    expect(screen.getByText("Order book")).toBeTruthy();
+    expect(screen.getByText("Trades")).toBeTruthy();
   });
 
   it("renders the trade CTA", () => {
     renderDetail({ goBack: jest.fn() });
-    expect(screen.getByText("去交易")).toBeTruthy();
+    expect(screen.getByText("Trade")).toBeTruthy();
   });
 
   it("calls navigation.goBack when the back control is pressed", () => {

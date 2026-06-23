@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { MarketsStackParamList } from "../navigation/types";
@@ -8,20 +8,30 @@ import { useTheme } from "../theme/useTheme";
 import { useLiveDetail } from "../hooks/useLiveDetail";
 import { DetailDataService } from "../services/detailData";
 import { createDetailInfoClient, createDetailSubsClient } from "../lib/hyperliquid/client";
-import { StatGrid } from "../components/StatGrid";
-import { Sparkline } from "../components/Sparkline";
+import { CandleChart } from "../components/CandleChart";
 import { OrderbookView } from "../components/OrderbookView";
 import { TradesList } from "../components/TradesList";
 import { ScreenScaffold } from "../components/ScreenScaffold";
-import { SectionLabel } from "../components/SectionLabel";
-import { Pill } from "../components/Pill";
+import { NetworkWarning } from "../components/NetworkWarning";
+import { PriceText, formatPrice } from "../components/PriceText";
+import { ChangeText } from "../components/ChangeText";
 import { Chip } from "../components/Chip";
 import { Icon } from "../components/Icon";
-import { formatCompact, formatSignedPct, formatFundingPct } from "../lib/hyperliquid/format";
+import { fonts } from "../theme/fonts";
+import { formatCompact, formatFundingPct } from "../lib/hyperliquid/format";
 
 type Props = NativeStackScreenProps<MarketsStackParamList, "MarketDetail">;
 
 const TIMEFRAMES = ["1H", "4H", "1D", "1W"] as const;
+const BOOK_TABS = ["book", "trades"] as const;
+
+/** Time left until the next hourly funding settlement (UTC), as HH:MM:SS. */
+function fundingCountdown(nowMs: number): string {
+  const ms = 3_600_000 - (nowMs % 3_600_000);
+  const total = Math.floor(ms / 1000);
+  const p = (x: number) => x.toString().padStart(2, "0");
+  return `${p(Math.floor(total / 3600))}:${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
+}
 
 export function MarketDetailScreen({ route, navigation }: Props) {
   const { coin } = route.params;
@@ -37,19 +47,25 @@ export function MarketDetailScreen({ route, navigation }: Props) {
   // TODO: timeframe should drive the candle interval and trigger a refetch
   // (DetailDataService.loadCandles currently uses a fixed interval — service-layer change).
   const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1H");
+  const [bookTab, setBookTab] = useState<(typeof BOOK_TABS)[number]>("book");
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const price = ticker?.midPx ?? 0;
   const pct = ticker?.changePct ?? 0;
-  const up = pct >= 0;
-  const dir = up ? theme.up : theme.down;
-  const pillLabel = `${up ? "▲" : "▼"} ${Math.abs(pct).toFixed(2)}%`;
+  const high24 = candles.length ? Math.max(...candles.map((c) => c.high)) : null;
+  const low24 = candles.length ? Math.min(...candles.map((c) => c.low)) : null;
 
-  const stats = [
-    { label: "标记价", value: ticker ? String(ticker.midPx) : "—" },
-    { label: "24h 涨跌", value: ticker ? formatSignedPct(ticker.changePct) : "—" },
-    { label: "资金费", value: ticker ? formatFundingPct(ticker.funding) : "—" },
-    { label: "24h 量", value: ticker ? formatCompact(ticker.dayNtlVlm) : "—" },
-    { label: "最大杠杆", value: ticker ? `${ticker.maxLeverage}x` : "—" },
-    { label: "前日价", value: ticker ? String(ticker.prevDayPx) : "—" },
+  const stats: Array<[string, string]> = [
+    ["24h high", high24 != null ? formatPrice(high24) : "—"],
+    ["24h low", low24 != null ? formatPrice(low24) : "—"],
+    ["24h vol · USDC", ticker ? formatCompact(ticker.dayNtlVlm) : "—"],
+    [`Funding · ${fundingCountdown(now)}`, ticker ? formatFundingPct(ticker.funding) : "—"],
+    ["Max leverage", ticker ? `${ticker.maxLeverage}×` : "—"],
   ];
 
   return (
@@ -67,18 +83,31 @@ export function MarketDetailScreen({ route, navigation }: Props) {
           <Text style={[styles.backText, { color: theme.text }]}>{coin}-PERP</Text>
         </Pressable>
       }
-      pill={<Pill theme={theme} label={pillLabel} variant={up ? "up" : "down"} />}
+      pill={<Icon name="star" color={theme.brand} active size={20} />}
     >
-      <View style={styles.priceRow}>
-        <Text style={[styles.priceLg, { color: theme.text }]}>
-          {ticker ? String(ticker.midPx) : "—"}
-        </Text>
-        <Text style={[styles.pchg, { color: dir }]}>
-          {ticker ? formatSignedPct(ticker.changePct) : ""}
-        </Text>
+      <NetworkWarning variant="strip" />
+
+      <View style={styles.quote}>
+        <View style={styles.qLeft}>
+          <PriceText value={price} color={theme.text} size={32} glow glowColor={theme.glow} />
+          <View style={styles.qSubRow}>
+            <ChangeText theme={theme} value={pct} size={12.5} />
+          </View>
+          <Text style={[styles.mark, { color: theme.muted }]}>
+            Mark <Text style={{ color: theme.text }}>{formatPrice(price)}</Text>
+          </Text>
+        </View>
+        <View style={styles.qRight}>
+          {stats.map(([label, value]) => (
+            <View key={label} style={styles.statRow}>
+              <Text style={[styles.statLabel, { color: theme.faint }]}>{label}</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.chips}>
+      <View style={styles.tfs}>
         {TIMEFRAMES.map((tf) => (
           <Chip
             key={tf}
@@ -90,51 +119,80 @@ export function MarketDetailScreen({ route, navigation }: Props) {
         ))}
       </View>
 
-      <View style={[styles.chart, { borderColor: theme.line, backgroundColor: theme.surface }]}>
-        <Sparkline candles={candles} theme={theme} />
+      <CandleChart candles={candles} theme={theme} currentPrice={price} />
+
+      <View style={[styles.bookTabs, { borderBottomColor: theme.line }]}>
+        {BOOK_TABS.map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => setBookTab(tab)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: bookTab === tab }}
+          >
+            <Text
+              style={[
+                styles.bookTab,
+                {
+                  color: bookTab === tab ? theme.brand : theme.muted,
+                  borderBottomColor: bookTab === tab ? theme.brand : "transparent",
+                },
+              ]}
+            >
+              {tab === "book" ? "Order book" : "Trades"}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
-      <StatGrid stats={stats} theme={theme} />
-
-      <SectionLabel theme={theme}>盘口 ORDERBOOK</SectionLabel>
-      {orderbook ? (
-        <OrderbookView book={orderbook} theme={theme} />
+      {bookTab === "book" ? (
+        orderbook ? (
+          <OrderbookView book={orderbook} theme={theme} />
+        ) : (
+          <Text style={[styles.muted, { color: theme.muted }]}>Loading order book…</Text>
+        )
+      ) : trades.length > 0 ? (
+        <TradesList trades={trades} theme={theme} />
       ) : (
-        <Text style={[styles.muted, { color: theme.muted }]}>加载盘口…</Text>
+        <Text style={[styles.muted, { color: theme.muted }]}>Loading trades…</Text>
       )}
 
       <Pressable style={[styles.cta, { backgroundColor: theme.brand }]} accessibilityRole="button">
-        <Text style={[styles.ctaText, { color: theme.bg }]}>去交易</Text>
+        <Text style={[styles.ctaText, { color: theme.bg }]}>Trade</Text>
         <Icon name="arrowRight" color={theme.bg} size={18} />
       </Pressable>
-
-      <SectionLabel theme={theme}>最近成交 TRADES</SectionLabel>
-      {trades.length > 0 ? (
-        <TradesList trades={trades} theme={theme} />
-      ) : (
-        <Text style={[styles.muted, { color: theme.muted }]}>加载成交…</Text>
-      )}
     </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
   back: { flexDirection: "row", alignItems: "center", gap: 4 },
-  backText: { fontSize: 13, fontWeight: "700", letterSpacing: 0.4 },
-  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 10, marginBottom: 10 },
-  priceLg: { fontSize: 30, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  pchg: { fontSize: 15, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  chips: { flexDirection: "row", gap: 7, marginBottom: 10 },
-  chart: { borderWidth: 1, borderRadius: 10, padding: 8, marginBottom: 10 },
-  muted: { fontSize: 13, paddingVertical: 8 },
+  backText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.4 },
+  quote: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
+  qLeft: { flex: 1 },
+  qSubRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
+  mark: { fontFamily: fonts.body.regular, fontSize: 11, marginTop: 6 },
+  qRight: { flex: 1, alignItems: "flex-end", gap: 3 },
+  statRow: { flexDirection: "row", justifyContent: "space-between", width: "100%", gap: 10 },
+  statLabel: { fontFamily: fonts.body.regular, fontSize: 10.5, flexShrink: 1 },
+  statValue: { fontFamily: fonts.mono.medium, fontSize: 10.5 },
+  tfs: { flexDirection: "row", gap: 7, marginBottom: 10 },
+  bookTabs: { flexDirection: "row", gap: 18, borderBottomWidth: 1, marginTop: 14, marginBottom: 6 },
+  bookTab: {
+    fontFamily: fonts.display.bold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+    paddingBottom: 8,
+    borderBottomWidth: 2,
+  },
+  muted: { fontFamily: fonts.body.regular, fontSize: 13, paddingVertical: 8 },
   cta: {
     marginTop: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
   },
-  ctaText: { fontSize: 15, fontWeight: "700" },
+  ctaText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

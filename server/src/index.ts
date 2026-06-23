@@ -1,6 +1,8 @@
 import { generatePrivateKey } from "viem/accounts";
 import { Auth } from "./auth/auth";
-import { AgentManager, MemoryAgentStore } from "./agent/agentManager";
+import { AgentManager } from "./agent/agentManager";
+import { SqliteAgentStore } from "./agent/sqliteAgentStore";
+import { deriveKey } from "./agent/secretBox";
 import { SqliteStrategyStore } from "./strategies/sqliteStore";
 import type { StrategyStore } from "./strategies/store";
 import { makeClientFor, makeResolvers, makeTransport, makeInfoClient } from "./agent/hlRuntime";
@@ -25,14 +27,16 @@ export async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? 8787);
   const isTestnet = process.env.HL_NETWORK !== "mainnet";
   const authSecret = requireEnv("AUTH_SECRET");
+  const agentEncKey = deriveKey(requireEnv("AGENT_ENC_KEY"));
   const slippageBps = Number(process.env.SLIPPAGE_BPS ?? 50);
   const maxNotionalUsdc = Number(process.env.MAX_NOTIONAL_USDC ?? 1000);
   const tickMs = Number(process.env.TICK_MS ?? 60_000);
+  const dbPath = process.env.DB_PATH ?? "strategies.db";
 
   const now = () => Date.now();
   const auth = new Auth({ secret: authSecret });
-  const agents = new AgentManager(new MemoryAgentStore(), generatePrivateKey);
-  const store: StrategyStore = SqliteStrategyStore.open(process.env.DB_PATH ?? "strategies.db", now);
+  const agents = new AgentManager(SqliteAgentStore.open(dbPath, agentEncKey), generatePrivateKey);
+  const store: StrategyStore = SqliteStrategyStore.open(dbPath, now);
 
   const transport = makeTransport(isTestnet);
   const info = makeInfoClient(transport);

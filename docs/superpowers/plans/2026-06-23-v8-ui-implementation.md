@@ -69,12 +69,12 @@
 - [x] 暴露字体 token `fonts.mono/display/body`（`src/theme/fonts.ts` 纯字符串家族名，jest 安全）；全局可用。
 - [x] `fonts.test` 断言 token 形状/角色映射/家族名唯一；`.ttf` 映射在 `fontAssets.ts`（仅 App 导入，隔离不入 jest）。
 
-### - [ ] 单元 3：共享原语
+### - [x] 单元 3：共享原语
 
-- [ ] `PriceText/ChangeText`（tabular 数字 + ▲▼ + up/down 色 + 可选英雄辉光）。
-- [ ] `SurfaceCard`（surface 底 + 顶部细 brand 线，非品牌色铺底）。
-- [ ] `NetworkWarning`（非对称 testnet chip + 警示条，按 `envStore.network`；mainnet 不渲染）。
-- [ ] TDD 各组件（▲▼/颜色/辉光、卡片结构、警示按 network 显隐）。
+- [x] `PriceText`（mono tabular + 可选英雄辉光 glow/glowColor）/`ChangeText`（▲▼ 几何字符 + 带符号 pct + up/down 色）。
+- [x] `SurfaceCard`（surface 底 + lineStrong 描边 + 顶部 3px brand 细线，非品牌色铺底）。
+- [x] `NetworkWarning`（非对称：testnet chip + 警示条按 `envStore.network`，自读 useTheme/useEnvStore；mainnet 不渲染）。
+- [x] TDD 各组件（▲▼/up·down 色/辉光、卡片结构与 rule、警示按 network 显隐与 warn 描边）。
 
 ### - [ ] 单元 4：Markets 屏
 
@@ -137,6 +137,8 @@
 
 - （暂无）
 
+> 单元 3：v8 Markets 警示 chip 原设计为「warn 实底 + 深色文字 (#241400)」。深色文字在三套主题（含 daylight 浅底）上无法保证对比；为生产对比安全，改为「warn 描边 + warn 文字 + warn 16% 底」的同色调 chip，与警示条统一。属视觉等价的主题安全适配，语义/非对称行为不变。
+
 ---
 
 ## Progress
@@ -146,3 +148,4 @@
 - 2026-06-23 · 单元 0（计划创建）· — · 建立可重入计划与 10 单元拆分（v8 UI 落地，主题令牌/字体/原语/逐屏重构 + 收尾），事实源锁定 build-v8.js + v8.png，下一轮从「单元 1：主题令牌」开始。
 - 2026-06-23 · 单元 1（主题令牌 warn + electrum 对齐 v8）· +3（372→375）· tokens.ts 扩展 ThemeTokens（加 surfaceAlt/lineStrong/faint/glow/warn），electrum 对齐 v8（up #37D69A、down #FF6168、warn #FFA53D 等），daylight/oscilloscope 各补协调 warn + 扩展令牌；tint 复用 color.ts withAlpha；tokens.test 断言 warn 存在/与 brand 可区分/electrum 对齐。tsc 零错、jest 全绿、无 UI 文件改动（tokens.ts 为色源，硬编码色合规）。下一轮从「单元 2：字体基座」开始。
 - 2026-06-23 · 单元 2（字体基座 JetBrains Mono/Space Mono/Inter Tight）· +3（375→378）· 装 expo-font + @expo-google-fonts ×3（config plugin 注册）；fonts.ts 暴露 fonts.mono/display/body 家族名 token（纯字符串 jest 安全）+ fontAssets.ts 持 .ttf 映射（仅 App 导入、隔离不入 jest）；App.tsx useFonts(fontMap) 启动加载 + 首帧 gate（错误回退系统字体）；fonts.test 断言 token 形状/角色映射/家族唯一。tsc 零错、jest 全绿、改动文件无硬编码色/emoji。下一轮从「单元 3：共享原语」开始。
+- 2026-06-23 · 单元 3（共享原语 PriceText/ChangeText/SurfaceCard/NetworkWarning）· +15（378→393）· PriceText 改 mono tabular + 可选英雄辉光（textShadow，仅传 glowColor 时启用）；ChangeText 新增（▲▼ 几何 + 带符号 pct + up/down 色 + mono bold）；SurfaceCard 新增（surface + lineStrong 描边 + 3px brand 顶线 + overflow hidden）；NetworkWarning 新增（自读 envStore/useTheme，testnet→chip/strip，mainnet→null，warn token tint/描边 + alert 图标 + 诚实文案）。TDD 各组件全绿；tsc 零错、jest 全绿、4 文件无硬编码色/pictographic emoji（▲▼ 几何允许）。chip 同色调适配见偏差记录。下一轮从「单元 4：Markets 屏」开始。

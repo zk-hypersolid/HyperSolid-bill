@@ -6,6 +6,7 @@ import { deriveKey } from "./agent/secretBox";
 import { SqliteStrategyStore } from "./strategies/sqliteStore";
 import { SqliteActivityStore } from "./strategies/activityStore";
 import type { StrategyStore } from "./strategies/store";
+import { appConfigFromEnv } from "./config/appConfig";
 import { makeClientFor, makeResolvers, makeTransport, makeInfoClient } from "./agent/hlRuntime";
 import { makeHlPlacer } from "./agent/placer";
 import { tick } from "./engine/scheduler";
@@ -78,7 +79,7 @@ export async function main(): Promise<void> {
   }, tickMs);
   timer.unref?.();
 
-  const app = buildApp({ auth, agents, store, activity, now, version: VERSION, logger: process.env.LOG_REQUESTS === "1" });
+  const app = buildApp({ auth, agents, store, activity, now, version: VERSION, logger: process.env.LOG_REQUESTS === "1", appConfig: appConfigFromEnv(process.env) });
   await app.listen({ port, host: "0.0.0.0" });
   // eslint-disable-next-line no-console
   console.log(`strategy backend listening on :${port} (testnet=${isTestnet})`);

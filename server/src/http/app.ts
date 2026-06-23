@@ -4,6 +4,7 @@ import type { AgentManager } from "../agent/agentManager";
 import type { StrategyStore } from "../strategies/store";
 import type { DcaParams, DcaStrategy } from "../strategies/dca";
 import type { ActivityStore } from "../strategies/activityStore";
+import type { AppConfigPayload } from "../config/appConfig";
 
 export interface AppDeps {
   auth: Auth;
@@ -17,6 +18,8 @@ export interface AppDeps {
   version?: string;
   /** Enable Fastify request logging (off by default). */
   logger?: boolean;
+  /** Served by GET /app-config (server-delivered runtime config for the app). */
+  appConfig?: AppConfigPayload;
 }
 
 interface StrategyDto {
@@ -46,6 +49,11 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   // --- health (public) ---
   app.get("/health", async () => ({ ok: true, version }));
+
+  // --- runtime config the app fetches at startup (public; values are non-secret keyed endpoints) ---
+  const appConfig: AppConfigPayload =
+    deps.appConfig ?? { arbitrumRpc: { mainnet: null, testnet: null }, withdrawFeeUsdc: { mainnet: null, testnet: null }, strategyApiBaseUrl: null };
+  app.get("/app-config", async () => appConfig);
 
   const ownerOf = (req: FastifyRequest, reply: FastifyReply): string | null => {
     const header = req.headers.authorization;

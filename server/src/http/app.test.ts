@@ -110,4 +110,20 @@ describe("HTTP app", () => {
     expect(res.json()).toEqual({ ok: true, version: "0.1.0" });
     await app.close();
   });
+
+  it("serves public GET /app-config (the app's server-delivered runtime config)", async () => {
+    const auth0 = new Auth({ secret: "s", genNonce: () => "n", nonceTtlMs: 1e9, sessionTtlMs: 1e9 });
+    const agents = new AgentManager(new MemoryAgentStore(), () => AGENT_PK);
+    const store = new MemoryStrategyStore(() => 1000);
+    const appConfig = {
+      arbitrumRpc: { mainnet: null, testnet: "https://arb-test/key" },
+      withdrawFeeUsdc: { mainnet: 1, testnet: 0 },
+      strategyApiBaseUrl: "https://api.example",
+    };
+    const app = buildApp({ auth: auth0, agents, store, appConfig });
+    const res = await app.inject({ method: "GET", url: "/app-config" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(appConfig);
+    await app.close();
+  });
 });

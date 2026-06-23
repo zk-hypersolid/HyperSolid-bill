@@ -6,9 +6,12 @@
 > the AccountScreen deposit form with the mainnet two-step confirm. jest →445, tsc 0, Metro bundle OK.
 > Commits: spec/validator 3cb6f4e · impl dced7e1.
 >
-> **⚠️ Remaining user action (required before real use):** set your Arbitrum RPC provider key in the
-> app config — `EXPO_PUBLIC_ARBITRUM_RPC_MAINNET` and `EXPO_PUBLIC_ARBITRUM_RPC_TESTNET`. The code
-> never hardcodes it; deposits throw a clear "RPC 未配置" error until these are set.
+> **⚠️ Remaining user action (required before real use):** the **server** must serve the runtime
+> config at `<EXPO_PUBLIC_APP_CONFIG_URL>/app-config` returning
+> `{ "arbitrumRpc": { "mainnet": "<rpc-url-with-key>", "testnet": "<rpc-url-with-key>" } }`, and the
+> app must be built with `EXPO_PUBLIC_APP_CONFIG_URL` set to that backend base URL (not secret). The
+> keyed RPC itself is delivered at runtime and never embedded; deposits show "充值暂不可用 · RPC 尚未
+> 从服务器下发" until it arrives.
 
 ## Goal
 
@@ -37,9 +40,11 @@ verifies these before they are committed into the executable transfer path.**
 
 ## Decisions (locked)
 
-1. **RPC:** the Arbitrum RPC URL (the user's provider key) is read from app config / env
-   (`getArbitrumRpcUrl(network)` reading `EXPO_PUBLIC_ARBITRUM_RPC_MAINNET` / `…_TESTNET` or
-   `app.json > expo.extra`). **Never hardcode or commit the key.** Tests inject a fake client.
+1. **RPC:** the Arbitrum RPC URL is **delivered by the server at runtime** — the app fetches it from
+   its backend (`loadAppConfig(baseUrl)/hydrateRuntimeConfig` → `runtimeConfigStore`) at startup and
+   reads it via `arbitrumRpcFor(network)`; the deposit client takes it as a parameter. The keyed RPC
+   is **never** embedded in the bundle (no `EXPO_PUBLIC_ARBITRUM_RPC_*`). Only the non-secret backend
+   base URL (`EXPO_PUBLIC_APP_CONFIG_URL`) is a build constant. Tests inject a fake client/config.
 2. **Addresses:** the table above, pending verification, will live in `src/lib/arbitrum/bridge.ts`
    constants once confirmed.
 3. **Mainnet double-confirm:** on mainnet, the Confirm action requires a second explicit confirmation

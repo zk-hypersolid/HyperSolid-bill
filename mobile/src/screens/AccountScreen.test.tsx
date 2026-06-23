@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react-nativ
 import { AccountScreen } from "./AccountScreen";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
+import { useRuntimeConfigStore } from "../state/runtimeConfigStore";
 import type { PositionsService } from "../services/positionsData";
 import type { FundingsService } from "../services/fundingsData";
 import type { PortfolioSnapshot, FundingEvent } from "../lib/hyperliquid/types";
@@ -46,6 +47,9 @@ describe("AccountScreen", () => {
     fakeDeps.fundings.load = jest.fn(async () => fundingEvents);
     mockWithdraw.mockClear();
     mockDeposit.mockClear();
+    useRuntimeConfigStore.setState({
+      arbitrumRpc: { mainnet: "https://arb-mainnet/key", testnet: "https://arb-testnet/key" },
+    });
   });
 
   it("renders the onboarding state with create / restore / view-only actions", () => {
@@ -121,6 +125,18 @@ describe("AccountScreen", () => {
     fireEvent.changeText(screen.getByTestId("deposit-amount"), "5");
     fireEvent.press(screen.getByTestId("deposit-confirm"));
     await waitFor(() => expect(mockDeposit).toHaveBeenCalledWith({ amount: 5, confirmed: false }));
+  });
+
+  it("blocks deposit until the server delivers the Arbitrum RPC", async () => {
+    useEnvStore.setState({ network: "testnet" });
+    useRuntimeConfigStore.setState({ arbitrumRpc: { mainnet: null, testnet: null } });
+    const localWallet = { getViemAccount: () => ({}), getAddress: () => ADDR } as never;
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    fireEvent.press(screen.getByText("Deposit"));
+    fireEvent.changeText(screen.getByTestId("deposit-amount"), "5");
+    fireEvent.press(screen.getByTestId("deposit-confirm"));
+    expect(mockDeposit).not.toHaveBeenCalled();
   });
 
   it("confirms a withdrawal through the service with the entered amount + destination", async () => {

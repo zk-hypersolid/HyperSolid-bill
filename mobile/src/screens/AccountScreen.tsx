@@ -14,6 +14,7 @@ import { createPositionsInfoClient, createFundingsInfoClient, createExchangeClie
 import { ExchangeService } from "../services/exchange";
 import { DepositService } from "../services/deposit";
 import { createArbitrumDepositClient } from "../lib/arbitrum/client";
+import { arbitrumRpcFor } from "../state/runtimeConfigStore";
 import { MIN_DEPOSIT_USDC } from "../lib/arbitrum/deposit";
 import { buildAssetIndex } from "../lib/hyperliquid/assetId";
 import { marginRatioPct } from "../lib/hyperliquid/markPnl";
@@ -169,9 +170,15 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
       setMainnetConfirm(true);
       return;
     }
+    // RPC is delivered by the server at runtime (never embedded). Block clearly until it arrives.
+    const rpcUrl = arbitrumRpcFor(network);
+    if (!rpcUrl) {
+      Alert.alert("充值暂不可用", "Arbitrum RPC 尚未从服务器下发，请稍后重试。");
+      return;
+    }
     setDepositBusy(true);
     try {
-      const client = createArbitrumDepositClient(network, local.getViemAccount());
+      const client = createArbitrumDepositClient(network, local.getViemAccount(), rpcUrl);
       const svc = new DepositService(client, network);
       const res = await svc.depositUsdc({
         amount: Number(depositAmount),

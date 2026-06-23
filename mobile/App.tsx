@@ -16,6 +16,7 @@ import { useAuthStore } from "./src/state/authStore";
 import { useWalletStore } from "./src/state/walletStore";
 import { useLedgerStore } from "./src/state/ledgerStore";
 import { reconcilePendingIntents } from "./src/services/ledgerRecovery";
+import { hydrateRuntimeConfig } from "./src/services/appConfig";
 import { useAutoLock } from "./src/wallet/useAutoLock";
 import { unlockSession } from "./src/wallet/sessionController";
 import { BiometricGate } from "./src/wallet/biometricGate";
@@ -37,6 +38,13 @@ export default function App() {
   );
   useLiveMarkets(service);
   useAutoLock();
+
+  // Server-delivered runtime config (RPC keys etc. — never embedded in the bundle). Best-effort at
+  // startup; the backend base URL is not secret. Deposits block clearly until the RPC arrives.
+  useEffect(() => {
+    const baseUrl = process.env.EXPO_PUBLIC_APP_CONFIG_URL;
+    if (baseUrl) void hydrateRuntimeConfig(baseUrl);
+  }, []);
 
   // Persistent intent ledger (spec §6.2): one SQLite DB, hydrated/scoped by wallet × network so a
   // cloid idempotency ledger survives restarts. Re-scope when the active wallet or network changes.

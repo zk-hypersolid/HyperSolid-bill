@@ -60,7 +60,7 @@ export function MarketDetailScreen({ route, navigation }: Props) {
     () => new DetailDataService(createDetailInfoClient(network), createDetailSubsClient(network)),
     [network],
   );
-  const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("1h");
+  const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("15m");
   const { candles, orderbook, trades } = useLiveDetail(service, coin, timeframe);
 
   const [bookTab, setBookTab] = useState<(typeof BOOK_TABS)[number]>("book");

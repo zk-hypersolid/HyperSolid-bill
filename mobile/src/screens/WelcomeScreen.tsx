@@ -4,6 +4,7 @@ import { useTheme } from "../theme/useTheme";
 import { useT } from "../i18n/useT";
 import { fonts } from "../theme/fonts";
 import { Icon } from "../components/Icon";
+import { NetworkWarning } from "../components/NetworkWarning";
 
 /**
  * First-run welcome shown to no-wallet users on launch (gated in App.tsx). "Get started" routes the
@@ -21,26 +22,30 @@ export function WelcomeScreen({
   const t = useT();
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
-      <Icon name="star" active color={theme.brand} size={44} />
-      <Text style={[styles.title, { color: theme.text }]}>{t("welcome.title")}</Text>
-      <Text style={[styles.body, { color: theme.muted }]}>{t("welcome.body")}</Text>
+      <NetworkWarning variant="strip" />
+      <View style={styles.center}>
+        <Icon name="star" active color={theme.brand} size={44} />
+        <Text style={[styles.title, { color: theme.text }]}>{t("welcome.title")}</Text>
+        <Text style={[styles.body, { color: theme.muted }]}>{t("welcome.body")}</Text>
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={onGetStarted}
-        style={[styles.btn, { backgroundColor: theme.brand }]}
-      >
-        <Text style={[styles.btnText, { color: theme.bg }]}>{t("welcome.getStarted")}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" onPress={onBrowse} style={styles.linkBtn}>
-        <Text style={[styles.linkText, { color: theme.muted }]}>{t("welcome.browse")}</Text>
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onGetStarted}
+          style={[styles.btn, { backgroundColor: theme.brand }]}
+        >
+          <Text style={[styles.btnText, { color: theme.bg }]}>{t("welcome.getStarted")}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onBrowse} style={styles.linkBtn}>
+          <Text style={[styles.linkText, { color: theme.muted }]}>{t("welcome.browse")}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 14 },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28, gap: 14 },
   title: { fontFamily: fonts.display.bold, fontSize: 22, textAlign: "center", marginTop: 6 },
   body: { fontFamily: fonts.body.regular, fontSize: 14, lineHeight: 21, textAlign: "center", marginBottom: 8 },
   btn: { paddingVertical: 14, paddingHorizontal: 48, borderRadius: 12, marginTop: 4 },

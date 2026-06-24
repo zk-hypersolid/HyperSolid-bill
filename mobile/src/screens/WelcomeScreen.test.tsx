@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react-native";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { useLocaleStore } from "../state/localeStore";
+import { useEnvStore } from "../state/envStore";
 
 describe("WelcomeScreen", () => {
   beforeEach(() => act(() => useLocaleStore.getState().setLocale("en")));
@@ -28,5 +29,12 @@ describe("WelcomeScreen", () => {
     render(<WelcomeScreen onGetStarted={jest.fn()} onBrowse={jest.fn()} />);
     expect(screen.getByText("开始设置")).toBeTruthy();
     expect(screen.getByText("先逛逛行情")).toBeTruthy();
+  });
+
+  it("surfaces the testnet caution on testnet", () => {
+    act(() => useEnvStore.setState({ network: "testnet" }));
+    render(<WelcomeScreen onGetStarted={jest.fn()} onBrowse={jest.fn()} />);
+    expect(screen.getByText("Testnet")).toBeTruthy();
+    expect(screen.getByText(/paper funds/)).toBeTruthy();
   });
 });

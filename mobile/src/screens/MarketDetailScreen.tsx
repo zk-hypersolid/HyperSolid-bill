@@ -150,6 +150,16 @@ export function MarketDetailScreen({ route, navigation }: Props) {
   const high24 = candles.length ? Math.max(...candles.map((c) => c.high)) : null;
   const low24 = candles.length ? Math.min(...candles.map((c) => c.low)) : null;
 
+  // 5 evenly-spaced HH:MM time labels for the candle X-axis (local time, from candle timestamps).
+  const timeAxis = (() => {
+    if (candles.length < 2) return [] as string[];
+    const fmt = (ms: number) => {
+      const d = new Date(ms);
+      return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    };
+    return [0, 0.25, 0.5, 0.75, 1].map((f) => fmt(candles[Math.round(f * (candles.length - 1))].t));
+  })();
+
   const stats: Array<[string, string]> = [
     ["24h high", high24 != null ? formatPrice(high24) : "—"],
     ["24h low", low24 != null ? formatPrice(low24) : "—"],
@@ -210,17 +220,27 @@ export function MarketDetailScreen({ route, navigation }: Props) {
         ))}
       </View>
 
+      <CandleChart candles={candles} theme={theme} currentPrice={price} overlays={overlays} />
+
+      {timeAxis.length > 0 ? (
+        <View style={styles.xAxis}>
+          {timeAxis.map((t, i) => (
+            <Text key={i} style={[styles.xAxisLabel, { color: theme.faint }]}>
+              {t}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.tfs}>
         {INDICATORS.map((ind) => (
           <Chip key={ind} theme={theme} label={ind} active={indicator === ind} onPress={() => setIndicator(ind)} />
         ))}
       </View>
 
-      <CandleChart candles={candles} theme={theme} currentPrice={price} overlays={overlays} />
+      {indicatorPanel}
 
       <MultiPeriodReturns theme={theme} data={perf} />
-
-      {indicatorPanel}
 
       <View style={[styles.bookTabs, { borderBottomColor: theme.line }]}>
         <View style={styles.bookTabGroup}>
@@ -291,6 +311,8 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: fonts.body.regular, fontSize: 10.5, flexShrink: 1 },
   statValue: { fontFamily: fonts.mono.medium, fontSize: 10.5 },
   tfs: { flexDirection: "row", flexWrap: "wrap", gap: 7, rowGap: 7, marginBottom: 10 },
+  xAxis: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 2, marginTop: 4, marginBottom: 8 },
+  xAxisLabel: { fontFamily: fonts.mono.regular, fontSize: 9 },
   bookTabs: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 1, marginTop: 14, marginBottom: 6 },
   bookTabGroup: { flexDirection: "row", gap: 18 },
   imbalance: { fontFamily: fonts.mono.medium, fontSize: 10.5, paddingBottom: 4 },

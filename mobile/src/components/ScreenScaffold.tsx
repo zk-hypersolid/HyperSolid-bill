@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, ScrollView, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ThemeTokens } from "../theme/tokens";
 import { Trace } from "./Trace";
 import { StatusRow } from "./StatusRow";
@@ -32,6 +33,7 @@ export function ScreenScaffold({
   children?: React.ReactNode;
 }) {
   const hasStatus = statusTitle !== undefined || pill !== undefined || statusLeft !== undefined;
+  const insets = useSafeAreaInsets();
   const inner = (
     <>
       {heading ? <Text style={[styles.heading, { color: theme.text }]}>{heading}</Text> : null}
@@ -39,7 +41,7 @@ export function ScreenScaffold({
     </>
   );
   return (
-    <View style={[styles.root, { backgroundColor: theme.bg }]}>
+    <View style={[styles.root, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       {showTrace ? <Trace theme={theme} {...traceProps} /> : null}
       {hasStatus ? <StatusRow theme={theme} left={statusLeft} title={statusTitle} pill={pill} /> : null}
       {scroll ? (

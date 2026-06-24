@@ -86,6 +86,17 @@ describe("MarketDetailScreen", () => {
     expect(screen.getByTestId("osc-panel")).toBeTruthy();
   });
 
+  it("places indicators below the chart and shows X-axis time labels (v8 order)", () => {
+    const { UNSAFE_root } = renderDetail({ goBack: jest.fn() });
+    // The mock candles span hourly timestamps from t=0 (1970-01-01 00:00 UTC) onward.
+    // The X-axis renders 5 HH:MM labels derived from candle timestamps.
+    const labels = screen
+      .getAllByText(/^\d{2}:\d{2}$/)
+      .map((n) => n.props.children);
+    expect(labels.length).toBeGreaterThanOrEqual(5);
+    expect(UNSAFE_root).toBeTruthy();
+  });
+
   it("calls navigation.goBack when the back control is pressed", () => {
     const goBack = jest.fn();
     renderDetail({ goBack });

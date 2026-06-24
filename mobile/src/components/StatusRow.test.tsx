@@ -7,9 +7,9 @@ import { themes } from "../theme/tokens";
 const t = themes.electrum;
 
 describe("StatusRow", () => {
-  it("renders the default clock, title and pill node", () => {
+  it("renders no fake clock by default (leaves room for the real status bar); shows title and pill", () => {
     render(<StatusRow theme={t} title="HYPERSOLID" pill={<Text>◷ TESTNET</Text>} />);
-    expect(screen.getByText("9:41")).toBeTruthy();
+    expect(screen.queryByText("9:41")).toBeNull();
     expect(screen.getByText("HYPERSOLID")).toBeTruthy();
     expect(screen.getByText("◷ TESTNET")).toBeTruthy();
   });

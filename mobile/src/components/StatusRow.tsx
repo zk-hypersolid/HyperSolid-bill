@@ -8,7 +8,7 @@ import type { ThemeTokens } from "../theme/tokens";
  */
 export function StatusRow({
   theme,
-  left = "9:41",
+  left,
   title,
   pill,
 }: {

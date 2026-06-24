@@ -22,6 +22,8 @@ import { PriceText, formatPrice } from "../components/PriceText";
 import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
+import { useT } from "../i18n/useT";
+import type { TranslationKey } from "../i18n/messages";
 import type { ThemeTokens } from "../theme/tokens";
 import type { Fill, OpenOrder, AccountSummary } from "../lib/hyperliquid/types";
 
@@ -35,6 +37,7 @@ type Tab = "positions" | "fills" | "orders";
 
 export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
   const theme = useTheme();
+  const t = useT();
   const network = useEnvStore((s) => s.network);
   const walletAddress = useWalletStore((s) => s.address);
 
@@ -63,20 +66,19 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
     void services.orders.loadOpenOrders(addr).then(setOrders).catch(() => setOrders([]));
   }, [address, load, services]);
 
-  const tabs: Array<[Tab, string, number]> = [
-    ["positions", "Positions", portfolio?.positions.length ?? 0],
-    ["orders", "Orders", orders.length],
-    ["fills", "History", fills.length],
+  const tabs: Array<[Tab, TranslationKey, number]> = [
+    ["positions", "tab.positions", portfolio?.positions.length ?? 0],
+    ["orders", "positions.tabOrders", orders.length],
+    ["fills", "positions.tabHistory", fills.length],
   ];
 
   return (
-    <ScreenScaffold theme={theme} statusTitle="Positions" pill={<NetworkWarning variant="chip" />}>
+    <ScreenScaffold theme={theme} statusTitle={t("tab.positions")} pill={<NetworkWarning variant="chip" />}>
       <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
       <View style={[styles.banner, { borderColor: theme.line }]}>
         <Icon name="eye" color={theme.faint} size={16} />
         <Text style={[styles.bannerText, { color: theme.muted }]}>
-          View-only: enter any address to inspect its positions (zero private keys). Connecting a
-          wallet auto-fills your own address.
+          {t("positions.viewOnlyBanner")}
         </Text>
       </View>
 
@@ -84,14 +86,14 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
         <TextInput
           value={address}
           onChangeText={setAddress}
-          placeholder="0x… wallet address"
+          placeholder={t("positions.addressPlaceholder")}
           placeholderTextColor={theme.faint}
           autoCapitalize="none"
           autoCorrect={false}
           style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
         />
         <Pressable onPress={onQuery} accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.brand }]}>
-          <Text style={[styles.btnText, { color: theme.bg }]}>Query</Text>
+          <Text style={[styles.btnText, { color: theme.bg }]}>{t("positions.query")}</Text>
         </Pressable>
       </View>
 
@@ -103,7 +105,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
           <EquityCard theme={theme} summary={portfolio.summary} />
 
           <View style={[styles.tabs, { borderBottomColor: theme.line }]}>
-            {tabs.map(([key, label, n]) => (
+            {tabs.map(([key, labelKey, n]) => (
               <Pressable
                 key={key}
                 onPress={() => setTab(key)}
@@ -119,7 +121,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
                     },
                   ]}
                 >
-                  {label} · {n}
+                  {t(labelKey)} · {n}
                 </Text>
               </Pressable>
             ))}
@@ -127,7 +129,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "positions" ? (
             portfolio.positions.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>No open positions for this address</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>{t("positions.emptyPositions")}</Text>
             ) : (
               portfolio.positions.map((p) => <PositionRow key={p.coin} position={p} theme={theme} />)
             )
@@ -135,7 +137,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "fills" ? (
             fills.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>No recent fills</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>{t("positions.emptyFills")}</Text>
             ) : (
               fills.map((f) => <FillRow key={`${f.tid}`} fill={f} theme={theme} />)
             )
@@ -143,7 +145,7 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 
           {tab === "orders" ? (
             orders.length === 0 ? (
-              <Text style={[styles.msg, { color: theme.muted }]}>No open orders</Text>
+              <Text style={[styles.msg, { color: theme.muted }]}>{t("positions.emptyOrders")}</Text>
             ) : (
               orders.map((o) => <OrderRow key={`${o.oid}`} order={o} theme={theme} />)
             )
@@ -155,29 +157,35 @@ export function PositionsScreen({ deps }: { deps?: PositionsScreenDeps } = {}) {
 }
 
 function EquityCard({ theme, summary }: { theme: ThemeTokens; summary: AccountSummary }) {
+  const t = useT();
   const up = summary.totalUnrealizedPnl >= 0;
   const marginRatio = summary.accountValue ? (summary.totalMarginUsed / summary.accountValue) * 100 : 0;
   const fill = Math.max(2, Math.min(100, marginRatio));
   const healthColor = marginRatio < 50 ? theme.up : marginRatio < 80 ? theme.warn : theme.down;
-  const healthLabel = marginRatio < 50 ? "Healthy" : marginRatio < 80 ? "Caution" : "At risk";
+  const healthLabel =
+    marginRatio < 50
+      ? t("positions.healthHealthy")
+      : marginRatio < 80
+        ? t("positions.healthCaution")
+        : t("positions.healthAtRisk");
 
   return (
     <SurfaceCard theme={theme} style={styles.eqCard}>
       <View style={styles.eqTop}>
-        <Text style={[styles.eqLabel, { color: theme.muted }]}>Equity · USDC</Text>
-        <Text style={[styles.eqPill, { color: theme.brand, borderColor: theme.lineStrong }]}>Cross</Text>
+        <Text style={[styles.eqLabel, { color: theme.muted }]}>{t("positions.equity")}</Text>
+        <Text style={[styles.eqPill, { color: theme.brand, borderColor: theme.lineStrong }]}>{t("positions.cross")}</Text>
       </View>
       <PriceText value={summary.accountValue} color={theme.text} size={28} glow glowColor={theme.glow} />
 
       <View style={styles.eqRow}>
-        <EqCell theme={theme} label="Available" value={formatPrice(summary.withdrawable)} />
+        <EqCell theme={theme} label={t("positions.available")} value={formatPrice(summary.withdrawable)} />
         <EqCell
           theme={theme}
-          label="Unrealized PnL"
+          label={t("positions.unrealizedPnl")}
           value={`${up ? "▲ +" : "▼ "}${summary.totalUnrealizedPnl.toFixed(2)}`}
           color={up ? theme.up : theme.down}
         />
-        <EqCell theme={theme} label="Margin ratio" value={`${marginRatio.toFixed(1)}%`} />
+        <EqCell theme={theme} label={t("positions.marginRatio")} value={`${marginRatio.toFixed(1)}%`} />
       </View>
 
       <View style={styles.health}>
@@ -185,9 +193,9 @@ function EquityCard({ theme, summary }: { theme: ThemeTokens; summary: AccountSu
           <View style={[styles.healthFill, { width: `${fill}%`, backgroundColor: healthColor }]} />
         </View>
         <View style={styles.healthRow}>
-          <Text style={[styles.healthLabel, { color: theme.muted }]}>Account health</Text>
+          <Text style={[styles.healthLabel, { color: theme.muted }]}>{t("positions.accountHealth")}</Text>
           <Text style={[styles.healthLabel, { color: healthColor }]}>
-            {healthLabel} · {marginRatio.toFixed(1)}% margin
+            {t("positions.healthSummary", { label: healthLabel, ratio: marginRatio.toFixed(1) })}
           </Text>
         </View>
       </View>
@@ -215,12 +223,13 @@ function EqCell({
 }
 
 function FillRow({ fill, theme }: { fill: Fill; theme: ThemeTokens }) {
+  const t = useT();
   const sideColor = fill.side === "buy" ? theme.up : theme.down;
   return (
     <View style={[styles.row, { borderBottomColor: theme.line }]}>
       <View>
         <Text style={[styles.rowCoin, { color: theme.text }]}>
-          {fill.coin} <Text style={{ color: sideColor }}>{fill.side === "buy" ? "Buy" : "Sell"}</Text>
+          {fill.coin} <Text style={{ color: sideColor }}>{t(fill.side === "buy" ? "common.buy" : "common.sell")}</Text>
         </Text>
         <Text style={[styles.rowSub, { color: theme.muted }]}>{fill.dir}</Text>
       </View>
@@ -233,15 +242,18 @@ function FillRow({ fill, theme }: { fill: Fill; theme: ThemeTokens }) {
 }
 
 function OrderRow({ order, theme }: { order: OpenOrder; theme: ThemeTokens }) {
+  const t = useT();
   const sideColor = order.side === "buy" ? theme.up : theme.down;
   return (
     <View style={[styles.row, { borderBottomColor: theme.line }]}>
       <View>
         <Text style={[styles.rowCoin, { color: theme.text }]}>
-          {order.coin} <Text style={{ color: sideColor }}>{order.side === "buy" ? "Buy" : "Sell"}</Text>
-          {order.reduceOnly ? <Text style={{ color: theme.muted }}> Reduce-only</Text> : null}
+          {order.coin} <Text style={{ color: sideColor }}>{t(order.side === "buy" ? "common.buy" : "common.sell")}</Text>
+          {order.reduceOnly ? <Text style={{ color: theme.muted }}> {t("positions.reduceOnly")}</Text> : null}
         </Text>
-        <Text style={[styles.rowSub, { color: theme.muted }]}>{`Filled ${order.sz}/${order.origSz}`}</Text>
+        <Text style={[styles.rowSub, { color: theme.muted }]}>
+          {t("positions.filled", { filled: order.sz, total: order.origSz })}
+        </Text>
       </View>
       <View style={styles.right}>
         <Text style={[styles.rowVal, { color: theme.text }]}>{order.limitPx}</Text>

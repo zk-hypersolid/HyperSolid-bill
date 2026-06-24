@@ -60,17 +60,17 @@ export function AgentScreen() {
   }
 
   return (
-    <ScreenScaffold theme={theme} statusTitle="Strategy" pill={<NetworkWarning variant="chip" />}>
+    <ScreenScaffold theme={theme} statusTitle={t("tab.strategy")} pill={<NetworkWarning variant="chip" />}>
       {!ready ? (
         <SurfaceCard theme={theme} testID="strategy-gated" style={styles.card}>
-          <Text style={[styles.title, { color: theme.text }]}>Strategy automation</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.automationTitle")}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
             {!baseUrl ? t("agent.gatedNoConfig") : t("agent.gatedNoWallet")}
           </Text>
         </SurfaceCard>
       ) : !token ? (
         <SurfaceCard theme={theme} testID="strategy-connect" style={styles.card}>
-          <Text style={[styles.title, { color: theme.text }]}>Strategy automation</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.automationTitle")}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
             {t("agent.connectHint")}
           </Text>
@@ -83,7 +83,7 @@ export function AgentScreen() {
             {connecting ? (
               <ActivityIndicator color={theme.bg} />
             ) : (
-              <Text style={[styles.ctaText, { color: theme.bg }]}>Connect</Text>
+              <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.connect")}</Text>
             )}
           </Pressable>
         </SurfaceCard>
@@ -144,11 +144,11 @@ function StrategyPanel({
   return (
     <>
       <SurfaceCard theme={theme} testID="agent-card" style={styles.card}>
-        <Text style={[styles.title, { color: theme.text }]}>Trading agent</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{t("agent.tradingAgentTitle")}</Text>
         {ctrl.approved ? (
           <>
             <Text style={[styles.mono, { color: theme.muted }]}>
-              {shortAddr(ctrl.status.agentAddress ?? "")} · trade-only
+              {shortAddr(ctrl.status.agentAddress ?? "")} · {t("agent.tradeOnly")}
             </Text>
             <Pressable
               onPress={() => void ctrl.revoke()}
@@ -156,7 +156,7 @@ function StrategyPanel({
               testID="agent-revoke"
               style={[styles.ctaOutline, { borderColor: theme.down }]}
             >
-              <Text style={[styles.ctaText, { color: theme.down }]}>Revoke agent</Text>
+              <Text style={[styles.ctaText, { color: theme.down }]}>{t("agent.revokeAgent")}</Text>
             </Pressable>
           </>
         ) : (
@@ -174,42 +174,43 @@ function StrategyPanel({
               {ctrl.busy ? (
                 <ActivityIndicator color={theme.bg} />
               ) : (
-                <Text style={[styles.ctaText, { color: theme.bg }]}>Authorize trading agent</Text>
+                <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.authorize")}</Text>
               )}
             </Pressable>
           </>
         )}
       </SurfaceCard>
 
-      <Text style={[styles.eyebrow, { color: theme.faint }]}>My strategies</Text>
+      <Text style={[styles.eyebrow, { color: theme.faint }]}>{t("agent.myStrategies")}</Text>
       {ctrl.strategies.length === 0 ? (
-        <Text style={[styles.hint, { color: theme.muted }]}>No strategies yet — create a DCA below.</Text>
+        <Text style={[styles.hint, { color: theme.muted }]}>{t("agent.noStrategies")}</Text>
       ) : (
         ctrl.strategies.map((s) => <StrategyRow key={s.id} theme={theme} strategy={s} onToggle={() => void ctrl.toggle(s)} />)
       )}
 
       <SurfaceCard theme={theme} rule={false} testID="new-dca" style={styles.card}>
-        <Text style={[styles.title, { color: theme.text }]}>New DCA</Text>
-        <Field theme={theme} label="Coin" value={coin} onChangeText={setCoin} autoCap testID="dca-coin" />
-        <Field theme={theme} label="Amount per buy · USDC" value={amount} onChangeText={setAmount} keyboard testID="dca-amount" />
-        <Field theme={theme} label="Interval · hours" value={intervalHours} onChangeText={setIntervalHours} keyboard testID="dca-interval" />
+        <Text style={[styles.title, { color: theme.text }]}>{t("agent.newDca")}</Text>
+        <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="dca-coin" />
+        <Field theme={theme} label={t("agent.amountPerBuy")} value={amount} onChangeText={setAmount} keyboard testID="dca-amount" />
+        <Field theme={theme} label={t("agent.intervalHours")} value={intervalHours} onChangeText={setIntervalHours} keyboard testID="dca-interval" />
         <Pressable onPress={onCreate} accessibilityRole="button" testID="dca-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
-          <Text style={[styles.ctaText, { color: theme.bg }]}>Create DCA</Text>
+          <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createDca")}</Text>
         </Pressable>
       </SurfaceCard>
 
       <Pressable onPress={() => void ctrl.killAll()} accessibilityRole="button" testID="kill-switch" style={[styles.ctaOutline, { borderColor: theme.down }]}>
-        <Text style={[styles.ctaText, { color: theme.down }]}>Pause all strategies</Text>
+        <Text style={[styles.ctaText, { color: theme.down }]}>{t("agent.pauseAll")}</Text>
       </Pressable>
     </>
   );
 }
 
 function StrategyRow({ theme, strategy, onToggle }: { theme: ThemeTokens; strategy: Strategy; onToggle: () => void }) {
+  const t = useT();
   return (
     <SurfaceCard theme={theme} rule={false} testID={`strategy-${strategy.id}`} style={styles.row}>
       <View style={styles.rowMain}>
-        <Text style={[styles.rowTitle, { color: theme.text }]}>{`${strategy.params.coin} DCA`}</Text>
+        <Text style={[styles.rowTitle, { color: theme.text }]}>{t("agent.strategyDca", { coin: strategy.params.coin })}</Text>
         <Text style={[styles.hint, { color: theme.muted }]}>
           {`$${strategy.params.quoteAmountUsdc} / ${strategy.params.intervalHours}h`}
         </Text>

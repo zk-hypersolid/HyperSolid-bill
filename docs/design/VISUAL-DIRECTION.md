@@ -1,5 +1,7 @@
 # HyperSolid — 交易终端视觉方向 (Visual Direction v1)
 
+> ⚠️ **历史稿（v1，仅供理解设计动机）。** 实现已演进：字体改为 Space Mono / JetBrains Mono / Inter Tight，并有 3 套主题。**新 UI 的权威基准是 [`DESIGN-SYSTEM.md`](./DESIGN-SYSTEM.md)**（与 `mobile/src/theme/*` tokens 同步、机器强制）。本文件读「为什么」，不读「是什么」。
+
 > 方法：依据 frontend-design 技能（基于主题 → 两轮自我批判，刻意规避 AI 默认套路）。
 > 概念一句话：**Electrum Terminal — 把液态的市场凝固成可掌控的固态。**
 

@@ -47,6 +47,7 @@ const fakeDeps = {
 describe("AccountScreen", () => {
   beforeEach(() => {
     useEnvStore.setState({ network: "mainnet" });
+    useLocaleStore.setState({ locale: "en" });
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     fakeDeps.positions.loadPortfolio = jest.fn(async () => portfolio);
     fakeDeps.fundings.load = jest.fn(async () => fundingEvents);

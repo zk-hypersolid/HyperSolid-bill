@@ -269,7 +269,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
     const withdrawFee = withdrawFeeFor(network);
     const withdrawNet = Math.max(0, (Number(amountInput) || 0) - withdrawFee).toFixed(2);
     return (
-      <ScreenScaffold theme={theme} statusTitle="Wallet" pill={<NetworkWarning variant="chip" />}>
+      <ScreenScaffold theme={theme} statusTitle={t("tab.wallet")} pill={<NetworkWarning variant="chip" />}>
         <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
 
         <SurfaceCard theme={theme} style={styles.wcard}>
@@ -277,16 +277,16 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
             <View style={styles.labelRow}>
               <Icon name={mode === "local" ? "lock" : "eye"} color={theme.brand} size={15} />
               <Text style={[styles.wlabel, { color: theme.text }]}>
-                {mode === "local" ? "Local wallet" : "View-only"}
+                {mode === "local" ? t("account.localWallet") : t("account.viewOnlyLabel")}
               </Text>
             </View>
             <Text style={[styles.badge, { color: theme.brand, borderColor: theme.lineStrong }]}>
-              {mode === "local" ? "Non-custodial" : "Read-only"}
+              {mode === "local" ? t("account.nonCustodial") : t("account.readOnly")}
             </Text>
           </View>
           <Text style={[styles.addr, { color: theme.muted }]}>{address ? shortAddr(address) : "—"}</Text>
           <View style={styles.balRow}>
-            <Text style={[styles.balLabel, { color: theme.muted }]}>Balance</Text>
+            <Text style={[styles.balLabel, { color: theme.muted }]}>{t("account.balance")}</Text>
             {summary ? (
               <PriceText value={summary.accountValue} color={theme.text} size={18} glow glowColor={theme.glow} />
             ) : (
@@ -298,25 +298,25 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
         {mode === "local" ? (
           <View style={styles.actions}>
             <Pressable onPress={onDeposit} accessibilityRole="button" style={[styles.action, { backgroundColor: theme.brand }]}>
-              <Text style={[styles.actionText, { color: theme.bg }]}>Deposit</Text>
+              <Text style={[styles.actionText, { color: theme.bg }]}>{t("common.deposit")}</Text>
             </Pressable>
             <Pressable
               onPress={onWithdraw}
               accessibilityRole="button"
               style={[styles.action, styles.actionOutline, { borderColor: theme.lineStrong }]}
             >
-              <Text style={[styles.actionText, { color: theme.text }]}>Withdraw</Text>
+              <Text style={[styles.actionText, { color: theme.text }]}>{t("common.withdraw")}</Text>
             </Pressable>
           </View>
         ) : null}
 
         {mode === "local" && sheet === "deposit" ? (
           <SurfaceCard theme={theme} testID="deposit-panel" style={styles.card}>
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>Deposit USDC</Text>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>{t("account.depositTitle")}</Text>
             <Text style={[styles.sheetHint, { color: theme.muted }]}>
-              {`Sends native USDC on Arbitrum from this wallet to the Hyperliquid bridge (credited to you in ~1 min). Minimum ${MIN_DEPOSIT_USDC} USDC — less is lost. Your wallet needs a little ETH on Arbitrum for gas. Never USDC.e.`}
+              {t("account.depositHint", { min: MIN_DEPOSIT_USDC })}
             </Text>
-            <Text style={[styles.fieldLabel, { color: theme.muted }]}>Amount · USDC</Text>
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.amountUsdc")}</Text>
             <TextInput
               value={depositAmount}
               onChangeText={(v) => {
@@ -331,17 +331,17 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
             />
             {depositBalances ? (
               <Text style={[styles.feeLine, { color: theme.muted }]} testID="deposit-available">
-                {`Available ${depositBalances.usdc.toFixed(2)} USDC · ${depositBalances.eth.toFixed(4)} ETH for gas`}
+                {t("account.depositAvailable", { usdc: depositBalances.usdc.toFixed(2), eth: depositBalances.eth.toFixed(4) })}
               </Text>
             ) : null}
             {depositBalances && depositBalances.eth < GAS_MIN_ETH ? (
               <Text style={[styles.dangerNote, { color: theme.warn }]} testID="deposit-gas-warning">
-                Not enough ETH on Arbitrum to pay gas — fund this wallet with a little ETH first.
+                {t("account.depositGasWarning")}
               </Text>
             ) : null}
             {network === "mainnet" && mainnetConfirm ? (
               <Text style={[styles.dangerNote, { color: theme.warn }]} testID="deposit-mainnet-confirm">
-                You are about to send REAL USDC on Arbitrum mainnet. This is irreversible — confirm to sign.
+                {t("account.depositMainnetWarn")}
               </Text>
             ) : null}
             <View style={styles.sheetRow}>
@@ -350,7 +350,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
                   <ActivityIndicator color={theme.bg} />
                 ) : (
                   <Text style={[styles.sheetBtnText, { color: theme.bg }]}>
-                    {network === "mainnet" ? (mainnetConfirm ? "Yes, send real USDC" : "Review deposit") : "Confirm deposit"}
+                    {network === "mainnet" ? (mainnetConfirm ? t("account.depositSendReal") : t("account.depositReview")) : t("account.depositConfirmBtn")}
                   </Text>
                 )}
               </Pressable>
@@ -362,7 +362,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
                 accessibilityRole="button"
                 style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}
               >
-                <Text style={[styles.sheetBtnText, { color: theme.text }]}>Close</Text>
+                <Text style={[styles.sheetBtnText, { color: theme.text }]}>{t("account.close")}</Text>
               </Pressable>
             </View>
           </SurfaceCard>
@@ -370,11 +370,11 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
 
         {mode === "local" && sheet === "withdraw" ? (
           <SurfaceCard theme={theme} testID="withdraw-panel" style={styles.card}>
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>Withdraw USDC</Text>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>{t("account.withdrawTitle")}</Text>
             <Text style={[styles.sheetHint, { color: theme.muted }]}>
-              {`Withdrawable ${summary ? formatPrice(summary.withdrawable) : "—"} USDC`}
+              {t("account.withdrawableHint", { amount: summary ? formatPrice(summary.withdrawable) : "—" })}
             </Text>
-            <Text style={[styles.fieldLabel, { color: theme.muted }]}>Amount · USDC</Text>
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.amountUsdc")}</Text>
             <TextInput
               value={amountInput}
               onChangeText={(v) => {
@@ -387,7 +387,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
               placeholderTextColor={theme.faint}
               style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
             />
-            <Text style={[styles.fieldLabel, { color: theme.muted }]}>Destination</Text>
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.destination")}</Text>
             <TextInput
               value={destInput}
               onChangeText={(v) => {
@@ -402,11 +402,11 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
               style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
             />
             <Text style={[styles.feeLine, { color: theme.muted }]} testID="withdraw-fee">
-              {`Fee ${withdrawFee} USDC · you receive ≈ ${withdrawNet} USDC`}
+              {t("account.withdrawFeeLine", { fee: withdrawFee, net: withdrawNet })}
             </Text>
             {network === "mainnet" && withdrawMainnetConfirm ? (
               <Text style={[styles.dangerNote, { color: theme.warn }]} testID="withdraw-mainnet-confirm">
-                You are about to withdraw REAL USDC on mainnet. This is irreversible — confirm to sign.
+                {t("account.withdrawMainnetWarn")}
               </Text>
             ) : null}
             <View style={styles.sheetRow}>
@@ -415,7 +415,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
                   <ActivityIndicator color={theme.bg} />
                 ) : (
                   <Text style={[styles.sheetBtnText, { color: theme.bg }]}>
-                    {network === "mainnet" ? (withdrawMainnetConfirm ? "Yes, withdraw real USDC" : "Review withdrawal") : "Confirm withdrawal"}
+                    {network === "mainnet" ? (withdrawMainnetConfirm ? t("account.withdrawReal") : t("account.withdrawReview")) : t("account.withdrawConfirmBtn")}
                   </Text>
                 )}
               </Pressable>
@@ -427,7 +427,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
                 accessibilityRole="button"
                 style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}
               >
-                <Text style={[styles.sheetBtnText, { color: theme.text }]}>Close</Text>
+                <Text style={[styles.sheetBtnText, { color: theme.text }]}>{t("account.close")}</Text>
               </Pressable>
             </View>
           </SurfaceCard>
@@ -435,13 +435,13 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
 
         {summary ? (
           <SurfaceCard theme={theme} rule={false} style={styles.card}>
-            <Text style={[styles.cardTitle, { color: theme.muted }]}>Account summary</Text>
+            <Text style={[styles.cardTitle, { color: theme.muted }]}>{t("account.accountSummary")}</Text>
             <View style={styles.metricRow}>
-              <Metric theme={theme} label="Equity" value={`$${formatPrice(summary.accountValue)}`} />
-              <Metric theme={theme} label="Available" value={`$${formatPrice(summary.withdrawable)}`} />
+              <Metric theme={theme} label={t("account.equity")} value={`$${formatPrice(summary.accountValue)}`} />
+              <Metric theme={theme} label={t("positions.available")} value={`$${formatPrice(summary.withdrawable)}`} />
               <Metric
                 theme={theme}
-                label="Margin ratio"
+                label={t("positions.marginRatio")}
                 value={(() => {
                   const r = marginRatioPct(summary.accountValue, summary.totalMarginUsed);
                   return r === null ? "—" : `${r.toFixed(1)}%`;
@@ -454,13 +454,13 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
         {fundingTotal !== null ? (
           <SurfaceCard theme={theme} rule={false} style={styles.card}>
             <View style={styles.fundingRow}>
-              <Text style={[styles.cardTitle, { color: theme.muted }]}>Funding</Text>
+              <Text style={[styles.cardTitle, { color: theme.muted }]}>{t("account.funding")}</Text>
               <Text style={[styles.value, { color: fundingTotal <= 0 ? theme.down : theme.up }]}>
                 {`${fundingTotal >= 0 ? "+" : ""}${fundingTotal.toFixed(2)} USDC`}
               </Text>
             </View>
             <Text style={[styles.fundingHint, { color: theme.faint }]}>
-              Negative = funding paid (oracle-priced settlement)
+              {t("account.fundingHint")}
             </Text>
           </SurfaceCard>
         ) : null}
@@ -470,22 +470,22 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
             <View style={styles.warnRow}>
               <Icon name="alert" color={theme.warn} size={16} />
               <Text style={[styles.warn, { color: theme.warn }]}>
-                Back up your recovery phrase now (shown once, never screenshot it).
+                {t("account.backupWarn")}
               </Text>
             </View>
             <Text style={[styles.mnemonic, { color: theme.text }]}>{newMnemonic}</Text>
             <Pressable onPress={() => setNewMnemonic(null)} accessibilityRole="button">
-              <Text style={[styles.link, { color: theme.muted }]}>I've backed it up safely</Text>
+              <Text style={[styles.link, { color: theme.muted }]}>{t("account.backedUp")}</Text>
             </Pressable>
           </SurfaceCard>
         ) : null}
 
-        <SettingRow theme={theme} icon="swap" name="Network" value={network} onPress={toggleNetwork} />
-        <SettingRow theme={theme} icon="agent" name="Theme" value={THEME_LABEL[themeName]} onPress={cycleTheme} />
+        <SettingRow theme={theme} icon="swap" name={t("account.network")} value={network} onPress={toggleNetwork} />
+        <SettingRow theme={theme} icon="agent" name={t("account.theme")} value={THEME_LABEL[themeName]} onPress={cycleTheme} />
         <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
 
         <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>
-          <Text style={[styles.signOutText, { color: theme.down }]}>Sign out / switch wallet</Text>
+          <Text style={[styles.signOutText, { color: theme.down }]}>{t("account.signOutSwitch")}</Text>
         </Pressable>
       </ScreenScaffold>
     );
@@ -494,26 +494,26 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   return (
     <ScreenScaffold
       theme={theme}
-      statusTitle="Wallet"
+      statusTitle={t("tab.wallet")}
       pill={<NetworkWarning variant="chip" />}
-      heading="Welcome to HyperSolid"
+      heading={t("account.welcome")}
     >
       <Text style={[styles.subtitle, { color: theme.muted }]}>
-        Choose how to begin — non-custodial, your keys never leave the device.
+        {t("account.welcomeSubtitle")}
       </Text>
 
       <Pressable disabled={busy} onPress={onCreate} accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.brand }]}>
         <View style={styles.btnInner}>
           <Icon name="star" active color={theme.bg} size={18} />
-          <Text style={[styles.btnText, { color: theme.bg }]}>Create local wallet</Text>
+          <Text style={[styles.btnText, { color: theme.bg }]}>{t("account.createLocal")}</Text>
         </View>
       </Pressable>
 
-      <SectionLabel theme={theme}>Restore from phrase</SectionLabel>
+      <SectionLabel theme={theme}>{t("account.restoreFrom")}</SectionLabel>
       <TextInput
         value={mnemonicInput}
         onChangeText={setMnemonicInput}
-        placeholder="12-word recovery phrase"
+        placeholder={t("account.mnemonicPlaceholder")}
         placeholderTextColor={theme.faint}
         autoCapitalize="none"
         style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
@@ -521,15 +521,15 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
       <Pressable disabled={busy} onPress={onRestore} accessibilityRole="button" style={[styles.btnOutline, { borderColor: theme.brand }]}>
         <View style={styles.btnInner}>
           <Icon name="key" color={theme.brand} size={18} />
-          <Text style={[styles.btnOutlineText, { color: theme.brand }]}>Restore wallet</Text>
+          <Text style={[styles.btnOutlineText, { color: theme.brand }]}>{t("account.restoreWalletBtn")}</Text>
         </View>
       </Pressable>
 
-      <SectionLabel theme={theme}>View-only (zero keys)</SectionLabel>
+      <SectionLabel theme={theme}>{t("account.viewOnlyZeroKeys")}</SectionLabel>
       <TextInput
         value={addrInput}
         onChangeText={setAddrInput}
-        placeholder="0x… address"
+        placeholder={t("account.addressPlaceholder")}
         placeholderTextColor={theme.faint}
         autoCapitalize="none"
         style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
@@ -537,7 +537,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
       <Pressable onPress={onViewOnly} accessibilityRole="button" style={[styles.btnOutline, { borderColor: theme.line }]}>
         <View style={styles.btnInner}>
           <Icon name="eye" color={theme.text} size={18} />
-          <Text style={[styles.btnOutlineText, { color: theme.text }]}>Enter view-only</Text>
+          <Text style={[styles.btnOutlineText, { color: theme.text }]}>{t("account.enterViewOnly")}</Text>
         </View>
       </Pressable>
     </ScreenScaffold>

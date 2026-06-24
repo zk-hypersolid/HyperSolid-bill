@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TextInput, Pressable, Alert, ActivityIndicator } from "react-native";
 import { useTheme } from "../theme/useTheme";
+import { useT } from "../i18n/useT";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import { useMarketStore } from "../state/marketStore";
@@ -24,7 +25,7 @@ import { fonts } from "../theme/fonts";
 import type { ThemeTokens } from "../theme/tokens";
 import type { LocalWalletService } from "../wallet/localWallet";
 import type { OrderSide } from "../lib/hyperliquid/buildOrder";
-import { validateOrder, rejectionMessage } from "../lib/hyperliquid/order";
+import { validateOrder } from "../lib/hyperliquid/order";
 
 type OrderType = "limit" | "market" | "stop";
 
@@ -49,6 +50,7 @@ function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
 
 export function TradeScreen() {
   const theme = useTheme();
+  const t = useT();
   const mode = useWalletStore((s) => s.mode);
   const wallet = useWalletStore((s) => s.wallet);
   const walletAddress = useWalletStore((s) => s.address);
@@ -129,11 +131,11 @@ export function TradeScreen() {
     const szDec = index.szDecimals(coin.toUpperCase()) ?? 2;
     const rej = validateOrder({ price: Number(price), size: Number(size), szDecimals: szDec });
     if (rej) {
-      Alert.alert("订单无效", rejectionMessage(rej));
+      Alert.alert(t("trade.invalidOrder"), t(`reject.${rej}` as never));
       return;
     }
     if (orderType === "stop" && !(Number(stopPrice) > 0)) {
-      Alert.alert("订单无效", "请填写有效的触发价（Trigger price）");
+      Alert.alert(t("trade.invalidOrder"), t("trade.stopNeedsTrigger"));
       return;
     }
     setBusy(true);
@@ -164,26 +166,22 @@ export function TradeScreen() {
       if (res.ok) {
         setRetryCloid(null);
         setUncertain(false);
-        const note = res.status?.message ?? "已提交";
-        Alert.alert("下单成功", `${note} · cloid ${res.cloid.slice(0, 10)}…`);
+        Alert.alert(t("trade.orderPlaced"), t("trade.orderPlacedBody", { cloid: `${res.cloid.slice(0, 10)}…` }));
         setSize("");
       } else if (res.uncertain && res.cloid) {
         // Uncertain receipt: keep the cloid so an explicit retry reuses it (HL dedupes), and tell
         // the user honestly that the order MAY already be live — never silently assume failure.
         setRetryCloid(res.cloid);
         setUncertain(true);
-        Alert.alert(
-          "回执不确定",
-          `${res.error}。订单可能已提交到交易所，请勿重复手动下单；点「重试」会用同一编号(cloid)安全重试。`,
-        );
+        Alert.alert(t("common.uncertainReceipt"), t("trade.uncertainBody", { error: res.error }));
       } else {
         // Definite rejection — terminal. Start fresh next time.
         setRetryCloid(null);
         setUncertain(false);
-        Alert.alert("下单失败", res.error);
+        Alert.alert(t("trade.orderFailed"), res.error);
       }
     } catch (e) {
-      Alert.alert("下单异常", e instanceof Error ? e.message : String(e));
+      Alert.alert(t("trade.orderError"), e instanceof Error ? e.message : String(e));
     } finally {
       // The ledger mutated (open/markSubmitted/reconcile) — refresh the unconfirmed banner.
       useLedgerStore.getState().bump();
@@ -232,7 +230,7 @@ export function TradeScreen() {
         theme={theme}
         count={unconfirmedCount}
         onReview={reviewLatest}
-        reviewLabel="重试最近一笔"
+        reviewLabel={t("trade.retryLatest")}
       />
 
       <View style={styles.sideRow}>
@@ -380,9 +378,9 @@ export function TradeScreen() {
 
       {uncertain ? (
         <View style={[styles.uncertain, { borderColor: theme.down, backgroundColor: theme.surface }]}>
-          <Text style={[styles.uncertainTitle, { color: theme.down }]}>上一笔回执不确定</Text>
+          <Text style={[styles.uncertainTitle, { color: theme.down }]}>{t("trade.lastUncertainTitle")}</Text>
           <Text style={[styles.uncertainBody, { color: theme.muted }]}>
-            网络/超时导致回执不确定，订单可能已提交到交易所。请勿重复手动下单；点「重试」会用同一编号(cloid)安全重试，由交易所按 cloid 去重。
+            {t("trade.uncertainNotice")}
           </Text>
           <Pressable
             disabled={busy}
@@ -394,7 +392,7 @@ export function TradeScreen() {
             {busy ? (
               <ActivityIndicator color={theme.brand} />
             ) : (
-              <Text style={[styles.retryText, { color: theme.brand }]}>重试（复用同一 cloid）</Text>
+              <Text style={[styles.retryText, { color: theme.brand }]}>{t("trade.retrySameCloid")}</Text>
             )}
           </Pressable>
         </View>

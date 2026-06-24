@@ -103,7 +103,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "30");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
-    expect(Alert.alert).toHaveBeenCalledWith("订单无效", expect.stringContaining("数量"));
+    expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("size"));
   });
 
   it("shows a Chinese success alert with the cloid", async () => {
@@ -119,7 +119,7 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("submit-order"));
     await waitFor(() => {
       expect(mockPlaceOrder).toHaveBeenCalled();
-      expect(Alert.alert).toHaveBeenCalledWith("下单成功", expect.stringContaining("cloid"));
+      expect(Alert.alert).toHaveBeenCalledWith("Order placed", expect.stringContaining("cloid"));
     });
   });
 
@@ -166,7 +166,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("submit-order"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
-    expect(Alert.alert).not.toHaveBeenCalledWith("订单无效", expect.anything());
+    expect(Alert.alert).not.toHaveBeenCalledWith("Invalid order", expect.anything());
   });
 
   it("reuses the cloid on a retry after a failed submit (no orphan duplicate)", async () => {
@@ -216,7 +216,7 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("submit-order"));
 
     await waitFor(() => expect(screen.getByTestId("retry-order")).toBeTruthy());
-    expect(screen.getByText(/上一笔回执不确定/)).toBeTruthy();
+    expect(screen.getByText(/Last receipt uncertain/)).toBeTruthy();
 
     fireEvent.press(screen.getByTestId("retry-order"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(2));

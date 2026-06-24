@@ -6,6 +6,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import * as LocalAuthentication from "expo-local-authentication";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { LockScreen } from "./src/screens/LockScreen";
+import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { fontMap } from "./src/theme/fontAssets";
 import { useLiveMarkets } from "./src/hooks/useLiveMarkets";
 import { MarketDataService } from "./src/services/marketData";
@@ -14,6 +15,7 @@ import { createSqlDb } from "./src/lib/storage/expoSqlDb";
 import { useEnvStore } from "./src/state/envStore";
 import { useAuthStore } from "./src/state/authStore";
 import { useWalletStore } from "./src/state/walletStore";
+import { useOnboardingStore } from "./src/state/onboardingStore";
 import { useLedgerStore } from "./src/state/ledgerStore";
 import { reconcilePendingIntents } from "./src/services/ledgerRecovery";
 import { hydrateRuntimeConfig } from "./src/services/appConfig";
@@ -67,6 +69,9 @@ export default function App() {
   }, [intentDb, walletMode, walletAddress, network]);
 
   const status = useAuthStore((s) => s.status);
+  const welcomeSeen = useOnboardingStore((s) => s.welcomeSeen);
+  const startTab = useOnboardingStore((s) => s.startTab);
+  const dismissWelcome = useOnboardingStore((s) => s.dismiss);
   const manager = useMemo(() => new WalletManager(new SecureStoreKeyStore()), []);
   const gate = useMemo(() => new BiometricGate(LocalAuthentication), []);
   const integrity = useMemo(() => new AlwaysTrustedIntegrity(), []);
@@ -83,9 +88,14 @@ export default function App() {
       <StatusBar style="light" />
       {status === "locked" ? (
         <LockScreen onUnlock={() => unlockSession(gate, manager, integrity)} />
+      ) : status === "noWallet" && !welcomeSeen ? (
+        <WelcomeScreen
+          onGetStarted={() => dismissWelcome("Account")}
+          onBrowse={() => dismissWelcome("Markets")}
+        />
       ) : (
         <NavigationContainer>
-          <RootNavigator />
+          <RootNavigator initialTab={startTab} />
         </NavigationContainer>
       )}
     </SafeAreaProvider>

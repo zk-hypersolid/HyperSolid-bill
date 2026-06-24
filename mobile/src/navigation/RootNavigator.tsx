@@ -25,11 +25,12 @@ export const TABS: {
   { name: "Account", labelKey: "tab.wallet", icon: "account", component: AccountScreen },
 ];
 
-export function RootNavigator() {
+export function RootNavigator({ initialTab }: { initialTab?: string } = {}) {
   const theme = useTheme();
   const t = useT();
   return (
     <Tab.Navigator
+      initialRouteName={initialTab}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.brand,

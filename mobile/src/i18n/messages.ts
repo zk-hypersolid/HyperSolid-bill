@@ -214,6 +214,11 @@ export const messages = {
     "account.restoreHint": "Import an existing wallet from its 12-word recovery phrase.",
     "account.viewOnlyHint": "Track any address — no keys, can't trade.",
 
+    "welcome.title": "Your non-custodial Hyperliquid terminal",
+    "welcome.body": "Trade perps and run 24/7 strategies while your keys stay on this device. Set up a wallet to begin — or browse the markets first.",
+    "welcome.getStarted": "Get started",
+    "welcome.browse": "Browse markets first",
+
     "reject.tickRejected": "Price does not match the tick size",
     "reject.minTradeNtlRejected": "Order notional is below the $10 minimum",
     "reject.sizeRejected": "Invalid size or below the minimum order size",
@@ -433,6 +438,11 @@ export const messages = {
     "account.createLocalHint": "在本设备生成全新私钥，由你完全自管。推荐。",
     "account.restoreHint": "用 12 个助记词导入已有钱包。",
     "account.viewOnlyHint": "仅追踪任意地址 — 无私钥，不能交易。",
+
+    "welcome.title": "你的非托管 Hyperliquid 交易终端",
+    "welcome.body": "交易永续合约、7×24 运行策略，私钥始终留在本机。创建钱包即可开始，或先逛逛行情。",
+    "welcome.getStarted": "开始设置",
+    "welcome.browse": "先逛逛行情",
 
     "reject.tickRejected": "价格不符合最小变动单位（tick）规则",
     "reject.minTradeNtlRejected": "订单名义价值低于最小 $10",

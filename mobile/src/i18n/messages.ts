@@ -210,6 +210,9 @@ export const messages = {
     "account.viewOnlyZeroKeys": "View-only (zero keys)",
     "account.addressPlaceholder": "0x… address",
     "account.enterViewOnly": "Enter view-only",
+    "account.createLocalHint": "Generates a fresh key on this device — you're the sole custodian. Recommended.",
+    "account.restoreHint": "Import an existing wallet from its 12-word recovery phrase.",
+    "account.viewOnlyHint": "Track any address — no keys, can't trade.",
 
     "reject.tickRejected": "Price does not match the tick size",
     "reject.minTradeNtlRejected": "Order notional is below the $10 minimum",
@@ -427,6 +430,9 @@ export const messages = {
     "account.viewOnlyZeroKeys": "只读（零私钥）",
     "account.addressPlaceholder": "0x… 地址",
     "account.enterViewOnly": "进入只读模式",
+    "account.createLocalHint": "在本设备生成全新私钥，由你完全自管。推荐。",
+    "account.restoreHint": "用 12 个助记词导入已有钱包。",
+    "account.viewOnlyHint": "仅追踪任意地址 — 无私钥，不能交易。",
 
     "reject.tickRejected": "价格不符合最小变动单位（tick）规则",
     "reject.minTradeNtlRejected": "订单名义价值低于最小 $10",

@@ -525,8 +525,10 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
           <Text style={[styles.btnText, { color: theme.bg }]}>{t("account.createLocal")}</Text>
         </View>
       </Pressable>
+      <Text style={[styles.optionHint, { color: theme.muted }]}>{t("account.createLocalHint")}</Text>
 
       <SectionLabel theme={theme}>{t("account.restoreFrom")}</SectionLabel>
+      <Text style={[styles.optionHint, { color: theme.faint }]}>{t("account.restoreHint")}</Text>
       <TextInput
         value={mnemonicInput}
         onChangeText={setMnemonicInput}
@@ -543,6 +545,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
       </Pressable>
 
       <SectionLabel theme={theme}>{t("account.viewOnlyZeroKeys")}</SectionLabel>
+      <Text style={[styles.optionHint, { color: theme.faint }]}>{t("account.viewOnlyHint")}</Text>
       <TextInput
         value={addrInput}
         onChangeText={setAddrInput}
@@ -597,6 +600,7 @@ function SettingRow({
 
 const styles = StyleSheet.create({
   subtitle: { fontFamily: fonts.body.regular, fontSize: 13, marginBottom: 18 },
+  optionHint: { fontFamily: fonts.body.regular, fontSize: 11.5, lineHeight: 16, marginTop: 6, marginBottom: 4 },
   wcard: { padding: 16, marginTop: 4 },
   wtop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 7 },

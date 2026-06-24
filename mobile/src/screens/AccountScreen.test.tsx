@@ -71,6 +71,9 @@ describe("AccountScreen", () => {
     expect(screen.getByText("Restore wallet")).toBeTruthy();
     expect(screen.getByText("Enter view-only")).toBeTruthy();
     expect(screen.getByPlaceholderText("12-word recovery phrase")).toBeTruthy();
+    // Plain-language explainers for each choice (onboarding clarity).
+    expect(screen.getByText(/sole custodian/)).toBeTruthy();
+    expect(screen.getByText(/no keys, can't trade/)).toBeTruthy();
   });
 
   it("renders the connected state with wallet card, deposit/withdraw and sign-out", () => {

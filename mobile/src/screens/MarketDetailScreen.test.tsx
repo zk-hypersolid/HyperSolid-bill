@@ -4,8 +4,16 @@ import { MarketDetailScreen } from "./MarketDetailScreen";
 import { useMarketStore } from "../state/marketStore";
 import type { MarketTicker } from "../lib/hyperliquid/types";
 
+const mockCandles = Array.from({ length: 40 }, (_, i) => ({
+  t: i * 3_600_000,
+  open: 100 + i,
+  close: 101 + i,
+  high: 102 + i,
+  low: 99 + i,
+  volume: 1000 + i * 10,
+}));
 jest.mock("../hooks/useLiveDetail", () => ({
-  useLiveDetail: () => ({ candles: [], orderbook: null, trades: [] }),
+  useLiveDetail: () => ({ candles: mockCandles, orderbook: null, trades: [] }),
 }));
 jest.mock("../lib/hyperliquid/client", () => ({
   createDetailInfoClient: () => ({}),
@@ -64,6 +72,18 @@ describe("MarketDetailScreen", () => {
   it("renders the trade CTA", () => {
     renderDetail({ goBack: jest.fn() });
     expect(screen.getByText("Trade")).toBeTruthy();
+  });
+
+  it("renders all 8 indicator chips and the selected indicator panel", () => {
+    renderDetail({ goBack: jest.fn() });
+    for (const ind of ["MA", "EMA", "BOLL", "SAR", "VOL", "MACD", "KDJ", "RSI"]) {
+      expect(screen.getByText(ind)).toBeTruthy();
+    }
+    // default indicator is RSI -> its panel renders
+    expect(screen.getByTestId("rsi-panel")).toBeTruthy();
+    // switching to MACD shows the oscillator panel
+    fireEvent.press(screen.getByText("MACD"));
+    expect(screen.getByTestId("osc-panel")).toBeTruthy();
   });
 
   it("calls navigation.goBack when the back control is pressed", () => {

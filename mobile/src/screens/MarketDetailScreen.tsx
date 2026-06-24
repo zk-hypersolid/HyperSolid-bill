@@ -11,6 +11,8 @@ import { createDetailInfoClient, createDetailSubsClient } from "../lib/hyperliqu
 import { CandleChart } from "../components/CandleChart";
 import { MultiPeriodReturns } from "../components/MultiPeriodReturns";
 import { RsiPanel } from "../components/RsiPanel";
+import { OscillatorPanel } from "../components/OscillatorPanel";
+import { VolumePanel } from "../components/VolumePanel";
 import { BookImbalanceBar } from "../components/BookImbalanceBar";
 import { OrderbookView } from "../components/OrderbookView";
 import { TradesList } from "../components/TradesList";
@@ -23,13 +25,23 @@ import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { formatCompact, formatFundingPct } from "../lib/hyperliquid/format";
 import { periodReturns } from "../lib/hyperliquid/performance";
-import { sma, ema, bollinger, rsi } from "../lib/hyperliquid/indicators";
+import { sma, ema, bollinger, rsi, macd, kdj, sar } from "../lib/hyperliquid/indicators";
 import { bookImbalance } from "../lib/hyperliquid/bookImbalance";
 
 type Props = NativeStackScreenProps<MarketsStackParamList, "MarketDetail">;
 
 const TIMEFRAMES = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h"] as const;
 const BOOK_TABS = ["book", "trades"] as const;
+const OVERLAY_INDICATORS = ["MA", "EMA", "BOLL", "SAR"] as const;
+const PANEL_INDICATORS = ["VOL", "MACD", "KDJ", "RSI"] as const;
+const INDICATORS = [...OVERLAY_INDICATORS, ...PANEL_INDICATORS] as const;
+type Indicator = (typeof INDICATORS)[number];
+
+/** Last non-null value of a series, for panel labels. */
+function lastVal(values: (number | null)[]): number | null {
+  for (let i = values.length - 1; i >= 0; i--) if (values[i] != null) return values[i];
+  return null;
+}
 
 /** Time left until the next hourly funding settlement (UTC), as HH:MM:SS. */
 function fundingCountdown(nowMs: number): string {
@@ -52,7 +64,7 @@ export function MarketDetailScreen({ route, navigation }: Props) {
   const { candles, orderbook, trades } = useLiveDetail(service, coin, timeframe);
 
   const [bookTab, setBookTab] = useState<(typeof BOOK_TABS)[number]>("book");
-  const [indicator, setIndicator] = useState<"none" | "MA" | "EMA" | "BOLL">("none");
+  const [indicator, setIndicator] = useState<Indicator>("RSI");
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -83,6 +95,8 @@ export function MarketDetailScreen({ route, navigation }: Props) {
   const price = ticker?.midPx ?? 0;
   const pct = ticker?.changePct ?? 0;
   const closes = candles.map((c) => c.close);
+  const highs = candles.map((c) => c.high);
+  const lows = candles.map((c) => c.low);
   const overlays = (() => {
     if (indicator === "MA") return [{ values: sma(closes, 7), color: theme.brand }];
     if (indicator === "EMA") return [{ values: ema(closes, 7), color: theme.brand }];
@@ -94,7 +108,43 @@ export function MarketDetailScreen({ route, navigation }: Props) {
         { values: b.lower, color: theme.muted },
       ];
     }
+    if (indicator === "SAR") return [{ values: sar(highs, lows), color: theme.warn }];
     return [];
+  })();
+
+  const indicatorPanel = (() => {
+    if (indicator === "VOL") return <VolumePanel candles={candles} theme={theme} />;
+    if (indicator === "MACD") {
+      const m = macd(closes);
+      const last = lastVal(m.macd);
+      return (
+        <OscillatorPanel
+          theme={theme}
+          title={`MACD ${last != null ? last.toFixed(2) : "—"}`}
+          series={[
+            { values: m.macd, color: theme.brand },
+            { values: m.signal, color: theme.warn },
+          ]}
+        />
+      );
+    }
+    if (indicator === "KDJ") {
+      const v = kdj(highs, lows, closes, 9);
+      const last = lastVal(v.k);
+      return (
+        <OscillatorPanel
+          theme={theme}
+          title={`KDJ ${last != null ? last.toFixed(1) : "—"}`}
+          series={[
+            { values: v.k, color: theme.brand },
+            { values: v.d, color: theme.warn },
+            { values: v.j, color: theme.muted },
+          ]}
+        />
+      );
+    }
+    if (indicator === "RSI") return <RsiPanel values={rsi(closes, 14)} theme={theme} />;
+    return null;
   })();
   const imbalance = orderbook ? bookImbalance(orderbook, 10) : { bidPct: 50, askPct: 50 };
   const high24 = candles.length ? Math.max(...candles.map((c) => c.high)) : null;
@@ -161,14 +211,8 @@ export function MarketDetailScreen({ route, navigation }: Props) {
       </View>
 
       <View style={styles.tfs}>
-        {(["none", "MA", "EMA", "BOLL"] as const).map((ind) => (
-          <Chip
-            key={ind}
-            theme={theme}
-            label={ind === "none" ? "—" : ind}
-            active={indicator === ind}
-            onPress={() => setIndicator(ind)}
-          />
+        {INDICATORS.map((ind) => (
+          <Chip key={ind} theme={theme} label={ind} active={indicator === ind} onPress={() => setIndicator(ind)} />
         ))}
       </View>
 
@@ -176,7 +220,7 @@ export function MarketDetailScreen({ route, navigation }: Props) {
 
       <MultiPeriodReturns theme={theme} data={perf} />
 
-      <RsiPanel values={rsi(closes, 14)} theme={theme} />
+      {indicatorPanel}
 
       <View style={[styles.bookTabs, { borderBottomColor: theme.line }]}>
         <View style={styles.bookTabGroup}>
@@ -246,7 +290,7 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: "row", justifyContent: "space-between", width: "100%", gap: 10 },
   statLabel: { fontFamily: fonts.body.regular, fontSize: 10.5, flexShrink: 1 },
   statValue: { fontFamily: fonts.mono.medium, fontSize: 10.5 },
-  tfs: { flexDirection: "row", gap: 7, marginBottom: 10 },
+  tfs: { flexDirection: "row", flexWrap: "wrap", gap: 7, rowGap: 7, marginBottom: 10 },
   bookTabs: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 1, marginTop: 14, marginBottom: 6 },
   bookTabGroup: { flexDirection: "row", gap: 18 },
   imbalance: { fontFamily: fonts.mono.medium, fontSize: 10.5, paddingBottom: 4 },

@@ -29,6 +29,7 @@ import { SurfaceCard } from "../components/SurfaceCard";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { SectionLabel } from "../components/SectionLabel";
+import { MnemonicVerify } from "../components/MnemonicVerify";
 import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
 import type { ThemeName, ThemeTokens } from "../theme/tokens";
@@ -91,6 +92,9 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
   const [mnemonicInput, setMnemonicInput] = useState("");
   const [addrInput, setAddrInput] = useState("");
   const [newMnemonic, setNewMnemonic] = useState<string | null>(null);
+  // Created phrases must pass a backup-confirmation quiz before dismissal; exported ones don't.
+  const [needsVerify, setNeedsVerify] = useState(false);
+  const [verifyPhrase, setVerifyPhrase] = useState(false);
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [fundingTotal, setFundingTotal] = useState<number | null>(null);
   const [sheet, setSheet] = useState<"none" | "deposit" | "withdraw">("none");
@@ -145,6 +149,8 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
     try {
       const { mnemonic, wallet } = await manager.createWallet();
       setNewMnemonic(mnemonic);
+      setNeedsVerify(true);
+      setVerifyPhrase(false);
       setLocalWallet(wallet);
     } catch (e) {
       Alert.alert(t("account.createFailed"), e instanceof Error ? e.message : String(e));
@@ -178,6 +184,8 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
     await manager.signOut();
     reset();
     setNewMnemonic(null);
+    setNeedsVerify(false);
+    setVerifyPhrase(false);
   }
 
   async function onExportBackup() {
@@ -187,6 +195,8 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
         Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
         return;
       }
+      setNeedsVerify(false);
+      setVerifyPhrase(false);
       setNewMnemonic(mnemonic);
     } catch {
       Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
@@ -479,7 +489,16 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
           </SurfaceCard>
         ) : null}
 
-        {newMnemonic ? (
+        {newMnemonic && verifyPhrase ? (
+          <MnemonicVerify
+            mnemonic={newMnemonic}
+            onVerified={() => {
+              setNewMnemonic(null);
+              setNeedsVerify(false);
+              setVerifyPhrase(false);
+            }}
+          />
+        ) : newMnemonic ? (
           <SurfaceCard theme={theme} style={[styles.card, { borderColor: theme.warn }]}>
             <View style={styles.warnRow}>
               <Icon name="alert" color={theme.warn} size={16} />
@@ -488,9 +507,15 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
               </Text>
             </View>
             <Text style={[styles.mnemonic, { color: theme.text }]}>{newMnemonic}</Text>
-            <Pressable onPress={() => setNewMnemonic(null)} accessibilityRole="button">
-              <Text style={[styles.link, { color: theme.muted }]}>{t("account.backedUp")}</Text>
-            </Pressable>
+            {needsVerify ? (
+              <Pressable onPress={() => setVerifyPhrase(true)} accessibilityRole="button">
+                <Text style={[styles.link, { color: theme.brand }]}>{t("account.continue")}</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => setNewMnemonic(null)} accessibilityRole="button">
+                <Text style={[styles.link, { color: theme.muted }]}>{t("account.backedUp")}</Text>
+              </Pressable>
+            )}
           </SurfaceCard>
         ) : null}
 

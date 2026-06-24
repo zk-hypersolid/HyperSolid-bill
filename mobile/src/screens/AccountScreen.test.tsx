@@ -116,6 +116,21 @@ describe("AccountScreen", () => {
     expect(screen.queryByText("Export & backup")).toBeNull();
   });
 
+  it("requires backup verification after creating a wallet (not a one-tap dismiss)", async () => {
+    const phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident";
+    const manager = {
+      createWallet: jest.fn(async () => ({ mnemonic: phrase, wallet: { getAddress: () => ADDR } })),
+    } as unknown as WalletManager;
+    useWalletStore.setState({ mode: "none", wallet: null, address: null });
+    render(<AccountScreen deps={{ ...fakeDeps, manager }} />);
+    fireEvent.press(screen.getByText("Create local wallet"));
+    await waitFor(() => expect(screen.getByText(phrase)).toBeTruthy());
+    expect(screen.getByText("Continue")).toBeTruthy();
+    expect(screen.queryByText("I've backed it up safely")).toBeNull();
+    fireEvent.press(screen.getByText("Continue"));
+    expect(screen.getByText("Confirm your backup")).toBeTruthy();
+  });
+
   it("shows a Language row that toggles the locale (en <-> zh)", () => {
     useLocaleStore.setState({ locale: "en" });
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });

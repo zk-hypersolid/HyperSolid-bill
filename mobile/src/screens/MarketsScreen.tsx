@@ -9,14 +9,17 @@ import { NetworkWarning } from "../components/NetworkWarning";
 import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { useTheme } from "../theme/useTheme";
+import { useT } from "../i18n/useT";
+import type { TranslationKey } from "../i18n/messages";
 
 const TABS = [
-  ["all", "All"],
-  ["favorites", "Watchlist"],
-] as const;
+  ["all", "markets.filterAll"],
+  ["favorites", "markets.filterWatchlist"],
+] as const satisfies readonly (readonly [string, TranslationKey])[];
 
 export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: string) => void }) {
   const theme = useTheme();
+  const t = useT();
   const { tickers, loading, error } = useMarketStore();
   const favorites = useWatchlistStore((s) => s.coins);
   const toggleFavorite = useWatchlistStore((s) => s.toggle);
@@ -30,7 +33,7 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
   return (
     <ScreenScaffold
       theme={theme}
-      statusTitle="Markets"
+      statusTitle={t("tab.markets")}
       pill={<NetworkWarning variant="chip" />}
       scroll={false}
     >
@@ -39,7 +42,7 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search markets"
+          placeholder={t("markets.search")}
           placeholderTextColor={theme.faint}
           autoCapitalize="characters"
           autoCorrect={false}
@@ -48,7 +51,7 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
       </View>
 
       <View style={[styles.tabs, { borderBottomColor: theme.line }]}>
-        {TABS.map(([f, label]) => (
+        {TABS.map(([f, labelKey]) => (
           <Pressable
             key={f}
             onPress={() => setFilter(f)}
@@ -64,7 +67,7 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
                 },
               ]}
             >
-              {label}
+              {t(labelKey)}
             </Text>
           </Pressable>
         ))}
@@ -76,11 +79,11 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
         ) : loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={theme.brand} />
-            <Text style={[styles.msg, { color: theme.muted }]}>Loading markets…</Text>
+            <Text style={[styles.msg, { color: theme.muted }]}>{t("markets.loading")}</Text>
           </View>
         ) : filter === "favorites" && data.length === 0 ? (
           <Text style={[styles.msg, { color: theme.muted }]}>
-            No watchlist yet · tap the star to follow markets
+            {t("markets.emptyWatchlist")}
           </Text>
         ) : (
           <FlashList

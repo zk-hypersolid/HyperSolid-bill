@@ -31,6 +31,12 @@ export const messages = {
     "tab.strategy": "Strategy",
     "tab.wallet": "Wallet",
 
+    "markets.search": "Search markets",
+    "markets.filterAll": "All",
+    "markets.filterWatchlist": "Watchlist",
+    "markets.loading": "Loading markets…",
+    "markets.emptyWatchlist": "No watchlist yet · tap the star to follow markets",
+
     "lock.title": "HyperSolid locked",
     "lock.subtitle": "Unlock with biometrics to continue",
     "lock.unlock": "Unlock",
@@ -119,6 +125,12 @@ export const messages = {
     "tab.positions": "持仓",
     "tab.strategy": "策略",
     "tab.wallet": "钱包",
+
+    "markets.search": "搜索市场",
+    "markets.filterAll": "全部",
+    "markets.filterWatchlist": "自选",
+    "markets.loading": "正在加载市场…",
+    "markets.emptyWatchlist": "暂无自选 · 点击星标关注市场",
 
     "lock.title": "HyperSolid 已锁定",
     "lock.subtitle": "用生物识别解锁以继续",

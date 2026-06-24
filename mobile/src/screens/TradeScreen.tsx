@@ -23,16 +23,17 @@ import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
 import { fonts } from "../theme/fonts";
 import type { ThemeTokens } from "../theme/tokens";
+import type { TranslationKey } from "../i18n/messages";
 import type { LocalWalletService } from "../wallet/localWallet";
 import type { OrderSide } from "../lib/hyperliquid/buildOrder";
 import { validateOrder } from "../lib/hyperliquid/order";
 
 type OrderType = "limit" | "market" | "stop";
 
-const ORDER_TYPES: Array<[OrderType, string]> = [
-  ["limit", "Limit"],
-  ["market", "Market"],
-  ["stop", "Stop"],
+const ORDER_TYPES: Array<[OrderType, TranslationKey]> = [
+  ["limit", "trade.typeLimit"],
+  ["market", "trade.typeMarket"],
+  ["stop", "trade.typeStop"],
 ];
 
 /** Leverage options offered for a market, capped at its max. */
@@ -201,14 +202,14 @@ export function TradeScreen() {
     return (
       <ScreenScaffold
         theme={theme}
-        statusTitle="Trade"
+        statusTitle={t("tab.trade")}
         pill={<NetworkWarning variant="chip" />}
       >
         <NetworkWarning variant="strip" />
         <Text style={[styles.msg, { color: theme.muted }]}>
           {mode === "viewOnly"
-            ? "Read-only mode can't place orders — create a local wallet in Wallet."
-            : "Connect a wallet in Wallet to start trading."}
+            ? t("trade.viewOnlyCantTrade")
+            : t("trade.connectToTrade")}
         </Text>
       </ScreenScaffold>
     );
@@ -217,12 +218,12 @@ export function TradeScreen() {
   const levOptions = leverageOptions(ticker?.maxLeverage ?? 50);
   const liq = estLiqPrice(Number(price), leverage, side);
   const sideColor = side === "buy" ? theme.up : theme.down;
-  const ctaLabel = `${side === "buy" ? "Buy / Long" : "Sell / Short"} ${coin.toUpperCase()}`;
+  const ctaLabel = `${t(side === "buy" ? "trade.sideBuy" : "trade.sideSell")} ${coin.toUpperCase()}`;
 
   return (
     <ScreenScaffold
       theme={theme}
-      statusTitle="Trade"
+      statusTitle={t("tab.trade")}
       pill={<NetworkWarning variant="chip" />}
     >
       <NetworkWarning variant="strip" />
@@ -257,7 +258,7 @@ export function TradeScreen() {
                 { color: side === s ? theme.bg : theme.text },
               ]}
             >
-              {s === "buy" ? "Buy / Long" : "Sell / Short"}
+              {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
             </Text>
           </Pressable>
         ))}
@@ -265,15 +266,15 @@ export function TradeScreen() {
 
       <View style={styles.typeRow}>
         <View style={styles.typeChips}>
-          {ORDER_TYPES.map(([t, label]) => (
+          {ORDER_TYPES.map(([type, labelKey]) => (
             <Chip
-              key={t}
+              key={type}
               theme={theme}
-              label={label}
-              active={orderType === t}
+              label={t(labelKey)}
+              active={orderType === type}
               onPress={() => {
                 clearRetry();
-                setOrderType(t);
+                setOrderType(type);
               }}
             />
           ))}
@@ -286,7 +287,7 @@ export function TradeScreen() {
       </View>
 
       <View style={styles.levRow}>
-        <Text style={[styles.levLabel, { color: theme.muted }]}>Leverage</Text>
+        <Text style={[styles.levLabel, { color: theme.muted }]}>{t("trade.leverage")}</Text>
         <View style={styles.levChips}>
           {levOptions.map((l) => (
             <Chip
@@ -303,12 +304,12 @@ export function TradeScreen() {
         </View>
       </View>
 
-      <Field label="Symbol" value={coin} onChange={edit(setCoin)} theme={theme} autoCap testID="field-coin" />
-      <Field label="Price · USDC" value={price} onChange={edit(setPrice)} theme={theme} keyboard testID="field-price" />
+      <Field label={t("trade.symbol")} value={coin} onChange={edit(setCoin)} theme={theme} autoCap testID="field-coin" />
+      <Field label={t("trade.priceUsdc")} value={price} onChange={edit(setPrice)} theme={theme} keyboard testID="field-price" />
       {orderType === "stop" ? (
-        <Field label="Trigger price · USDC" value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
+        <Field label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
       ) : null}
-      <Field label={`Size · ${coin.toUpperCase()}`} value={size} onChange={edit(setSize)} theme={theme} keyboard testID="field-size" />
+      <Field label={t("trade.size", { coin: coin.toUpperCase() })} value={size} onChange={edit(setSize)} theme={theme} keyboard testID="field-size" />
 
       <SizePercentRow
         theme={theme}
@@ -319,28 +320,28 @@ export function TradeScreen() {
       />
 
       <Text style={[styles.hint, { color: notional >= 10 ? theme.muted : theme.down }]}>
-        Order value ${notional.toFixed(2)} {notional < 10 ? "(min $10)" : ""}
+        {t("trade.orderValueHint", { value: notional.toFixed(2) })} {notional < 10 ? t("trade.minTen") : ""}
       </Text>
 
       <View style={styles.opts}>
         <View style={styles.optRow}>
-          <Text style={[styles.optLabel, { color: theme.text }]}>Reduce-only</Text>
+          <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
           <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
         </View>
         <View style={styles.optRow}>
-          <Text style={[styles.optLabel, { color: theme.text }]}>Post-only</Text>
+          <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.postOnly")}</Text>
           <Toggle theme={theme} value={postOnly} onValueChange={edit(setPostOnly)} accessibilityLabel="post-only" />
         </View>
       </View>
 
       <SurfaceCard theme={theme} rule={false} style={styles.tpsl}>
         <View style={styles.tpslHead}>
-          <Text style={[styles.tpslTitle, { color: theme.text }]}>Take profit / Stop loss</Text>
-          <Text style={[styles.tpslOpt, { color: theme.faint }]}>Optional</Text>
+          <Text style={[styles.tpslTitle, { color: theme.text }]}>{t("trade.tpSlTitle")}</Text>
+          <Text style={[styles.tpslOpt, { color: theme.faint }]}>{t("trade.optional")}</Text>
         </View>
         <View style={styles.tpslRow}>
           <View style={styles.tpslField}>
-            <Text style={[styles.tpslLabel, { color: theme.muted }]}>TP price</Text>
+            <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.tpPrice")}</Text>
             <TextInput
               value={tpPrice}
               onChangeText={edit(setTpPrice)}
@@ -352,7 +353,7 @@ export function TradeScreen() {
             />
           </View>
           <View style={styles.tpslField}>
-            <Text style={[styles.tpslLabel, { color: theme.muted }]}>SL price</Text>
+            <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.slPrice")}</Text>
             <TextInput
               value={slPrice}
               onChangeText={edit(setSlPrice)}
@@ -367,11 +368,11 @@ export function TradeScreen() {
       </SurfaceCard>
 
       <SurfaceCard theme={theme} rule={false} style={styles.summary}>
-        <SummaryRow theme={theme} label="Order value" value={`≈ ${notional.toFixed(2)} USDC`} />
-        <SummaryRow theme={theme} label="Leverage" value={`${leverage}× Cross`} />
+        <SummaryRow theme={theme} label={t("trade.summaryOrderValue")} value={`≈ ${notional.toFixed(2)} USDC`} />
+        <SummaryRow theme={theme} label={t("trade.leverage")} value={`${leverage}× ${t("positions.cross")}`} />
         <SummaryRow
           theme={theme}
-          label="Est. liq. price"
+          label={t("trade.estLiqPrice")}
           value={Number(price) > 0 ? formatPrice(liq) : "—"}
         />
       </SurfaceCard>

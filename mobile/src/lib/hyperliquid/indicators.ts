@@ -65,3 +65,105 @@ export function rsi(values: number[], period = 14): (number | null)[] {
   }
   return out;
 }
+
+/** MACD: macd line = EMA(fast) − EMA(slow); signal = EMA(signal) of the macd line; histogram = macd − signal. */
+export function macd(
+  values: number[],
+  fast = 12,
+  slow = 26,
+  signalPeriod = 9,
+): { macd: (number | null)[]; signal: (number | null)[]; histogram: (number | null)[] } {
+  const ef = ema(values, fast);
+  const es = ema(values, slow);
+  const macdLine = values.map((_, i) => (ef[i] !== null && es[i] !== null ? ef[i]! - es[i]! : null));
+
+  const compact: number[] = [];
+  const idx: number[] = [];
+  macdLine.forEach((m, i) => {
+    if (m !== null) {
+      compact.push(m);
+      idx.push(i);
+    }
+  });
+  const sigCompact = ema(compact, signalPeriod);
+  const signal: (number | null)[] = values.map(() => null);
+  sigCompact.forEach((v, j) => {
+    if (v !== null) signal[idx[j]] = v;
+  });
+
+  const histogram = macdLine.map((m, i) => (m !== null && signal[i] !== null ? m - signal[i]! : null));
+  return { macd: macdLine, signal, histogram };
+}
+
+/** Stochastic KDJ over `period`: K/D are 1/3 smoothing of the raw stochastic (RSV); J = 3K − 2D. */
+export function kdj(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period = 9,
+): { k: (number | null)[]; d: (number | null)[]; j: (number | null)[] } {
+  const n = closes.length;
+  const k: (number | null)[] = closes.map(() => null);
+  const d: (number | null)[] = closes.map(() => null);
+  const j: (number | null)[] = closes.map(() => null);
+  let kPrev = 50;
+  let dPrev = 50;
+  for (let i = 0; i < n; i++) {
+    if (i + 1 < period) continue;
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let m = i + 1 - period; m <= i; m++) {
+      hh = Math.max(hh, highs[m]);
+      ll = Math.min(ll, lows[m]);
+    }
+    const rsv = hh === ll ? 100 : ((closes[i] - ll) / (hh - ll)) * 100;
+    kPrev = (2 / 3) * kPrev + (1 / 3) * rsv;
+    dPrev = (2 / 3) * dPrev + (1 / 3) * kPrev;
+    k[i] = kPrev;
+    d[i] = dPrev;
+    j[i] = 3 * kPrev - 2 * dPrev;
+  }
+  return { k, d, j };
+}
+
+/** Parabolic SAR (Wilder): trend-following stop-and-reverse dots. `step`/`max` are the AF bounds. */
+export function sar(highs: number[], lows: number[], step = 0.02, max = 0.2): (number | null)[] {
+  const n = highs.length;
+  const out: (number | null)[] = highs.map(() => null);
+  if (n < 2) return out;
+  let trendUp = highs[1] >= highs[0];
+  let af = step;
+  let ep = trendUp ? highs[0] : lows[0];
+  let sarVal = trendUp ? lows[0] : highs[0];
+  out[0] = sarVal;
+  for (let i = 1; i < n; i++) {
+    sarVal = sarVal + af * (ep - sarVal);
+    const prevLow2 = i >= 2 ? lows[i - 2] : lows[i - 1];
+    const prevHigh2 = i >= 2 ? highs[i - 2] : highs[i - 1];
+    if (trendUp) {
+      sarVal = Math.min(sarVal, lows[i - 1], prevLow2);
+      if (lows[i] < sarVal) {
+        trendUp = false;
+        sarVal = ep;
+        ep = lows[i];
+        af = step;
+      } else if (highs[i] > ep) {
+        ep = highs[i];
+        af = Math.min(max, af + step);
+      }
+    } else {
+      sarVal = Math.max(sarVal, highs[i - 1], prevHigh2);
+      if (highs[i] > sarVal) {
+        trendUp = true;
+        sarVal = ep;
+        ep = highs[i];
+        af = step;
+      } else if (lows[i] < ep) {
+        ep = lows[i];
+        af = Math.min(max, af + step);
+      }
+    }
+    out[i] = sarVal;
+  }
+  return out;
+}

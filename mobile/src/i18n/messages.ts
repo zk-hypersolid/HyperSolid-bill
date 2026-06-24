@@ -33,6 +33,12 @@ export const messages = {
     "lock.unavailable": "No biometrics detected — enable Face ID / fingerprint in Settings",
     "lock.compromised": "Device security check failed: root/jailbreak risk detected. Unlock is disabled to protect your assets.",
 
+    "banner.unconfirmedTitle": "{count} unconfirmed order(s)",
+    "banner.unconfirmedBody": "These orders may have been submitted to the exchange and carry exposure; their status is not yet confirmed. Don't re-place them manually — review, and if needed retry safely with the same id (cloid).",
+    "banner.review": "Review",
+
+    "common.comingSoon": "In progress · Coming soon",
+
     "reject.tickRejected": "Price does not match the tick size",
     "reject.minTradeNtlRejected": "Order notional is below the $10 minimum",
     "reject.sizeRejected": "Invalid size or below the minimum order size",
@@ -71,6 +77,12 @@ export const messages = {
     "lock.cancelled": "已取消",
     "lock.unavailable": "未检测到生物识别，请在系统设置中启用 Face ID/指纹",
     "lock.compromised": "设备安全检查未通过：检测到 root/越狱风险，为保护你的资产已禁止解锁。",
+
+    "banner.unconfirmedTitle": "{count} 笔未确认订单",
+    "banner.unconfirmedBody": "这些订单可能已提交至交易所、存在敞口，状态尚未确认。请勿重复手动下单；请复核，必要时用同一编号(cloid)安全重试。",
+    "banner.review": "复核",
+
+    "common.comingSoon": "开发中 · Coming soon",
 
     "reject.tickRejected": "价格不符合最小变动单位（tick）规则",
     "reject.minTradeNtlRejected": "订单名义价值低于最小 $10",

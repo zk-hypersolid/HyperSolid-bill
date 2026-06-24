@@ -52,7 +52,7 @@ describe("PositionsScreen", () => {
     useLedgerStore.setState({ ledger, scope: "0xabc:mainnet", revision: 1 });
     render(<PositionsScreen deps={fakeDeps} />);
     expect(screen.getByTestId("unconfirmed-banner")).toBeTruthy();
-    expect(screen.getByText(/1 笔未确认/)).toBeTruthy();
+    expect(screen.getByText(/1 unconfirmed/)).toBeTruthy();
     expect(screen.queryByTestId("unconfirmed-review")).toBeNull();
   });
 

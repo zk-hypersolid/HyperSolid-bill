@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
+import { useT } from "../i18n/useT";
 
 export function BoardPlaceholder({
   title,
@@ -11,11 +12,12 @@ export function BoardPlaceholder({
   subtitle: string;
   theme: ThemeTokens;
 }) {
+  const t = useT();
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.sub, { color: theme.muted }]}>{subtitle}</Text>
-      <Text style={[styles.soon, { color: theme.brand }]}>开发中 · Coming soon</Text>
+      <Text style={[styles.soon, { color: theme.brand }]}>{t("common.comingSoon")}</Text>
     </View>
   );
 }

@@ -264,7 +264,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
 
     expect(screen.getByTestId("unconfirmed-banner")).toBeTruthy();
-    expect(screen.getByText(/1 笔未确认/)).toBeTruthy();
+    expect(screen.getByText(/1 unconfirmed/)).toBeTruthy();
     // "重试最近一笔" engages the same-cloid retry UI (Unit 5 notice).
     fireEvent.press(screen.getByTestId("unconfirmed-review"));
     expect(screen.getByTestId("retry-order")).toBeTruthy();

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
+import { useT } from "../i18n/useT";
 
 /**
  * Persistent, honest disclosure of unconfirmed (pending/submitted/orphan) intents (spec §6.1).
@@ -11,23 +12,22 @@ export function UnconfirmedBanner({
   theme,
   count,
   onReview,
-  reviewLabel = "复核",
+  reviewLabel,
 }: {
   theme: ThemeTokens;
   count: number;
   onReview?: () => void;
   reviewLabel?: string;
 }) {
+  const t = useT();
   if (count <= 0) return null;
   return (
     <View
       testID="unconfirmed-banner"
       style={[styles.box, { borderColor: theme.down, backgroundColor: theme.surface }]}
     >
-      <Text style={[styles.title, { color: theme.down }]}>{count} 笔未确认订单</Text>
-      <Text style={[styles.body, { color: theme.muted }]}>
-        这些订单可能已提交至交易所、存在敞口，状态尚未确认。请勿重复手动下单；请复核，必要时用同一编号(cloid)安全重试。
-      </Text>
+      <Text style={[styles.title, { color: theme.down }]}>{t("banner.unconfirmedTitle", { count })}</Text>
+      <Text style={[styles.body, { color: theme.muted }]}>{t("banner.unconfirmedBody")}</Text>
       {onReview ? (
         <Pressable
           onPress={onReview}
@@ -35,7 +35,7 @@ export function UnconfirmedBanner({
           testID="unconfirmed-review"
           style={[styles.action, { borderColor: theme.brand }]}
         >
-          <Text style={[styles.actionText, { color: theme.brand }]}>{reviewLabel}</Text>
+          <Text style={[styles.actionText, { color: theme.brand }]}>{reviewLabel ?? t("banner.review")}</Text>
         </Pressable>
       ) : null}
     </View>

@@ -26,7 +26,7 @@ function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
-export function AgentScreen() {
+export function AgentScreen({ navigation }: { navigation?: { navigate: (name: string) => void } }) {
   const theme = useTheme();
   const t = useT();
   const mode = useWalletStore((s) => s.mode);
@@ -67,6 +67,16 @@ export function AgentScreen() {
           <Text style={[styles.hint, { color: theme.muted }]}>
             {!baseUrl ? t("agent.gatedNoConfig") : t("agent.gatedNoWallet")}
           </Text>
+          {baseUrl ? (
+            <Pressable
+              accessibilityRole="button"
+              testID="gated-setup-wallet"
+              onPress={() => navigation?.navigate("Account")}
+              style={[styles.cta, { backgroundColor: theme.brand }]}
+            >
+              <Text style={[styles.ctaText, { color: theme.bg }]}>{t("common.setUpWallet")}</Text>
+            </Pressable>
+          ) : null}
         </SurfaceCard>
       ) : !token ? (
         <SurfaceCard theme={theme} testID="strategy-connect" style={styles.card}>

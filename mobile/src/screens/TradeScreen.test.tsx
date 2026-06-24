@@ -64,6 +64,13 @@ describe("TradeScreen", () => {
     expect(screen.getByText(/Read-only mode can't place orders/)).toBeTruthy();
   });
 
+  it("offers a Set up wallet CTA that jumps to the Wallet tab when gated", () => {
+    const navigate = jest.fn();
+    render(<TradeScreen navigation={{ navigate }} />);
+    fireEvent.press(screen.getByTestId("gated-setup-wallet"));
+    expect(navigate).toHaveBeenCalledWith("Account");
+  });
+
   it("renders the order form chrome when a local wallet is connected", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: "0xabc" });
     render(<TradeScreen />);

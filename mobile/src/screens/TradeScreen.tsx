@@ -49,7 +49,7 @@ function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
   return side === "buy" ? entry * (1 - 1 / leverage) : entry * (1 + 1 / leverage);
 }
 
-export function TradeScreen() {
+export function TradeScreen({ navigation }: { navigation?: { navigate: (name: string) => void } }) {
   const theme = useTheme();
   const t = useT();
   const mode = useWalletStore((s) => s.mode);
@@ -211,6 +211,14 @@ export function TradeScreen() {
             ? t("trade.viewOnlyCantTrade")
             : t("trade.connectToTrade")}
         </Text>
+        <Pressable
+          accessibilityRole="button"
+          testID="gated-setup-wallet"
+          onPress={() => navigation?.navigate("Account")}
+          style={[styles.submit, { backgroundColor: theme.brand, marginTop: 16 }]}
+        >
+          <Text style={[styles.submitText, { color: theme.bg }]}>{t("common.setUpWallet")}</Text>
+        </Pressable>
       </ScreenScaffold>
     );
   }

@@ -53,6 +53,14 @@ describe("AgentScreen", () => {
     expect(screen.getByTestId("strategy-gated")).toBeTruthy();
   });
 
+  it("offers a Set up wallet CTA that jumps to the Wallet tab when gated (no wallet)", () => {
+    useWalletStore.setState({ mode: "none", wallet: null, address: null });
+    const navigate = jest.fn();
+    render(<AgentScreen navigation={{ navigate }} />);
+    fireEvent.press(screen.getByTestId("gated-setup-wallet"));
+    expect(navigate).toHaveBeenCalledWith("Account");
+  });
+
   it("gates when the server has not delivered the strategy API base URL", () => {
     useRuntimeConfigStore.setState({
       arbitrumRpc: { mainnet: null, testnet: null },

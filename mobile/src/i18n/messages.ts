@@ -35,6 +35,7 @@ export const messages = {
     "common.deposit": "Deposit",
     "common.withdraw": "Withdraw",
     "common.trade": "Trade",
+    "common.setUpWallet": "Set up wallet",
 
     "settings.language": "Language",
     "lang.en": "English",
@@ -268,6 +269,7 @@ export const messages = {
     "common.deposit": "充值",
     "common.withdraw": "提现",
     "common.trade": "交易",
+    "common.setUpWallet": "去创建钱包",
 
     "settings.language": "语言",
     "lang.en": "English",

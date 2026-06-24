@@ -26,11 +26,12 @@ import type { LocalWalletService } from "../wallet/localWallet";
 import type { OrderSide } from "../lib/hyperliquid/buildOrder";
 import { validateOrder, rejectionMessage } from "../lib/hyperliquid/order";
 
-type OrderType = "limit" | "market";
+type OrderType = "limit" | "market" | "stop";
 
 const ORDER_TYPES: Array<[OrderType, string]> = [
   ["limit", "Limit"],
   ["market", "Market"],
+  ["stop", "Stop"],
 ];
 
 /** Leverage options offered for a market, capped at its max. */
@@ -66,6 +67,7 @@ export function TradeScreen() {
   const [postOnly, setPostOnly] = useState(false);
   const [tpPrice, setTpPrice] = useState("");
   const [slPrice, setSlPrice] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
   const [busy, setBusy] = useState(false);
   // Reused on a retry so the same cloid dedupes; cleared when the order is edited or succeeds.
   const [retryCloid, setRetryCloid] = useState<`0x${string}` | null>(null);
@@ -130,6 +132,10 @@ export function TradeScreen() {
       Alert.alert("订单无效", rejectionMessage(rej));
       return;
     }
+    if (orderType === "stop" && !(Number(stopPrice) > 0)) {
+      Alert.alert("订单无效", "请填写有效的触发价（Trigger price）");
+      return;
+    }
     setBusy(true);
     try {
       // §6.2: placeOrder/placeBracket persist the (pending) cloid BEFORE signing and dedupe by cloid.
@@ -141,6 +147,10 @@ export function TradeScreen() {
         reduceOnly: reduceOnly || undefined,
         market: orderType === "market" || undefined,
         tif: postOnly ? ("Alo" as const) : undefined,
+        trigger:
+          orderType === "stop"
+            ? { triggerPx: Number(stopPrice), isMarket: false, tpsl: "sl" as const }
+            : undefined,
         cloid: retryCloid ?? undefined,
       };
       const res =
@@ -297,6 +307,9 @@ export function TradeScreen() {
 
       <Field label="Symbol" value={coin} onChange={edit(setCoin)} theme={theme} autoCap testID="field-coin" />
       <Field label="Price · USDC" value={price} onChange={edit(setPrice)} theme={theme} keyboard testID="field-price" />
+      {orderType === "stop" ? (
+        <Field label="Trigger price · USDC" value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
+      ) : null}
       <Field label={`Size · ${coin.toUpperCase()}`} value={size} onChange={edit(setSize)} theme={theme} keyboard testID="field-size" />
 
       <SizePercentRow

@@ -123,6 +123,35 @@ describe("TradeScreen", () => {
     });
   });
 
+  it("places a stop order with a trigger when the Stop type is selected", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "c".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "订单已挂单" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByText("Stop"));
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.changeText(screen.getByTestId("field-stop"), "59000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: { triggerPx: 59000, isMarket: false, tpsl: "sl" } }),
+    );
+  });
+
+  it("rejects a stop order with no trigger price", async () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByText("Stop"));
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    expect(mockPlaceOrder).not.toHaveBeenCalled();
+  });
+
   it("uses the real szDecimals so a small BTC order is not wrongly rejected", async () => {
     // BTC szDecimals=5: roundSize(0.001,5)=0.001 (valid). With the old hardcoded
     // szDecimals=2 this rounded to 0 and was rejected before reaching the network.

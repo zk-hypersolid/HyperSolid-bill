@@ -34,8 +34,27 @@ const fakeDeps = {
 describe("PositionsScreen", () => {
   beforeEach(() => {
     useEnvStore.setState({ network: "mainnet" });
-    useWalletStore.setState({ mode: "none", wallet: null, address: null });
+    useWalletStore.setState({ mode: "local", wallet: null, address: null });
     useLedgerStore.setState({ ledger: null, scope: null, revision: 0 });
+    (fakeDeps.positions.loadPortfolio as jest.Mock).mockClear();
+    (fakeDeps.fills.loadRecent as jest.Mock).mockClear();
+    (fakeDeps.orders.loadOpenOrders as jest.Mock).mockClear();
+  });
+
+  it("gates with a Set up wallet CTA and does not query when there is no wallet", () => {
+    useWalletStore.setState({ mode: "none", wallet: null, address: null });
+    const navigate = jest.fn();
+    render(<PositionsScreen deps={fakeDeps} navigation={{ navigate }} />);
+    expect(screen.queryByText("Query")).toBeNull();
+    expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByTestId("gated-setup-wallet"));
+    expect(navigate).toHaveBeenCalledWith("Account");
+  });
+
+  it("auto-loads the connected wallet's positions on mount (no manual Query)", async () => {
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={fakeDeps} />);
+    await waitFor(() => expect(fakeDeps.positions.loadPortfolio).toHaveBeenCalledWith(ADDR));
   });
 
   it("renders the v8 chrome, view-only banner and query control", () => {

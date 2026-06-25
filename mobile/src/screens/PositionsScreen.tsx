@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from "react-native";
 import { useTheme } from "../theme/useTheme";
 import { useEnvStore } from "../state/envStore";
@@ -46,6 +46,7 @@ export function PositionsScreen({
   const t = useT();
   const network = useEnvStore((s) => s.network);
   const walletAddress = useWalletStore((s) => s.address);
+  const mode = useWalletStore((s) => s.mode);
 
   const services = useMemo<PositionsScreenDeps>(
     () =>
@@ -64,19 +65,45 @@ export function PositionsScreen({
   const [fills, setFills] = useState<Fill[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
 
-  const onQuery = useCallback(() => {
-    const addr = address.trim();
-    void load(addr);
-    if (!isValidAddress(addr)) return;
-    void services.fills.loadRecent(addr).then(setFills).catch(() => setFills([]));
-    void services.orders.loadOpenOrders(addr).then(setOrders).catch(() => setOrders([]));
-  }, [address, load, services]);
+  const runQuery = useCallback(
+    (addr: string) => {
+      void load(addr);
+      if (!isValidAddress(addr)) return;
+      void services.fills.loadRecent(addr).then(setFills).catch(() => setFills([]));
+      void services.orders.loadOpenOrders(addr).then(setOrders).catch(() => setOrders([]));
+    },
+    [load, services],
+  );
+
+  const onQuery = useCallback(() => runQuery(address.trim()), [runQuery, address]);
+
+  // Auto-load the connected/view-only wallet's own positions — no manual "Query" needed. Never
+  // queries when there is no wallet (mode "none"); that state is gated below.
+  useEffect(() => {
+    if (mode !== "none" && walletAddress && isValidAddress(walletAddress)) runQuery(walletAddress);
+  }, [mode, walletAddress, runQuery]);
 
   const tabs: Array<[Tab, TranslationKey, number]> = [
     ["positions", "tab.positions", portfolio?.positions.length ?? 0],
     ["orders", "positions.tabOrders", orders.length],
     ["fills", "positions.tabHistory", fills.length],
   ];
+
+  if (mode === "none") {
+    return (
+      <ScreenScaffold theme={theme} statusTitle={t("tab.positions")} pill={<NetworkWarning variant="chip" />}>
+        <Text style={[styles.msg, { color: theme.muted }]}>{t("positions.gatedNoWallet")}</Text>
+        <Pressable
+          accessibilityRole="button"
+          testID="gated-setup-wallet"
+          onPress={() => navigation?.navigate("Account")}
+          style={[styles.btn, { backgroundColor: theme.brand, marginTop: 16, paddingVertical: 13 }]}
+        >
+          <Text style={[styles.btnText, { color: theme.bg }]}>{t("common.setUpWallet")}</Text>
+        </Pressable>
+      </ScreenScaffold>
+    );
+  }
 
   return (
     <ScreenScaffold theme={theme} statusTitle={t("tab.positions")} pill={<NetworkWarning variant="chip" />}>

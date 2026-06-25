@@ -1,4 +1,5 @@
 import React from "react";
+import { Alert } from "react-native";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
 import { LockScreen } from "./LockScreen";
 import { useLocaleStore } from "../state/localeStore";
@@ -56,5 +57,24 @@ describe("LockScreen", () => {
     await waitFor(() => expect(screen.getByText(/Authentication failed/)).toBeTruthy());
     fireEvent.press(screen.getByText("Unlock"));
     await waitFor(() => expect(onUnlock).toHaveBeenCalledTimes(2));
+  });
+
+  it("offers a recovery escape that confirms before signing out", async () => {
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    const onRecover = jest.fn();
+    render(<LockScreen onUnlock={jest.fn().mockResolvedValue("failed")} onRecover={onRecover} />);
+    fireEvent.press(screen.getByTestId("lock-recover"));
+    // a destructive confirm is shown (does not sign out until confirmed)
+    expect(alertSpy).toHaveBeenCalled();
+    const buttons = alertSpy.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    const confirm = buttons.find((b) => b.text === "Sign out")!;
+    confirm.onPress?.();
+    expect(onRecover).toHaveBeenCalledTimes(1);
+    alertSpy.mockRestore();
+  });
+
+  it("omits the recovery escape when no onRecover is provided", () => {
+    render(<LockScreen onUnlock={jest.fn().mockResolvedValue("failed")} />);
+    expect(screen.queryByTestId("lock-recover")).toBeNull();
   });
 });

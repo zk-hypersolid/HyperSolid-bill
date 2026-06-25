@@ -1,4 +1,4 @@
-import { unlockSession, lockSession } from "./sessionController";
+import { unlockSession, lockSession, recoverFromLock } from "./sessionController";
 import { useAuthStore } from "../state/authStore";
 import { useWalletStore } from "../state/walletStore";
 import { AlwaysTrustedIntegrity } from "./deviceIntegrity";
@@ -53,6 +53,24 @@ describe("sessionController", () => {
     expect(useAuthStore.getState().status).toBe("locked");
   });
 
+  it("degrades gracefully when biometrics are unavailable: loads the (non-auth) wallet and unlocks", async () => {
+    const gate = { authenticate: jest.fn().mockResolvedValue("unavailable") };
+    const manager = { loadWallet: jest.fn().mockResolvedValue(fakeWallet) };
+    const r = await unlockSession(gate as never, manager as never, trusted);
+    expect(r).toBe("success");
+    expect(manager.loadWallet).toHaveBeenCalled();
+    expect(useWalletStore.getState().wallet).toBe(fakeWallet);
+    expect(useAuthStore.getState().status).toBe("unlocked");
+  });
+
+  it("stays locked if biometrics unavailable AND the wallet can't be read", async () => {
+    const gate = { authenticate: jest.fn().mockResolvedValue("unavailable") };
+    const manager = { loadWallet: jest.fn().mockRejectedValue(new Error("biometric item invalidated")) };
+    const r = await unlockSession(gate as never, manager as never, trusted);
+    expect(r).toBe("failed");
+    expect(useAuthStore.getState().status).toBe("locked");
+  });
+
   it("returns 'failed' when loading the wallet rejects (e.g. read prompt cancelled)", async () => {
     const gate = { authenticate: jest.fn().mockResolvedValue("success") };
     const manager = { loadWallet: jest.fn().mockRejectedValue(new Error("user cancel")) };
@@ -67,5 +85,17 @@ describe("sessionController", () => {
     lockSession();
     expect(useWalletStore.getState().wallet).toBeNull();
     expect(useAuthStore.getState().status).toBe("locked");
+  });
+
+  it("recoverFromLock signs out, clears the wallet, and re-evaluates to noWallet", async () => {
+    useWalletStore.setState({ mode: "local", wallet: fakeWallet, address: "0xabc" });
+    const manager = {
+      signOut: jest.fn().mockResolvedValue(undefined),
+      hasWallet: jest.fn().mockResolvedValue(false),
+    };
+    await recoverFromLock(manager as never);
+    expect(manager.signOut).toHaveBeenCalled();
+    expect(useWalletStore.getState().wallet).toBeNull();
+    expect(useAuthStore.getState().status).toBe("noWallet");
   });
 });

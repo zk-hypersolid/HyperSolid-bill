@@ -1,16 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { useTheme } from "../theme/useTheme";
 import { useT } from "../i18n/useT";
 import { Icon } from "../components/Icon";
 import type { AuthResult } from "../wallet/biometricGate";
 
-export function LockScreen({ onUnlock }: { onUnlock: () => Promise<AuthResult> }) {
+export function LockScreen({
+  onUnlock,
+  onRecover,
+}: {
+  onUnlock: () => Promise<AuthResult>;
+  onRecover?: () => void;
+}) {
   const theme = useTheme();
   const t = useT();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const autoTriggered = useRef(false);
+
+  function confirmRecover() {
+    Alert.alert(t("lock.recoverTitle"), t("lock.recoverBody"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("lock.recoverConfirm"), style: "destructive", onPress: onRecover },
+    ]);
+  }
 
   async function handle() {
     setBusy(true);
@@ -53,6 +66,11 @@ export function LockScreen({ onUnlock }: { onUnlock: () => Promise<AuthResult> }
       >
         <Text style={[styles.btnText, { color: theme.bg }]}>{t("lock.unlock")}</Text>
       </Pressable>
+      {onRecover ? (
+        <Pressable accessibilityRole="button" testID="lock-recover" onPress={confirmRecover} style={styles.recoverBtn}>
+          <Text style={[styles.recoverText, { color: theme.muted }]}>{t("lock.cantUnlock")}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -64,4 +82,6 @@ const styles = StyleSheet.create({
   msg: { fontSize: 13, textAlign: "center" },
   btn: { marginTop: 12, paddingVertical: 13, paddingHorizontal: 40, borderRadius: 10 },
   btnText: { fontSize: 15, fontWeight: "700" },
+  recoverBtn: { marginTop: 18, paddingVertical: 8 },
+  recoverText: { fontSize: 13, textDecorationLine: "underline" },
 });

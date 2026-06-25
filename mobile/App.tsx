@@ -21,7 +21,7 @@ import { useLedgerStore } from "./src/state/ledgerStore";
 import { reconcilePendingIntents } from "./src/services/ledgerRecovery";
 import { hydrateRuntimeConfig } from "./src/services/appConfig";
 import { useAutoLock } from "./src/wallet/useAutoLock";
-import { unlockSession } from "./src/wallet/sessionController";
+import { unlockSession, recoverFromLock } from "./src/wallet/sessionController";
 import { BiometricGate } from "./src/wallet/biometricGate";
 import { AlwaysTrustedIntegrity } from "./src/wallet/deviceIntegrity";
 import { WalletManager } from "./src/wallet/walletManager";
@@ -88,7 +88,10 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       {status === "locked" ? (
-        <LockScreen onUnlock={() => unlockSession(gate, manager, integrity)} />
+        <LockScreen
+          onUnlock={() => unlockSession(gate, manager, integrity)}
+          onRecover={() => recoverFromLock(manager)}
+        />
       ) : status === "noWallet" && !welcomeSeen ? (
         <WelcomeScreen
           onGetStarted={() => dismissWelcome("Account")}

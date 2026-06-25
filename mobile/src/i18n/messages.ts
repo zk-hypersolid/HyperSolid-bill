@@ -112,6 +112,10 @@ export const messages = {
     "lock.cancelled": "Cancelled",
     "lock.unavailable": "No biometrics detected — enable Face ID / fingerprint in Settings",
     "lock.compromised": "Device security check failed: root/jailbreak risk detected. Unlock is disabled to protect your assets.",
+    "lock.cantUnlock": "Can't unlock? Restore from recovery phrase",
+    "lock.recoverTitle": "Sign out & restore",
+    "lock.recoverBody": "This erases the wallet stored on this device. You can only get back in with your 12-word recovery phrase. Make sure you have it before continuing.",
+    "lock.recoverConfirm": "Sign out",
 
     "banner.unconfirmedTitle": "{count} unconfirmed order(s)",
     "banner.unconfirmedBody": "These orders may have been submitted to the exchange and carry exposure; their status is not yet confirmed. Don't re-place them manually — review, and if needed retry safely with the same id (cloid).",
@@ -358,6 +362,10 @@ export const messages = {
     "lock.cancelled": "已取消",
     "lock.unavailable": "未检测到生物识别，请在系统设置中启用 Face ID/指纹",
     "lock.compromised": "设备安全检查未通过：检测到 root/越狱风险，为保护你的资产已禁止解锁。",
+    "lock.cantUnlock": "无法解锁？用助记词恢复",
+    "lock.recoverTitle": "退出并恢复",
+    "lock.recoverBody": "这会清除本设备上存储的钱包。之后只能用你的 12 个助记词恢复。请确认你已保存助记词再继续。",
+    "lock.recoverConfirm": "退出",
 
     "banner.unconfirmedTitle": "{count} 笔未确认订单",
     "banner.unconfirmedBody": "这些订单可能已提交至交易所、存在敞口，状态尚未确认。请勿重复手动下单；请复核，必要时用同一编号(cloid)安全重试。",

@@ -19,6 +19,8 @@ export interface ThemeTokens {
   down: string;
   /** Caution color for the asymmetric testnet warning — distinct from brand. */
   warn: string;
+  /** Translucent overlay behind modals / bottom sheets. */
+  scrim: string;
 }
 
 export const themes: Record<ThemeName, ThemeTokens> = {
@@ -36,6 +38,7 @@ export const themes: Record<ThemeName, ThemeTokens> = {
     up: "#37D69A",
     down: "#FF6168",
     warn: "#FFA53D",
+    scrim: "#00000099",
   },
   daylight: {
     bg: "#EEF1F3",
@@ -51,6 +54,7 @@ export const themes: Record<ThemeName, ThemeTokens> = {
     up: "#1E7F5C",
     down: "#C0492F",
     warn: "#C77A1E",
+    scrim: "#0A1A2099",
   },
   oscilloscope: {
     bg: "#0C0A07",
@@ -66,6 +70,7 @@ export const themes: Record<ThemeName, ThemeTokens> = {
     up: "#6FE0C0",
     down: "#FF7A6B",
     warn: "#FF9233",
+    scrim: "#00000099",
   },
 };
 

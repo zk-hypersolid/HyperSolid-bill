@@ -15,9 +15,11 @@ import { ScreenScaffold } from "../components/ScreenScaffold";
 import { NetworkWarning } from "../components/NetworkWarning";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { SurfaceCard } from "../components/SurfaceCard";
-import { Chip } from "../components/Chip";
-import { SizePercentRow } from "../components/SizePercentRow";
 import { Dropdown } from "../components/Dropdown";
+import { PairHeader } from "../components/PairHeader";
+import { CoinPicker } from "../components/CoinPicker";
+import { MarginLeverageBar } from "../components/MarginLeverageBar";
+import { Slider } from "../components/Slider";
 import { PositionsService } from "../services/positionsData";
 import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { Toggle } from "../components/Toggle";
@@ -47,13 +49,6 @@ const ORDER_TYPES: Array<[TicketOrderType, TranslationKey]> = [
   ["tpLimit", "trade.typeTpLimit"],
   ["tpMarket", "trade.typeTpMarket"],
 ];
-
-/** Leverage options offered for a market, capped at its max. */
-function leverageOptions(maxLeverage: number): number[] {
-  return [1, 2, 5, 10, 20, 50].filter((l) => l <= maxLeverage).concat(maxLeverage).filter(
-    (l, i, a) => a.indexOf(l) === i && l <= maxLeverage,
-  );
-}
 
 /** Rough isolated-liquidation estimate (excludes maintenance margin) — clearly labelled "Est.". */
 function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
@@ -86,6 +81,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [orderType, setOrderType] = useState<TicketOrderType>("limit");
   const [sizeUnit, setSizeUnit] = useState<SizeUnit>("base");
   const [leverage, setLeverage] = useState(20);
+  const [isCross, setIsCross] = useState(true);
+  const [showCoinPicker, setShowCoinPicker] = useState(false);
   const [size, setSize] = useState("");
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
@@ -165,6 +162,17 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const canSubmit =
     mode === "local" && !!wallet && baseSize > 0 && refPrice > 0 && notional >= 10;
 
+  // Max openable size (base) = available × leverage / price; the slider maps a 0–100% of this (in the
+  // active size unit) onto the size field, and the "Max" row shows the base ceiling.
+  const maxBase = available && refPrice > 0 ? (available * leverage) / refPrice : 0;
+  const maxInUnit = sizeUnit === "quote" ? (available ?? 0) * leverage : maxBase;
+  const sizePct = maxInUnit > 0 ? Math.min(100, ((Number(size) || 0) / maxInUnit) * 100) : 0;
+  function onSlide(pct: number) {
+    if (maxInUnit <= 0) return;
+    clearRetry();
+    setSize(((pct / 100) * maxInUnit).toString());
+  }
+
   // Editing the order means a new intent — drop any retry cloid / uncertain notice.
   function clearRetry() {
     setRetryCloid(null);
@@ -232,7 +240,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       // shown is real). Skip for reduce-only (closing doesn't change leverage). Abort on failure
       // rather than silently open at a stale leverage.
       if (!reduceOnly) {
-        const lev = await svc.setLeverage(coin.toUpperCase(), leverage, true);
+        const lev = await svc.setLeverage(coin.toUpperCase(), leverage, isCross);
         if (!lev.ok) {
           Alert.alert(t("trade.leverageFailed"), lev.error);
           setBusy(false);
@@ -318,7 +326,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     );
   }
 
-  const levOptions = leverageOptions(ticker?.maxLeverage ?? 50);
   const liq = estLiqPrice(refPrice, leverage, side);
   const sideColor = side === "buy" ? theme.up : theme.down;
   const ctaLabel = `${t(side === "buy" ? "trade.sideBuy" : "trade.sideSell")} ${coin.toUpperCase()}`;
@@ -348,6 +355,37 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         reviewLabel={t("trade.retryLatest")}
       />
 
+      <PairHeader
+        theme={theme}
+        coin={coin}
+        maxLeverage={maxLev}
+        changePct={ticker?.changePct ?? 0}
+        lastPx={ticker?.midPx ?? 0}
+        onPress={() => setShowCoinPicker(true)}
+      />
+
+      <MarginLeverageBar
+        theme={theme}
+        isCross={isCross}
+        onToggleCross={() => {
+          clearRetry();
+          setIsCross((c) => !c);
+        }}
+        leverage={leverage}
+        maxLeverage={maxLev}
+        onSetLeverage={(l) => {
+          clearRetry();
+          setLeverage(l);
+        }}
+      />
+
+      <View style={styles.availRow}>
+        <Text style={[styles.availLabel, { color: theme.muted }]}>{t("trade.available")}</Text>
+        <Text style={[styles.availValue, { color: theme.text }]}>
+          {available != null ? `${available.toFixed(2)} USDC` : "—"}
+        </Text>
+      </View>
+
       <View style={styles.sideRow}>
         {(["buy", "sell"] as const).map((s) => (
           <Pressable
@@ -366,24 +404,12 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
               },
             ]}
           >
-            <Text
-              style={[
-                styles.sideText,
-                { color: side === s ? theme.bg : theme.text },
-              ]}
-            >
+            <Text style={[styles.sideText, { color: side === s ? theme.bg : theme.text }]}>
               {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
             </Text>
           </Pressable>
         ))}
       </View>
-
-      {ticker ? (
-        <View style={styles.priceHeader}>
-          <Text style={[styles.priceHeaderLabel, { color: theme.muted }]}>{coin.toUpperCase()}</Text>
-          <Text style={[styles.lastPx, { color: sideColor }]}>{formatPrice(ticker.midPx)}</Text>
-        </View>
-      ) : null}
 
       <Dropdown
         testID="order-type"
@@ -395,29 +421,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           setOrderType(v);
         }}
       />
-
-      <View style={styles.levRow}>
-        <View style={styles.levHead}>
-          <Text style={[styles.levLabel, { color: theme.muted }]}>{t("trade.leverage")}</Text>
-          <Text style={[styles.levMax, { color: theme.faint }]}>{t("trade.leverageMax", { max: maxLev })}</Text>
-        </View>
-        <View style={styles.levChips}>
-          {levOptions.map((l) => (
-            <Chip
-              key={l}
-              theme={theme}
-              label={`${l}×`}
-              active={leverage === l}
-              onPress={() => {
-                clearRetry();
-                setLeverage(l);
-              }}
-            />
-          ))}
-        </View>
-      </View>
-
-      <Field label={t("trade.symbol")} value={coin} onChange={onChangeCoin} theme={theme} autoCap testID="field-coin" />
       {usesLimitPrice ? (
         <Field
           label={t("trade.priceUsdc")}
@@ -468,14 +471,14 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         }
       />
 
-      <SizePercentRow
-        theme={theme}
-        available={available}
-        leverage={leverage}
-        price={refPrice}
-        unit={sizeUnit}
-        onPick={edit(setSize)}
-      />
+      <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
+
+      <View style={styles.maxRow}>
+        <Text style={[styles.maxLabel, { color: theme.muted }]}>{t("trade.maxPosition")}</Text>
+        <Text style={[styles.maxValue, { color: theme.text }]}>
+          {maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
+        </Text>
+      </View>
 
       <Text style={[styles.hint, { color: notional >= 10 ? theme.muted : theme.down }]}>
         {t("trade.orderValueHint", { value: notional.toFixed(2) })} {notional < 10 ? t("trade.minTen") : ""}
@@ -599,6 +602,13 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           <Text style={[styles.submitText, { color: canSubmit ? theme.bg : theme.muted }]}>{ctaLabel}</Text>
         )}
       </Pressable>
+
+      <CoinPicker
+        visible={showCoinPicker}
+        tickers={tickers}
+        onSelect={onChangeCoin}
+        onClose={() => setShowCoinPicker(false)}
+      />
     </ScreenScaffold>
   );
 }
@@ -662,6 +672,12 @@ const styles = StyleSheet.create({
   priceHeaderLabel: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
   lastPx: { fontFamily: fonts.mono.bold, fontSize: 15 },
   marketNote: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 12 },
+  availRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  availLabel: { fontFamily: fonts.body.regular, fontSize: 12 },
+  availValue: { fontFamily: fonts.mono.medium, fontSize: 13 },
+  maxRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 2 },
+  maxLabel: { fontFamily: fonts.body.regular, fontSize: 11 },
+  maxValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
   levRow: { marginBottom: 14 },
   levHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   levLabel: { fontFamily: fonts.body.regular, fontSize: 11 },

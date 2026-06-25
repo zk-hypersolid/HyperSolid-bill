@@ -53,6 +53,12 @@ function selectType(type: string) {
   fireEvent.press(screen.getByTestId(`order-type-opt-${type}`));
 }
 
+/** Open the pair header's coin picker and select a coin. */
+function selectCoin(coin: string) {
+  fireEvent.press(screen.getByTestId("pair-header"));
+  fireEvent.press(screen.getByTestId(`coin-opt-${coin}`));
+}
+
 describe("TradeScreen", () => {
   beforeEach(() => {
     useEnvStore.setState({ network: "mainnet" });
@@ -118,7 +124,7 @@ describe("TradeScreen", () => {
     });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.changeText(screen.getByTestId("field-coin"), "LOWP");
+    selectCoin("LOWP");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.4");
     fireEvent.changeText(screen.getByTestId("field-price"), "30");
     fireEvent.press(screen.getByTestId("submit-order"));
@@ -496,17 +502,47 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder).not.toHaveBeenCalled();
   });
 
-  it("percent row sets size from available balance × leverage / price", async () => {
+  it("shows the HL pair header, available balance, leverage pill and size slider", async () => {
     const VALID = "0x" + "a".repeat(40);
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: VALID });
     render(<TradeScreen />);
-    fireEvent.changeText(screen.getByTestId("field-price"), "64000");
-    // wait until the balance hook has loaded withdrawable=800
-    await waitFor(() => {
-      fireEvent.press(screen.getByText("50%"));
-      // 0.5 * (800 * 20) / 64000 = 0.125 (default leverage 20)
-      expect(screen.getByTestId("field-size").props.value).toBe("0.125");
+    expect(screen.getByTestId("pair-header")).toBeTruthy();
+    expect(screen.getByText("BTC-USDC")).toBeTruthy();
+    expect(screen.getByTestId("margin-mode")).toBeTruthy();
+    expect(screen.getByTestId("leverage-pill")).toBeTruthy();
+    expect(screen.getByTestId("size-slider")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/800\.00 USDC/)).toBeTruthy());
+  });
+
+  it("toggles margin mode to isolated and passes isCross=false to setLeverage", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
     });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByTestId("margin-mode")); // Cross → Isolated
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 20, false));
+  });
+
+  it("selects leverage from the pill chooser", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByTestId("leverage-pill"));
+    fireEvent.press(screen.getByTestId("leverage-opt-10"));
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 10, true));
   });
 
   it("clamps leverage to the asset's HL max before placing (no 20× on a 3× market)", async () => {
@@ -522,7 +558,7 @@ describe("TradeScreen", () => {
     });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.changeText(screen.getByTestId("field-coin"), "LOWLEV");
+    selectCoin("LOWLEV");
     fireEvent.changeText(screen.getByTestId("field-size"), "1");
     fireEvent.changeText(screen.getByTestId("field-price"), "100");
     fireEvent.press(screen.getByTestId("submit-order"));

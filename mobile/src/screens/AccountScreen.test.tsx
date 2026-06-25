@@ -68,7 +68,7 @@ describe("AccountScreen", () => {
   it("renders the onboarding state with create / restore / view-only actions", () => {
     render(<AccountScreen />);
     expect(screen.getByText("Wallet")).toBeTruthy();
-    expect(screen.getByText("Welcome to HyperSolid")).toBeTruthy();
+    expect(screen.getByText("Set up your wallet")).toBeTruthy();
     expect(screen.getByText("Create local wallet")).toBeTruthy();
     expect(screen.getByText("Restore wallet")).toBeTruthy();
     expect(screen.getByText("Enter view-only")).toBeTruthy();

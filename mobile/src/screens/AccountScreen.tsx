@@ -374,6 +374,7 @@ export function AccountScreen({ deps }: { deps?: AccountScreenDeps } = {}) {
               </Pressable>
             </View>
             <Text style={[styles.fundHint, { color: theme.faint }]}>{t("account.fundWalletHint")}</Text>
+            <Text style={[styles.fundHint, { color: theme.faint }]}>{t("account.minTradeNote")}</Text>
             <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.amountUsdc")}</Text>
             <TextInput
               value={depositAmount}

@@ -603,19 +603,19 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
 
       <View style={styles.opts}>
-        <View style={styles.optGroup}>
-          <View style={styles.optRow}>
-            <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
-            <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
-          </View>
-          {!shape.isTrigger && !isTwap && !isScale ? (
-            <View style={styles.optRow}>
-              <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
-              <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
-            </View>
-          ) : null}
+        <View style={styles.optRow}>
+          <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
+          <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
         </View>
-        {usesLimitPrice ? (
+        {!shape.isTrigger && !isTwap && !isScale ? (
+          <View style={styles.optRow}>
+            <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
+            <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
+          </View>
+        ) : null}
+      </View>
+      {usesLimitPrice ? (
+        <View style={styles.tifRow}>
           <Dropdown
             compact
             prefix="TIF"
@@ -631,8 +631,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
               setTif(v);
             }}
           />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {!shape.isTrigger && !isTwap && !isScale && tpSlOn ? (
         <SurfaceCard theme={theme} rule={false} style={styles.tpsl}>
@@ -853,7 +853,8 @@ const styles = StyleSheet.create({
   midText: { fontFamily: fonts.mono.bold, fontSize: 11, letterSpacing: 0.3 },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
   sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
-  opts: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, zIndex: 5 },
+  opts: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, zIndex: 5 },
+  tifRow: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 14, zIndex: 20 },
   optGroup: { flexDirection: "row", gap: 18, alignItems: "center" },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   optLabel: { fontFamily: fonts.body.medium, fontSize: 12 },

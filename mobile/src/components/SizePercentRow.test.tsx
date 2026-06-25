@@ -20,4 +20,12 @@ describe("SizePercentRow", () => {
     fireEvent.press(screen.getByText("50%"));
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  it("computes a quote (USDC) amount when unit is quote", () => {
+    const onPick = jest.fn();
+    render(<SizePercentRow theme={t} available={800} leverage={10} price={64000} unit="quote" onPick={onPick} />);
+    fireEvent.press(screen.getByText("50%"));
+    // 0.5 * (800*10) = 4000 USDC (not divided by price)
+    expect(onPick).toHaveBeenCalledWith("4000");
+  });
 });

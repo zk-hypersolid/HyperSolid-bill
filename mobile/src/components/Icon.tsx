@@ -13,6 +13,7 @@ export type IconName =
   | "swap"
   | "chevron"
   | "chevronRight"
+  | "chevronDown"
   | "arrowRight"
   | "eye"
   | "lock"
@@ -141,6 +142,8 @@ function renderGlyph(
       return <Path d="M14.5 6 9 12l5.5 6" />;
     case "chevronRight":
       return <Path d="M9 6l6 6-6 6" />;
+    case "chevronDown":
+      return <Path d="M6 9.5 12 15l6-5.5" />;
     case "grid":
       return (
         <>

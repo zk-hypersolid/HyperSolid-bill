@@ -17,6 +17,7 @@ import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { Chip } from "../components/Chip";
 import { SizePercentRow } from "../components/SizePercentRow";
+import { Dropdown } from "../components/Dropdown";
 import { PositionsService } from "../services/positionsData";
 import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { Toggle } from "../components/Toggle";
@@ -26,15 +27,25 @@ import { fonts } from "../theme/fonts";
 import type { ThemeTokens } from "../theme/tokens";
 import type { TranslationKey } from "../i18n/messages";
 import type { LocalWalletService } from "../wallet/localWallet";
-import type { OrderSide } from "../lib/hyperliquid/buildOrder";
+import type { OrderSide, TimeInForce } from "../lib/hyperliquid/buildOrder";
 import { validateOrder, clampLeverage, validateTriggerSide, roundSize, formatPrice as toHlPrice } from "../lib/hyperliquid/order";
+import {
+  orderTypeShape,
+  toBaseSize,
+  requiredMargin,
+  TAKER_FEE_RATE,
+  MAKER_FEE_RATE,
+  type TicketOrderType,
+  type SizeUnit,
+} from "../lib/hyperliquid/orderForm";
 
-type OrderType = "limit" | "market" | "stop";
-
-const ORDER_TYPES: Array<[OrderType, TranslationKey]> = [
-  ["limit", "trade.typeLimit"],
+const ORDER_TYPES: Array<[TicketOrderType, TranslationKey]> = [
   ["market", "trade.typeMarket"],
-  ["stop", "trade.typeStop"],
+  ["limit", "trade.typeLimit"],
+  ["stopLimit", "trade.typeStopLimit"],
+  ["stopMarket", "trade.typeStopMarket"],
+  ["tpLimit", "trade.typeTpLimit"],
+  ["tpMarket", "trade.typeTpMarket"],
 ];
 
 /** Leverage options offered for a market, capped at its max. */
@@ -72,13 +83,15 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
 
   const [coin, setCoin] = useState("BTC");
   const [side, setSide] = useState<OrderSide>("buy");
-  const [orderType, setOrderType] = useState<OrderType>("limit");
+  const [orderType, setOrderType] = useState<TicketOrderType>("limit");
+  const [sizeUnit, setSizeUnit] = useState<SizeUnit>("base");
   const [leverage, setLeverage] = useState(20);
   const [size, setSize] = useState("");
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
   const [reduceOnly, setReduceOnly] = useState(false);
-  const [postOnly, setPostOnly] = useState(false);
+  const [tif, setTif] = useState<TimeInForce>("Gtc");
+  const [tpSlOn, setTpSlOn] = useState(false);
   const [tpPrice, setTpPrice] = useState("");
   const [slPrice, setSlPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
@@ -114,13 +127,16 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   }, [client, index, ledger]);
 
   const mid = ticker?.midPx ?? 0;
-  const isMarket = orderType === "market";
+  const shape = orderTypeShape(orderType);
+  const isMarketType = orderType === "market";
+  // Whether a limit price field is shown/used (Market & *-Market trigger types fill at market).
+  const usesLimitPrice = shape.usesLimitPrice;
   // HL lot/tick precision for the active market (perps universe). szDecimals drives both size lot
   // rounding and the price tick (≤5 sig figs AND ≤ 6−szDecimals decimals).
   const szDec = ticker?.szDecimals ?? 2;
   const maxLev = ticker?.maxLeverage ?? 50;
-  // Reference price for sizing / liq / notional: live mid for market, the typed price otherwise.
-  const refPrice = isMarket ? mid : Number(price) || 0;
+  // Reference price for sizing / liq / notional: the typed limit price when used, else live mid.
+  const refPrice = usesLimitPrice ? Number(price) || 0 : mid;
 
   // Keep leverage within the active asset's HL cap (e.g. a 5× market can't carry the 20× default) so
   // the est. liq price is real and the pre-submit setLeverage call won't be rejected.
@@ -128,23 +144,26 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     setLeverage((lev) => clampLeverage(lev, maxLev));
   }, [maxLev]);
 
-  // Prefill the limit/stop price with the live mid until the user edits it (reset on coin change),
+  // Prefill the limit price with the live mid until the user edits it (reset on coin change),
   // snapped to a valid HL tick so what is shown is exactly what will be sent.
   useEffect(() => {
-    if (isMarket || priceEdited) return;
+    if (!usesLimitPrice || priceEdited) return;
     if (mid > 0) setPrice(toHlPrice(mid, szDec, "perp"));
-  }, [coin, mid, isMarket, priceEdited, szDec]);
+  }, [coin, mid, usesLimitPrice, priceEdited, szDec]);
 
-  const notional = (Number(size) || 0) * refPrice;
+  // Size is entered in base (coin) or quote (USDC); the order always uses base size.
+  const baseSize = toBaseSize(sizeUnit, Number(size) || 0, refPrice);
+  const notional = baseSize * refPrice;
+  const margin = requiredMargin(notional, leverage);
   const positionsSvc = useMemo(
     () => new PositionsService(createPositionsInfoClient(network)),
     [network],
   );
   const available = useAvailableBalance(positionsSvc, walletAddress);
-  const hasTp = Number(tpPrice) > 0;
-  const hasSl = Number(slPrice) > 0;
+  const hasTp = tpSlOn && Number(tpPrice) > 0;
+  const hasSl = tpSlOn && Number(slPrice) > 0;
   const canSubmit =
-    mode === "local" && !!wallet && Number(size) > 0 && refPrice > 0 && notional >= 10;
+    mode === "local" && !!wallet && baseSize > 0 && refPrice > 0 && notional >= 10;
 
   // Editing the order means a new intent — drop any retry cloid / uncertain notice.
   function clearRetry() {
@@ -173,28 +192,34 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     const svc = useExchangeStore.getState().service;
     if (!svc) return;
     const szDec = index.szDecimals(coin.toUpperCase()) ?? 2;
-    // Market orders never carry a typed price — send IOC at a slippage-bounded price off mid.
-    const submitPrice = isMarket ? marketPrice(mid, side) : Number(price);
-    const rej = validateOrder({ price: submitPrice, size: Number(size), szDecimals: szDec });
+    // Resolve the price actually sent: limit-style types use the typed limit price; market and the
+    // *-Market trigger types fill at a slippage-bounded IOC price (off mid, or off the trigger).
+    const submitPrice = usesLimitPrice
+      ? Number(price)
+      : shape.isTrigger
+        ? marketPrice(Number(stopPrice), side)
+        : marketPrice(mid, side);
+    const rej = validateOrder({ price: submitPrice, size: baseSize, szDecimals: szDec });
     if (rej) {
       Alert.alert(t("trade.invalidOrder"), t(`reject.${rej}` as never));
       return;
     }
-    if (orderType === "stop" && !(Number(stopPrice) > 0)) {
+    if (shape.isTrigger && !(Number(stopPrice) > 0)) {
       Alert.alert(t("trade.invalidOrder"), t("trade.stopNeedsTrigger"));
       return;
     }
-    // Trigger-side rules (HL badTriggerPxRejected): a stop trigger must sit on the loss side, and
-    // bracket TP/SL must straddle entry on the correct sides for the position direction.
-    const entryPx = refPrice;
-    const triggerChecks: Array<["sl" | "tp", number] | null> = [
-      orderType === "stop" ? (["sl", Number(stopPrice)] as ["sl", number]) : null,
-      hasTp ? (["tp", Number(tpPrice)] as ["tp", number]) : null,
-      hasSl ? (["sl", Number(slPrice)] as ["sl", number]) : null,
+    // Trigger-side rules (HL badTriggerPxRejected): the order's own trigger is checked against the
+    // mark (mid); bracket TP/SL legs (limit/market entries only) straddle the entry price.
+    const useBracket = !shape.isTrigger && (hasTp || hasSl);
+    const triggerChecks: Array<["sl" | "tp", number, number] | null> = [
+      shape.isTrigger ? [shape.tpsl, Number(stopPrice), mid] : null,
+      useBracket && hasTp ? ["tp", Number(tpPrice), refPrice] : null,
+      useBracket && hasSl ? ["sl", Number(slPrice), refPrice] : null,
     ];
     for (const check of triggerChecks) {
       if (!check) continue;
-      const trej = validateTriggerSide({ side, entryPx, triggerPx: check[1], tpsl: check[0] });
+      const [tpsl, triggerPx, entryPx] = check;
+      const trej = validateTriggerSide({ side, entryPx, triggerPx, tpsl });
       if (trej) {
         Alert.alert(t("trade.invalidOrder"), t(`reject.${trej}` as never));
         return;
@@ -218,25 +243,23 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       const entry = {
         coin: coin.toUpperCase(),
         side,
-        size: Number(size),
+        size: baseSize,
         price: submitPrice,
         reduceOnly: reduceOnly || undefined,
-        market: orderType === "market" || undefined,
-        tif: postOnly ? ("Alo" as const) : undefined,
-        trigger:
-          orderType === "stop"
-            ? { triggerPx: Number(stopPrice), isMarket: false, tpsl: "sl" as const }
-            : undefined,
+        market: isMarketType || undefined,
+        tif,
+        trigger: shape.isTrigger
+          ? { triggerPx: Number(stopPrice), isMarket: shape.triggerIsMarket, tpsl: shape.tpsl }
+          : undefined,
         cloid: retryCloid ?? undefined,
       };
-      const res =
-        hasTp || hasSl
-          ? await svc.placeBracket({
-              entry,
-              takeProfit: hasTp ? { triggerPx: Number(tpPrice) } : undefined,
-              stopLoss: hasSl ? { triggerPx: Number(slPrice) } : undefined,
-            })
-          : await svc.placeOrder(entry);
+      const res = useBracket
+        ? await svc.placeBracket({
+            entry,
+            takeProfit: hasTp ? { triggerPx: Number(tpPrice) } : undefined,
+            stopLoss: hasSl ? { triggerPx: Number(slPrice) } : undefined,
+          })
+        : await svc.placeOrder(entry);
       if (res.ok) {
         setRetryCloid(null);
         setUncertain(false);
@@ -302,10 +325,15 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
 
   // What will actually be sent, snapped to HL tick/lot — surfaced so the user sees exactly what they
   // submit (the encoder applies the same rounding). Market price is the slippage-bounded IOC price.
-  const previewSubmitPrice = isMarket ? marketPrice(mid, side) : Number(price);
+  const previewSubmitPrice = usesLimitPrice
+    ? Number(price)
+    : shape.isTrigger
+      ? marketPrice(Number(stopPrice), side)
+      : marketPrice(mid, side);
   const previewPrice = previewSubmitPrice > 0 ? toHlPrice(previewSubmitPrice, szDec, "perp") : "—";
-  const previewPriceLabel = isMarket ? `${t("trade.marketCap")} ${previewPrice}` : previewPrice;
-  const previewSize = Number(size) > 0 ? String(roundSize(Number(size), szDec)) : "—";
+  const previewPriceLabel =
+    !usesLimitPrice && previewSubmitPrice > 0 ? `${t("trade.marketCap")} ${previewPrice}` : previewPrice;
+  const previewSize = baseSize > 0 ? String(roundSize(baseSize, szDec)) : "—";
 
   return (
     <ScreenScaffold
@@ -350,27 +378,23 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         ))}
       </View>
 
-      <View style={styles.typeRow}>
-        <View style={styles.typeChips}>
-          {ORDER_TYPES.map(([type, labelKey]) => (
-            <Chip
-              key={type}
-              theme={theme}
-              label={t(labelKey)}
-              active={orderType === type}
-              onPress={() => {
-                clearRetry();
-                setOrderType(type);
-              }}
-            />
-          ))}
+      {ticker ? (
+        <View style={styles.priceHeader}>
+          <Text style={[styles.priceHeaderLabel, { color: theme.muted }]}>{coin.toUpperCase()}</Text>
+          <Text style={[styles.lastPx, { color: sideColor }]}>{formatPrice(ticker.midPx)}</Text>
         </View>
-        {ticker ? (
-          <Text style={[styles.lastPx, { color: sideColor }]}>
-            {formatPrice(ticker.midPx)}
-          </Text>
-        ) : null}
-      </View>
+      ) : null}
+
+      <Dropdown
+        testID="order-type"
+        label={t("trade.orderType")}
+        value={orderType}
+        options={ORDER_TYPES.map(([type, labelKey]) => ({ value: type, label: t(labelKey) }))}
+        onChange={(v) => {
+          clearRetry();
+          setOrderType(v);
+        }}
+      />
 
       <View style={styles.levRow}>
         <View style={styles.levHead}>
@@ -394,21 +418,62 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       </View>
 
       <Field label={t("trade.symbol")} value={coin} onChange={onChangeCoin} theme={theme} autoCap testID="field-coin" />
-      {isMarket ? (
-        <Text style={[styles.marketNote, { color: theme.muted }]}>{t("trade.marketPriceNote")}</Text>
+      {usesLimitPrice ? (
+        <Field
+          label={t("trade.priceUsdc")}
+          value={price}
+          onChange={onChangePrice}
+          theme={theme}
+          keyboard
+          testID="field-price"
+          accessory={
+            mid > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                testID="price-mid"
+                onPress={() => onChangePrice(toHlPrice(mid, szDec, "perp"))}
+                style={[styles.midBtn, { borderColor: theme.line }]}
+              >
+                <Text style={[styles.midText, { color: theme.brand }]}>{t("trade.mid")}</Text>
+              </Pressable>
+            ) : undefined
+          }
+        />
       ) : (
-        <Field label={t("trade.priceUsdc")} value={price} onChange={onChangePrice} theme={theme} keyboard testID="field-price" />
+        <Text style={[styles.marketNote, { color: theme.muted }]}>{t("trade.marketPriceNote")}</Text>
       )}
-      {orderType === "stop" ? (
+      {shape.isTrigger ? (
         <Field label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
       ) : null}
-      <Field label={t("trade.size", { coin: coin.toUpperCase() })} value={size} onChange={edit(setSize)} theme={theme} keyboard testID="field-size" />
+      <Field
+        label={sizeUnit === "quote" ? t("trade.sizeQuote") : t("trade.size", { coin: coin.toUpperCase() })}
+        value={size}
+        onChange={edit(setSize)}
+        theme={theme}
+        keyboard
+        testID="field-size"
+        accessory={
+          <Pressable
+            accessibilityRole="button"
+            testID="size-unit-toggle"
+            onPress={() => {
+              clearRetry();
+              setSize("");
+              setSizeUnit((u) => (u === "base" ? "quote" : "base"));
+            }}
+            style={[styles.midBtn, { borderColor: theme.line }]}
+          >
+            <Text style={[styles.midText, { color: theme.brand }]}>{sizeUnit === "quote" ? "USDC" : coin.toUpperCase()}</Text>
+          </Pressable>
+        }
+      />
 
       <SizePercentRow
         theme={theme}
         available={available}
         leverage={leverage}
-        price={Number(price)}
+        price={refPrice}
+        unit={sizeUnit}
         onPick={edit(setSize)}
       />
 
@@ -420,57 +485,82 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         {t("trade.submitPreview", { price: previewPriceLabel, size: previewSize, coin: coin.toUpperCase() })}
       </Text>
 
+      {usesLimitPrice ? (
+        <Dropdown
+          testID="tif"
+          label={t("trade.tif")}
+          value={tif}
+          options={[
+            { value: "Gtc" as const, label: t("trade.tifGtc") },
+            { value: "Ioc" as const, label: t("trade.tifIoc") },
+            { value: "Alo" as const, label: t("trade.tifAlo") },
+          ]}
+          onChange={(v) => {
+            clearRetry();
+            setTif(v);
+          }}
+        />
+      ) : null}
+
       <View style={styles.opts}>
         <View style={styles.optRow}>
           <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
           <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
         </View>
-        <View style={styles.optRow}>
-          <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.postOnly")}</Text>
-          <Toggle theme={theme} value={postOnly} onValueChange={edit(setPostOnly)} accessibilityLabel="post-only" />
-        </View>
+        {!shape.isTrigger ? (
+          <View style={styles.optRow}>
+            <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
+            <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
+          </View>
+        ) : null}
       </View>
 
-      <SurfaceCard theme={theme} rule={false} style={styles.tpsl}>
-        <View style={styles.tpslHead}>
-          <Text style={[styles.tpslTitle, { color: theme.text }]}>{t("trade.tpSlTitle")}</Text>
-          <Text style={[styles.tpslOpt, { color: theme.faint }]}>{t("trade.optional")}</Text>
-        </View>
-        <View style={styles.tpslRow}>
-          <View style={styles.tpslField}>
-            <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.tpPrice")}</Text>
-            <TextInput
-              value={tpPrice}
-              onChangeText={edit(setTpPrice)}
-              testID="field-tp"
-              placeholder="—"
-              placeholderTextColor={theme.faint}
-              keyboardType="decimal-pad"
-              style={[styles.tpslInput, { color: theme.up, borderColor: theme.line }]}
-            />
+      {!shape.isTrigger && tpSlOn ? (
+        <SurfaceCard theme={theme} rule={false} style={styles.tpsl}>
+          <View style={styles.tpslHead}>
+            <Text style={[styles.tpslTitle, { color: theme.text }]}>{t("trade.tpSlTitle")}</Text>
+            <Text style={[styles.tpslOpt, { color: theme.faint }]}>{t("trade.optional")}</Text>
           </View>
-          <View style={styles.tpslField}>
-            <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.slPrice")}</Text>
-            <TextInput
-              value={slPrice}
-              onChangeText={edit(setSlPrice)}
-              testID="field-sl"
-              placeholder="—"
-              placeholderTextColor={theme.faint}
-              keyboardType="decimal-pad"
-              style={[styles.tpslInput, { color: theme.down, borderColor: theme.line }]}
-            />
+          <View style={styles.tpslRow}>
+            <View style={styles.tpslField}>
+              <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.tpPrice")}</Text>
+              <TextInput
+                value={tpPrice}
+                onChangeText={edit(setTpPrice)}
+                testID="field-tp"
+                placeholder="—"
+                placeholderTextColor={theme.faint}
+                keyboardType="decimal-pad"
+                style={[styles.tpslInput, { color: theme.up, borderColor: theme.line }]}
+              />
+            </View>
+            <View style={styles.tpslField}>
+              <Text style={[styles.tpslLabel, { color: theme.muted }]}>{t("trade.slPrice")}</Text>
+              <TextInput
+                value={slPrice}
+                onChangeText={edit(setSlPrice)}
+                testID="field-sl"
+                placeholder="—"
+                placeholderTextColor={theme.faint}
+                keyboardType="decimal-pad"
+                style={[styles.tpslInput, { color: theme.down, borderColor: theme.line }]}
+              />
+            </View>
           </View>
-        </View>
-      </SurfaceCard>
+        </SurfaceCard>
+      ) : null}
 
       <SurfaceCard theme={theme} rule={false} style={styles.summary}>
+        <SummaryRow theme={theme} label={t("trade.estLiqPrice")} value={refPrice > 0 ? formatPrice(liq) : "—"} />
         <SummaryRow theme={theme} label={t("trade.summaryOrderValue")} value={`≈ ${notional.toFixed(2)} USDC`} />
-        <SummaryRow theme={theme} label={t("trade.leverage")} value={`${leverage}× ${t("positions.cross")}`} />
+        <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
         <SummaryRow
           theme={theme}
-          label={t("trade.estLiqPrice")}
-          value={refPrice > 0 ? formatPrice(liq) : "—"}
+          label={t("trade.fees")}
+          value={t("trade.feesValue", {
+            taker: (TAKER_FEE_RATE * 100).toFixed(4),
+            maker: (MAKER_FEE_RATE * 100).toFixed(4),
+          })}
         />
       </SurfaceCard>
 
@@ -530,6 +620,7 @@ function Field({
   keyboard,
   autoCap,
   testID,
+  accessory,
 }: {
   label: string;
   value: string;
@@ -538,18 +629,26 @@ function Field({
   keyboard?: boolean;
   autoCap?: boolean;
   testID?: string;
+  accessory?: React.ReactNode;
 }) {
   return (
     <View style={styles.field}>
       <Text style={[styles.label, { color: theme.muted }]}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        testID={testID}
-        keyboardType={keyboard ? "decimal-pad" : "default"}
-        autoCapitalize={autoCap ? "characters" : "none"}
-        style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
-      />
+      <View>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          testID={testID}
+          keyboardType={keyboard ? "decimal-pad" : "default"}
+          autoCapitalize={autoCap ? "characters" : "none"}
+          style={[
+            styles.input,
+            accessory ? styles.inputWithAccessory : null,
+            { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface },
+          ]}
+        />
+        {accessory ? <View style={styles.accessory}>{accessory}</View> : null}
+      </View>
     </View>
   );
 }
@@ -559,9 +658,9 @@ const styles = StyleSheet.create({
   sideRow: { flexDirection: "row", gap: 10, marginBottom: 14, marginTop: 4 },
   sideBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 },
   sideText: { fontFamily: fonts.display.bold, fontSize: 14, letterSpacing: 0.3 },
-  typeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  typeChips: { flexDirection: "row", gap: 7 },
-  lastPx: { fontFamily: fonts.mono.bold, fontSize: 13 },
+  priceHeader: { flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 },
+  priceHeaderLabel: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
+  lastPx: { fontFamily: fonts.mono.bold, fontSize: 15 },
   marketNote: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 12 },
   levRow: { marginBottom: 14 },
   levHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
@@ -578,6 +677,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono.medium,
     fontSize: 14,
   },
+  inputWithAccessory: { paddingRight: 64 },
+  accessory: { position: "absolute", right: 6, top: 0, bottom: 0, justifyContent: "center" },
+  midBtn: { borderWidth: 1, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 5 },
+  midText: { fontFamily: fonts.mono.bold, fontSize: 11, letterSpacing: 0.3 },
   hint: { fontFamily: fonts.mono.regular, fontSize: 12, marginBottom: 12 },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: -6, marginBottom: 14 },
   opts: { flexDirection: "row", gap: 24, marginBottom: 14 },

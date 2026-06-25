@@ -47,6 +47,12 @@ const btc: MarketTicker = {
 
 const localWallet = { getViemAccount: () => ({}), getAddress: () => "0xabc" } as never;
 
+/** Open the order-type dropdown and pick a type by its value (market/limit/stopLimit/…). */
+function selectType(type: string) {
+  fireEvent.press(screen.getByTestId("order-type"));
+  fireEvent.press(screen.getByTestId(`order-type-opt-${type}`));
+}
+
 describe("TradeScreen", () => {
   beforeEach(() => {
     useEnvStore.setState({ network: "mainnet" });
@@ -138,7 +144,7 @@ describe("TradeScreen", () => {
     });
   });
 
-  it("places a stop order with a trigger when the Stop type is selected", async () => {
+  it("places a Stop Limit order with a trigger when selected", async () => {
     mockPlaceOrder.mockResolvedValue({
       ok: true,
       cloid: ("0x" + "c".repeat(32)) as `0x${string}`,
@@ -146,7 +152,7 @@ describe("TradeScreen", () => {
     });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.press(screen.getByText("Stop"));
+    selectType("stopLimit");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.changeText(screen.getByTestId("field-stop"), "59000");
@@ -157,14 +163,96 @@ describe("TradeScreen", () => {
     );
   });
 
-  it("rejects a stop order with no trigger price", async () => {
+  it("places a Stop Market order (trigger isMarket=true, no limit price field)", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "c".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.press(screen.getByText("Stop"));
+    selectType("stopMarket");
+    expect(screen.queryByTestId("field-price")).toBeNull();
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-stop"), "59000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: { triggerPx: 59000, isMarket: true, tpsl: "sl" } }),
+    );
+  });
+
+  it("places a TP Market order with a take-profit trigger above the mark for a long", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "c".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("tpMarket");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    // long TP must be above mid (62481.5)
+    fireEvent.changeText(screen.getByTestId("field-stop"), "70000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: { triggerPx: 70000, isMarket: true, tpsl: "tp" } }),
+    );
+  });
+
+  it("rejects a take-profit trigger on the wrong side of the mark", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("tpMarket");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    // long TP below mid is the wrong side
+    fireEvent.changeText(screen.getByTestId("field-stop"), "50000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    expect(mockPlaceOrder).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
+  });
+
+  it("rejects a Stop Limit order with no trigger price", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("stopLimit");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
+  });
+
+  it("sizes by USDC (quote) when the unit toggle is switched", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "c".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("size-unit-toggle")); // base → quote (USDC)
+    fireEvent.changeText(screen.getByTestId("field-size"), "600"); // 600 USDC / 60000 = 0.01 BTC
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder.mock.calls[0][0].size).toBeCloseTo(0.01, 6);
+  });
+
+  it("the Mid button snaps the price to the live mid", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-price"), "1");
+    fireEvent.press(screen.getByTestId("price-mid"));
+    // mid 62481.5 snaps to a valid HL tick (5 sig figs) → 62482
+    expect(screen.getByTestId("field-price").props.value).toBe("62482");
+  });
+
+  it("shows the HL-style summary with required margin and taker/maker fees", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    expect(screen.getByText("Required margin")).toBeTruthy();
+    expect(screen.getByText("0.0450% / 0.0150%")).toBeTruthy();
   });
 
   it("applies the selected leverage to the venue before placing the order", async () => {
@@ -222,7 +310,7 @@ describe("TradeScreen", () => {
     });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    fireEvent.press(screen.getByText("Market"));
+    selectType("market");
     // no price field for market orders
     expect(screen.queryByTestId("field-price")).toBeNull();
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
@@ -352,7 +440,7 @@ describe("TradeScreen", () => {
     expect(screen.getByTestId("retry-order")).toBeTruthy();
   });
 
-  it("passes reduce-only, post-only (Alo) and market type into the order request", async () => {
+  it("passes reduce-only and market type into the order request", async () => {
     mockPlaceOrder.mockResolvedValue({
       ok: true,
       cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
@@ -361,17 +449,31 @@ describe("TradeScreen", () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
-    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByText("Market"));
+    selectType("market");
     fireEvent.press(screen.getByLabelText("reduce-only"));
-    fireEvent.press(screen.getByLabelText("post-only"));
     fireEvent.press(screen.getByTestId("submit-order"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     const req = mockPlaceOrder.mock.calls[0][0];
     expect(req.reduceOnly).toBe(true);
     expect(req.market).toBe(true);
-    expect(req.tif).toBe("Alo");
     expect(mockPlaceBracket).not.toHaveBeenCalled();
+  });
+
+  it("sets TIF to ALO (post-only) on a limit order via the TIF dropdown", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("tif"));
+    fireEvent.press(screen.getByTestId("tif-opt-Alo"));
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder.mock.calls[0][0].tif).toBe("Alo");
   });
 
   it("routes through placeBracket when a TP or SL price is set", async () => {
@@ -384,6 +486,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByLabelText("tpsl-toggle")); // reveal TP/SL fields
     fireEvent.changeText(screen.getByTestId("field-sl"), "58000");
     fireEvent.press(screen.getByTestId("submit-order"));
     await waitFor(() => expect(mockPlaceBracket).toHaveBeenCalled());
@@ -434,6 +537,7 @@ describe("TradeScreen", () => {
     // long entry 60000; an SL above entry is the wrong side
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByLabelText("tpsl-toggle"));
     fireEvent.changeText(screen.getByTestId("field-sl"), "61000");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceBracket).not.toHaveBeenCalled();
@@ -446,6 +550,7 @@ describe("TradeScreen", () => {
     // long entry 60000; a TP below entry is the wrong side
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByLabelText("tpsl-toggle"));
     fireEvent.changeText(screen.getByTestId("field-tp"), "59000");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceBracket).not.toHaveBeenCalled();

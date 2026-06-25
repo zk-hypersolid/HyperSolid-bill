@@ -5,24 +5,27 @@ import { fonts } from "../theme/fonts";
 
 const STEPS = [25, 50, 75, 100];
 
-/** Quick-size row: sets size = pct × (available × leverage) / price. Inert without balance/price. */
+/** Quick-size row: sets size = pct × (available × leverage), in base (÷ price) or quote units. */
 export function SizePercentRow({
   theme,
   available,
   leverage,
   price,
+  unit = "base",
   onPick,
 }: {
   theme: ThemeTokens;
   available: number | null;
   leverage: number;
   price: number;
+  unit?: "base" | "quote";
   onPick: (size: string) => void;
 }) {
   function pick(pct: number) {
     if (!available || price <= 0) return;
-    const maxSize = (available * leverage) / price;
-    onPick(((pct / 100) * maxSize).toString());
+    const maxQuote = available * leverage;
+    const max = unit === "quote" ? maxQuote : maxQuote / price;
+    onPick(((pct / 100) * max).toString());
   }
   return (
     <View style={styles.row}>

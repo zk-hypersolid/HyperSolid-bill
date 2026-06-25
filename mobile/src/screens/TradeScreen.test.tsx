@@ -13,6 +13,8 @@ import type { MarketTicker } from "../lib/hyperliquid/types";
 const mockPlaceOrder = jest.fn();
 const mockPlaceBracket = jest.fn();
 const mockSetLeverage = jest.fn();
+const mockPlaceTwap = jest.fn();
+const mockPlaceScale = jest.fn();
 jest.mock("../services/exchange", () => ({
   ExchangeService: jest
     .fn()
@@ -20,6 +22,8 @@ jest.mock("../services/exchange", () => ({
       placeOrder: mockPlaceOrder,
       placeBracket: mockPlaceBracket,
       setLeverage: mockSetLeverage,
+      placeTwap: mockPlaceTwap,
+      placeScale: mockPlaceScale,
     })),
 }));
 jest.mock("../lib/hyperliquid/client", () => ({
@@ -71,6 +75,8 @@ describe("TradeScreen", () => {
     mockPlaceOrder.mockReset();
     mockPlaceBracket.mockReset();
     mockSetLeverage.mockReset().mockResolvedValue({ ok: true });
+    mockPlaceTwap.mockReset().mockResolvedValue({ ok: true });
+    mockPlaceScale.mockReset().mockResolvedValue({ ok: true, cloid: ("0x" + "a".repeat(32)) as `0x${string}` });
     jest.spyOn(Alert, "alert").mockReset().mockImplementation(() => {});
   });
 
@@ -254,6 +260,47 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("price-mid"));
     // mid 62481.5 snaps to a valid HL tick (5 sig figs) → 62482
     expect(screen.getByTestId("field-price").props.value).toBe("62482");
+  });
+
+  it("places a TWAP order with size, duration and randomize (no price field)", async () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("twap");
+    expect(screen.queryByTestId("field-price")).toBeNull();
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
+    fireEvent.changeText(screen.getByTestId("field-twap-minutes"), "45");
+    fireEvent.press(screen.getByLabelText("twap-randomize"));
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceTwap).toHaveBeenCalled());
+    expect(mockPlaceTwap).toHaveBeenCalledWith(
+      expect.objectContaining({ coin: "BTC", side: "buy", size: 0.02, minutes: 45, randomize: true }),
+    );
+  });
+
+  it("rejects a TWAP with an out-of-range duration", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("twap");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
+    fireEvent.changeText(screen.getByTestId("field-twap-minutes"), "2");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    expect(mockPlaceTwap).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("5–1440"));
+  });
+
+  it("places a Scale order with a price range and count", async () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    selectType("scale");
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.03");
+    fireEvent.changeText(screen.getByTestId("field-scale-start"), "60000");
+    fireEvent.changeText(screen.getByTestId("field-scale-end"), "61000");
+    fireEvent.changeText(screen.getByTestId("field-scale-count"), "3");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceScale).toHaveBeenCalled());
+    expect(mockPlaceScale).toHaveBeenCalledWith(
+      expect.objectContaining({ coin: "BTC", side: "buy", totalSize: 0.03, startPx: 60000, endPx: 61000, count: 3 }),
+    );
   });
 
   it("shows the HL-style summary with required margin and taker/maker fees", () => {

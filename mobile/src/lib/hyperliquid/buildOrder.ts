@@ -3,6 +3,7 @@ import { marketKindForAssetId } from "./assetId";
 import { formatPrice, roundSize, validateOrder, type OrderRejection } from "./order";
 import { isBuilderFeeWithinCap } from "./builderFee";
 import { generateCloid } from "./cloid";
+import { buildScaleLevels, TWAP_MIN_MINUTES, TWAP_MAX_MINUTES } from "./orderForm";
 
 export type OrderSide = "buy" | "sell";
 export type TimeInForce = "Gtc" | "Ioc" | "Alo";
@@ -183,4 +184,76 @@ export function buildBracketOrder(req: BracketRequest, index: AssetIndex): Build
   if (bf && "rejection" in bf) return { ok: false, rejection: bf.rejection };
   if (bf) params.builder = bf;
   return { ok: true, params, cloid: entryCloid };
+}
+
+/** Scale (laddered) order: split `totalSize` across `count` limit orders evenly from startPx→endPx. */
+export interface ScaleRequest {
+  coin: string;
+  side: OrderSide;
+  totalSize: number;
+  startPx: number;
+  endPx: number;
+  count: number;
+  reduceOnly?: boolean;
+  tif?: TimeInForce;
+  cloid?: `0x${string}`;
+  builder?: OrderRequest["builder"];
+}
+
+/** Build N limit orders across a price range, submitted as one `order` action. */
+export function buildScaleOrder(req: ScaleRequest, index: AssetIndex): BuildResult {
+  const asset = index.id(req.coin);
+  const szDecimals = index.szDecimals(req.coin);
+  if (asset === null || szDecimals === null) return { ok: false, rejection: "unknownAsset" };
+  const count = Math.max(2, Math.floor(req.count));
+  const legSize = req.totalSize / count;
+  const levels = buildScaleLevels(req.startPx, req.endPx, count);
+  const primaryCloid = req.cloid ?? generateCloid();
+  const orders: HlOrderTuple[] = [];
+  for (let i = 0; i < levels.length; i++) {
+    const rejection = validateOrder({ price: levels[i], size: legSize, szDecimals });
+    if (rejection) return { ok: false, rejection };
+    orders.push(
+      orderTuple(
+        { coin: req.coin, side: req.side, size: legSize, price: levels[i], reduceOnly: req.reduceOnly, tif: req.tif },
+        asset,
+        szDecimals,
+        i === 0 ? primaryCloid : generateCloid(),
+      ),
+    );
+  }
+  const params: HlOrderParams = { orders, grouping: "na" };
+  const bf = builderField(req.builder, asset);
+  if (bf && "rejection" in bf) return { ok: false, rejection: bf.rejection };
+  if (bf) params.builder = bf;
+  return { ok: true, params, cloid: primaryCloid };
+}
+
+/** TWAP order (native HL `twapOrder`): fill `size` at market over `minutes`, optionally randomized. */
+export interface TwapRequest {
+  coin: string;
+  side: OrderSide;
+  size: number;
+  minutes: number;
+  randomize?: boolean;
+  reduceOnly?: boolean;
+}
+
+export type TwapParams = { twap: { a: number; b: boolean; s: string; r: boolean; m: number; t: boolean } };
+
+export type TwapBuildResult =
+  | { ok: true; params: TwapParams }
+  | { ok: false; rejection: OrderRejection | "unknownAsset" };
+
+export function buildTwap(req: TwapRequest, index: AssetIndex): TwapBuildResult {
+  const asset = index.id(req.coin);
+  const szDecimals = index.szDecimals(req.coin);
+  if (asset === null || szDecimals === null) return { ok: false, rejection: "unknownAsset" };
+  const size = roundSize(req.size, szDecimals);
+  if (!(size > 0)) return { ok: false, rejection: "sizeRejected" };
+  const m = Math.max(TWAP_MIN_MINUTES, Math.min(TWAP_MAX_MINUTES, Math.floor(req.minutes)));
+  return {
+    ok: true,
+    params: { twap: { a: asset, b: req.side === "buy", s: String(size), r: req.reduceOnly ?? false, m, t: req.randomize ?? false } },
+  };
 }

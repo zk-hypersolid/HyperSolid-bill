@@ -1,4 +1,4 @@
-import { buildOrder, buildBracketOrder } from "./buildOrder";
+import { buildOrder, buildBracketOrder, buildScaleOrder, buildTwap } from "./buildOrder";
 import { buildAssetIndex, buildSpotAssetIndex } from "./assetId";
 import type { RawMeta } from "./types";
 import { isValidCloid } from "./cloid";
@@ -256,5 +256,53 @@ describe("buildBracketOrder — entry + TP/SL sibling pairing + grouping", () =>
     expect(subMin.ok).toBe(false);
     if (subMin.ok) return;
     expect(subMin.rejection).toBe("minTradeNtlRejected");
+  });
+});
+
+describe("buildScaleOrder", () => {
+  it("builds N evenly-priced limit orders sharing the total size", () => {
+    const r = buildScaleOrder(
+      { coin: "BTC", side: "buy", totalSize: 0.03, startPx: 60000, endPx: 61000, count: 3 },
+      index,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.params.orders).toHaveLength(3);
+    expect(r.params.orders.map((o) => o.p)).toEqual(["60000", "60500", "61000"]);
+    expect(r.params.orders.every((o) => o.s === "0.01")).toBe(true);
+    expect(r.params.grouping).toBe("na");
+  });
+
+  it("rejects an unknown asset", () => {
+    const r = buildScaleOrder({ coin: "DOGE", side: "buy", totalSize: 1, startPx: 1, endPx: 2, count: 2 }, index);
+    expect(r).toEqual({ ok: false, rejection: "unknownAsset" });
+  });
+
+  it("rejects when a leg falls below the $10 minimum", () => {
+    const r = buildScaleOrder({ coin: "BTC", side: "buy", totalSize: 0.0001, startPx: 60000, endPx: 61000, count: 5 }, index);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.rejection).toBe("minTradeNtlRejected");
+  });
+});
+
+describe("buildTwap", () => {
+  it("builds a twap action with rounded size and clamped duration", () => {
+    const r = buildTwap({ coin: "BTC", side: "buy", size: 0.0123456, minutes: 30, randomize: true }, index);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.params.twap).toEqual({ a: 0, b: true, s: "0.01235", r: false, m: 30, t: true });
+  });
+
+  it("clamps duration into the HL 5–1440 minute range", () => {
+    const lo = buildTwap({ coin: "BTC", side: "sell", size: 0.01, minutes: 1 }, index);
+    const hi = buildTwap({ coin: "BTC", side: "sell", size: 0.01, minutes: 5000 }, index);
+    expect(lo.ok && lo.params.twap.m).toBe(5);
+    expect(hi.ok && hi.params.twap.m).toBe(1440);
+  });
+
+  it("rejects unknown asset and zero size", () => {
+    expect(buildTwap({ coin: "DOGE", side: "buy", size: 1, minutes: 30 }, index)).toEqual({ ok: false, rejection: "unknownAsset" });
+    expect(buildTwap({ coin: "BTC", side: "buy", size: 0, minutes: 30 }, index)).toEqual({ ok: false, rejection: "sizeRejected" });
   });
 });

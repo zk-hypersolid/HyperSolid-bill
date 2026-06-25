@@ -10,7 +10,9 @@ export type TicketOrderType =
   | "stopLimit"
   | "stopMarket"
   | "tpLimit"
-  | "tpMarket";
+  | "tpMarket"
+  | "twap"
+  | "scale";
 
 export interface OrderTypeShape {
   /** A trigger (stop / take-profit) order rather than a plain market or limit order. */
@@ -37,8 +39,27 @@ export function orderTypeShape(type: TicketOrderType): OrderTypeShape {
       return { isTrigger: true, triggerIsMarket: false, usesLimitPrice: true, tpsl: "tp" };
     case "tpMarket":
       return { isTrigger: true, triggerIsMarket: true, usesLimitPrice: false, tpsl: "tp" };
+    case "twap":
+    case "scale":
+      // Advanced execution types — handled by their own UI + submit paths, not the limit/trigger flow.
+      return { isTrigger: false, triggerIsMarket: false, usesLimitPrice: false, tpsl: "sl" };
   }
 }
+
+/**
+ * Evenly-spaced limit prices for a Scale (laddered) order, from startPx to endPx inclusive.
+ * `count` ≥ 2; a single price returns just that price.
+ */
+export function buildScaleLevels(startPx: number, endPx: number, count: number): number[] {
+  const n = Math.max(1, Math.floor(count));
+  if (n === 1) return [startPx];
+  const step = (endPx - startPx) / (n - 1);
+  return Array.from({ length: n }, (_, i) => startPx + step * i);
+}
+
+/** TWAP duration bounds (minutes) enforced by Hyperliquid. */
+export const TWAP_MIN_MINUTES = 5;
+export const TWAP_MAX_MINUTES = 1440;
 
 /** HL base-tier perp fees (taker / maker) as fractions of notional. */
 export const TAKER_FEE_RATE = 0.00045;

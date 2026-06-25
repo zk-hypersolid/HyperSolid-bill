@@ -2,6 +2,7 @@ import {
   orderTypeShape,
   toBaseSize,
   requiredMargin,
+  buildScaleLevels,
   TAKER_FEE_RATE,
   MAKER_FEE_RATE,
   type TicketOrderType,
@@ -39,6 +40,19 @@ describe("requiredMargin", () => {
   it("is notional / leverage", () => {
     expect(requiredMargin(1000, 10)).toBe(100);
     expect(requiredMargin(1000, 0)).toBe(0);
+  });
+});
+
+describe("buildScaleLevels", () => {
+  it("returns evenly-spaced prices inclusive of both ends", () => {
+    expect(buildScaleLevels(100, 110, 3)).toEqual([100, 105, 110]);
+    expect(buildScaleLevels(60000, 61000, 5)).toEqual([60000, 60250, 60500, 60750, 61000]);
+  });
+  it("descends when start > end", () => {
+    expect(buildScaleLevels(110, 100, 3)).toEqual([110, 105, 100]);
+  });
+  it("returns a single price for count 1", () => {
+    expect(buildScaleLevels(100, 110, 1)).toEqual([100]);
   });
 });
 

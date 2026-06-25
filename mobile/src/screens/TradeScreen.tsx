@@ -50,6 +50,8 @@ const ORDER_TYPES: Array<[TicketOrderType, TranslationKey]> = [
   ["stopMarket", "trade.typeStopMarket"],
   ["tpLimit", "trade.typeTpLimit"],
   ["tpMarket", "trade.typeTpMarket"],
+  ["twap", "trade.typeTwap"],
+  ["scale", "trade.typeScale"],
 ];
 
 /** Rough isolated-liquidation estimate (excludes maintenance margin) — clearly labelled "Est.". */
@@ -94,6 +96,11 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [tpPrice, setTpPrice] = useState("");
   const [slPrice, setSlPrice] = useState("");
   const [stopPrice, setStopPrice] = useState("");
+  const [twapMinutes, setTwapMinutes] = useState("30");
+  const [twapRandomize, setTwapRandomize] = useState(false);
+  const [scaleStart, setScaleStart] = useState("");
+  const [scaleEnd, setScaleEnd] = useState("");
+  const [scaleCount, setScaleCount] = useState("5");
   const [busy, setBusy] = useState(false);
   // Reused on a retry so the same cloid dedupes; cleared when the order is edited or succeeds.
   const [retryCloid, setRetryCloid] = useState<`0x${string}` | null>(null);
@@ -128,6 +135,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const mid = ticker?.midPx ?? 0;
   const shape = orderTypeShape(orderType);
   const isMarketType = orderType === "market";
+  const isTwap = orderType === "twap";
+  const isScale = orderType === "scale";
   // Whether a limit price field is shown/used (Market & *-Market trigger types fill at market).
   const usesLimitPrice = shape.usesLimitPrice;
   // HL lot/tick precision for the active market (perps universe). szDecimals drives both size lot
@@ -201,6 +210,109 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     if (!wallet || mode !== "local" || !index) return;
     const svc = useExchangeStore.getState().service;
     if (!svc) return;
+
+    // TWAP: native HL twapOrder (no cloid). Set leverage first (unless reduce-only), then start.
+    if (isTwap) {
+      const minutes = Number(twapMinutes);
+      if (!(baseSize > 0)) {
+        Alert.alert(t("trade.invalidOrder"), t("reject.sizeRejected"));
+        return;
+      }
+      if (!(minutes >= 5 && minutes <= 1440)) {
+        Alert.alert(t("trade.invalidOrder"), t("trade.invalidTwap"));
+        return;
+      }
+      setBusy(true);
+      try {
+        if (!reduceOnly) {
+          const lev = await svc.setLeverage(coin.toUpperCase(), leverage, isCross);
+          if (!lev.ok) {
+            Alert.alert(t("trade.leverageFailed"), lev.error);
+            setBusy(false);
+            return;
+          }
+        }
+        const res = await svc.placeTwap({
+          coin: coin.toUpperCase(),
+          side,
+          size: baseSize,
+          minutes,
+          randomize: twapRandomize,
+          reduceOnly: reduceOnly || undefined,
+        });
+        if (res.ok) {
+          useToastStore.getState().show(t("trade.twapPlaced"), "success");
+          setSize("");
+        } else if (res.uncertain) {
+          Alert.alert(t("common.uncertainReceipt"), res.error);
+        } else {
+          Alert.alert(t("trade.orderFailed"), res.error);
+        }
+      } catch (e) {
+        Alert.alert(t("trade.orderError"), e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Scale: N laddered limit orders (one signed order action, cloid-deduped like a normal order).
+    if (isScale) {
+      const startPx = Number(scaleStart);
+      const endPx = Number(scaleEnd);
+      const count = Number(scaleCount);
+      if (!(baseSize > 0)) {
+        Alert.alert(t("trade.invalidOrder"), t("reject.sizeRejected"));
+        return;
+      }
+      if (!(startPx > 0 && endPx > 0 && count >= 2)) {
+        Alert.alert(t("trade.invalidOrder"), t("trade.invalidScale"));
+        return;
+      }
+      setBusy(true);
+      try {
+        if (!reduceOnly) {
+          const lev = await svc.setLeverage(coin.toUpperCase(), leverage, isCross);
+          if (!lev.ok) {
+            Alert.alert(t("trade.leverageFailed"), lev.error);
+            setBusy(false);
+            return;
+          }
+        }
+        const res = await svc.placeScale({
+          coin: coin.toUpperCase(),
+          side,
+          totalSize: baseSize,
+          startPx,
+          endPx,
+          count,
+          reduceOnly: reduceOnly || undefined,
+          tif,
+          cloid: retryCloid ?? undefined,
+        });
+        if (res.ok) {
+          setRetryCloid(null);
+          setUncertain(false);
+          useToastStore.getState().show(t("trade.orderPlaced"), "success");
+          setSize("");
+        } else if (res.uncertain && res.cloid) {
+          setRetryCloid(res.cloid);
+          setUncertain(true);
+          Alert.alert(t("common.uncertainReceipt"), t("trade.uncertainBody", { error: res.error }));
+        } else {
+          setRetryCloid(null);
+          setUncertain(false);
+          Alert.alert(t("trade.orderFailed"), res.error);
+        }
+      } catch (e) {
+        Alert.alert(t("trade.orderError"), e instanceof Error ? e.message : String(e));
+      } finally {
+        useLedgerStore.getState().bump();
+        setBusy(false);
+      }
+      return;
+    }
+
     const szDec = index.szDecimals(coin.toUpperCase()) ?? 2;
     // Resolve the price actually sent: limit-style types use the typed limit price; market and the
     // *-Market trigger types fill at a slippage-bounded IOC price (off mid, or off the trigger).
@@ -451,11 +563,29 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             ) : undefined
           }
         />
-      ) : (
+      ) : isMarketType ? (
         <Text style={[styles.marketNote, { color: theme.muted }]}>{t("trade.marketPriceNote")}</Text>
-      )}
+      ) : null}
       {shape.isTrigger ? (
         <Field label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
+      ) : null}
+      {isScale ? (
+        <>
+          <Field label={t("trade.scaleStart")} value={scaleStart} onChange={edit(setScaleStart)} theme={theme} keyboard testID="field-scale-start" />
+          <Field label={t("trade.scaleEnd")} value={scaleEnd} onChange={edit(setScaleEnd)} theme={theme} keyboard testID="field-scale-end" />
+          <Field label={t("trade.scaleCount")} value={scaleCount} onChange={edit(setScaleCount)} theme={theme} keyboard testID="field-scale-count" />
+          <Text style={[styles.marketNote, { color: theme.faint }]}>{t("trade.scaleNote")}</Text>
+        </>
+      ) : null}
+      {isTwap ? (
+        <>
+          <Field label={t("trade.twapMinutes")} value={twapMinutes} onChange={edit(setTwapMinutes)} theme={theme} keyboard testID="field-twap-minutes" />
+          <View style={styles.optRow}>
+            <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.twapRandomize")}</Text>
+            <Toggle theme={theme} value={twapRandomize} onValueChange={edit(setTwapRandomize)} accessibilityLabel="twap-randomize" />
+          </View>
+          <Text style={[styles.marketNote, { color: theme.faint }]}>{t("trade.twapNote")}</Text>
+        </>
       ) : null}
       <Field
         label={sizeUnit === "quote" ? t("trade.sizeQuote") : t("trade.size", { coin: coin.toUpperCase() })}
@@ -519,7 +649,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
           <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
         </View>
-        {!shape.isTrigger ? (
+        {!shape.isTrigger && !isTwap && !isScale ? (
           <View style={styles.optRow}>
             <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
             <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
@@ -527,7 +657,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         ) : null}
       </View>
 
-      {!shape.isTrigger && tpSlOn ? (
+      {!shape.isTrigger && !isTwap && !isScale && tpSlOn ? (
         <SurfaceCard theme={theme} rule={false} style={styles.tpsl}>
           <View style={styles.tpslHead}>
             <Text style={[styles.tpslTitle, { color: theme.text }]}>{t("trade.tpSlTitle")}</Text>

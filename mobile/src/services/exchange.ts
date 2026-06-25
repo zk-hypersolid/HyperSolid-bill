@@ -2,9 +2,14 @@ import type { AssetIndex } from "../lib/hyperliquid/assetId";
 import {
   buildOrder,
   buildBracketOrder,
+  buildScaleOrder,
+  buildTwap,
   type OrderRequest,
   type OrderSide,
   type BracketRequest,
+  type ScaleRequest,
+  type TwapRequest,
+  type TwapParams,
   type HlOrderParams,
 } from "../lib/hyperliquid/buildOrder";
 import {
@@ -23,6 +28,7 @@ import { IntentLedger } from "../lib/hyperliquid/intentLedger";
 /** Narrow injectable surface of @nktkas/hyperliquid ExchangeClient — lets us unit-test with a fake. */
 export interface ExchangeLike {
   order(params: unknown): Promise<unknown>;
+  twapOrder(params: TwapParams): Promise<unknown>;
   cancel(params: { cancels: { a: number; o: number }[] }): Promise<unknown>;
   cancelByCloid(params: { cancels: { asset: number; cloid: `0x${string}` }[] }): Promise<unknown>;
   modify(params: { oid: number | `0x${string}`; order: unknown }): Promise<unknown>;
@@ -37,6 +43,11 @@ export type SubmitResult =
 
 /** Result of a withdrawal request. Like orders, an uncertain receipt is never treated as success. */
 export type WithdrawResult =
+  | { ok: true; response?: unknown }
+  | { ok: false; error: string; uncertain?: boolean };
+
+/** Result of a TWAP order. No cloid (TWAP carries none); uncertain receipt is never assumed ok. */
+export type TwapResult =
   | { ok: true; response?: unknown }
   | { ok: false; error: string; uncertain?: boolean };
 
@@ -88,6 +99,33 @@ export class ExchangeService {
       size: entry.size,
       price: entry.price,
     });
+  }
+
+  /** Scale (laddered) order — N limit orders across a price range, one signed `order` action. */
+  async placeScale(req: ScaleRequest): Promise<SubmitResult> {
+    const built = buildScaleOrder(req, this.index);
+    if (!built.ok) return { ok: false, error: rejectionMessage(built.rejection) };
+    return this.submitBuilt(built.params, built.cloid, {
+      coin: req.coin,
+      side: req.side,
+      size: req.totalSize,
+      price: req.startPx,
+    });
+  }
+
+  /**
+   * TWAP order (native HL `twapOrder`): fill `size` at market over `minutes`. TWAP carries no client
+   * order id, so there is no cloid dedupe — an uncertain receipt is reported (never assumed ok).
+   */
+  async placeTwap(req: TwapRequest): Promise<TwapResult> {
+    const built = buildTwap(req, this.index);
+    if (!built.ok) return { ok: false, error: rejectionMessage(built.rejection) };
+    try {
+      const response = await this.client.twapOrder(built.params);
+      return { ok: true, response };
+    } catch (e) {
+      return { ok: false, error: errorMessage(e), uncertain: true };
+    }
   }
 
   /**

@@ -22,6 +22,7 @@ function fakeClient(orderImpl?: () => Promise<unknown>): FakeClient {
       self.orderArg = p;
       return orderImpl ? orderImpl() : { status: "ok", response: { data: { statuses: [{ resting: { oid: 1 } }] } } };
     }),
+    twapOrder: jest.fn(async () => ({ status: "ok", response: { data: { status: { running: { twapId: 1 } } } } })),
     cancel: jest.fn(async (p: unknown) => {
       self.cancelArg = p;
       return { status: "ok" };
@@ -392,5 +393,51 @@ describe("ExchangeService.approveAgent", () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.uncertain).toBe(true);
+  });
+});
+
+describe("placeScale", () => {
+  it("submits N laddered limit orders via one order action", async () => {
+    const client = fakeClient();
+    const svc = new ExchangeService(client, index);
+    const r = await svc.placeScale({ coin: "BTC", side: "buy", totalSize: 0.03, startPx: 60000, endPx: 61000, count: 3 });
+    expect(r.ok).toBe(true);
+    const params = (client.order as jest.Mock).mock.calls[0][0];
+    expect(params.orders).toHaveLength(3);
+    expect(params.orders.map((o: { p: string }) => o.p)).toEqual(["60000", "60500", "61000"]);
+  });
+
+  it("rejects an unknown asset before signing", async () => {
+    const client = fakeClient();
+    const svc = new ExchangeService(client, index);
+    const r = await svc.placeScale({ coin: "DOGE", side: "buy", totalSize: 1, startPx: 1, endPx: 2, count: 2 });
+    expect(r.ok).toBe(false);
+    expect(client.order).not.toHaveBeenCalled();
+  });
+});
+
+describe("placeTwap", () => {
+  it("submits a native twapOrder with the built twap params", async () => {
+    const client = fakeClient();
+    const svc = new ExchangeService(client, index);
+    const r = await svc.placeTwap({ coin: "BTC", side: "buy", size: 0.01, minutes: 30, randomize: true });
+    expect(r.ok).toBe(true);
+    expect(client.twapOrder).toHaveBeenCalledWith({ twap: { a: 0, b: true, s: "0.01", r: false, m: 30, t: true } });
+  });
+
+  it("reports an uncertain receipt when twapOrder throws", async () => {
+    const client = fakeClient();
+    (client.twapOrder as jest.Mock).mockRejectedValueOnce(new Error("网络超时"));
+    const svc = new ExchangeService(client, index);
+    const r = await svc.placeTwap({ coin: "BTC", side: "sell", size: 0.01, minutes: 30 });
+    expect(r).toEqual({ ok: false, error: expect.any(String), uncertain: true });
+  });
+
+  it("rejects an unknown asset without calling the venue", async () => {
+    const client = fakeClient();
+    const svc = new ExchangeService(client, index);
+    const r = await svc.placeTwap({ coin: "DOGE", side: "buy", size: 1, minutes: 30 });
+    expect(r.ok).toBe(false);
+    expect(client.twapOrder).not.toHaveBeenCalled();
   });
 });

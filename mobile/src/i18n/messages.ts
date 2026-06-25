@@ -56,9 +56,6 @@ export const messages = {
     "markets.loading": "Loading markets…",
     "markets.emptyWatchlist": "No watchlist yet · tap the star to follow markets",
 
-    "positions.viewOnlyBanner": "View-only: enter any address to inspect its positions (zero private keys). Connecting a wallet auto-fills your own address.",
-    "positions.addressPlaceholder": "0x… wallet address",
-    "positions.query": "Query",
     "positions.tabOrders": "Orders",
     "positions.tabHistory": "History",
     "positions.emptyPositions": "No open positions for this address",
@@ -325,9 +322,6 @@ export const messages = {
     "markets.loading": "正在加载市场…",
     "markets.emptyWatchlist": "暂无自选 · 点击星标关注市场",
 
-    "positions.viewOnlyBanner": "只读模式：输入任意地址即可查看其持仓（不涉及任何私钥）。连接钱包后会自动填入你的地址。",
-    "positions.addressPlaceholder": "0x… 钱包地址",
-    "positions.query": "查询",
     "positions.tabOrders": "委托",
     "positions.tabHistory": "历史",
     "positions.emptyPositions": "该地址暂无持仓",

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { useTheme } from "../theme/useTheme";
 import { useEnvStore } from "../state/envStore";
 import { useWalletStore } from "../state/walletStore";
@@ -19,7 +19,6 @@ import { NetworkWarning } from "../components/NetworkWarning";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { PriceText, formatPrice } from "../components/PriceText";
-import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
 import { useT } from "../i18n/useT";
@@ -60,7 +59,6 @@ export function PositionsScreen({
 
   const { portfolio, loading, error, load } = useViewOnlyPortfolio(services.positions);
   const { count: unconfirmedCount } = useUnconfirmedIntents();
-  const [address, setAddress] = useState(walletAddress ?? "");
   const [tab, setTab] = useState<Tab>("positions");
   const [fills, setFills] = useState<Fill[]>([]);
   const [orders, setOrders] = useState<OpenOrder[]>([]);
@@ -75,10 +73,9 @@ export function PositionsScreen({
     [load, services],
   );
 
-  const onQuery = useCallback(() => runQuery(address.trim()), [runQuery, address]);
-
-  // Auto-load the connected/view-only wallet's own positions — no manual "Query" needed. Never
-  // queries when there is no wallet (mode "none"); that state is gated below.
+  // Show the connected/view-only wallet's own positions automatically — Positions is always "your"
+  // account, so there is no manual address entry. Never queries without a wallet (mode "none"); that
+  // state is gated below.
   useEffect(() => {
     if (mode !== "none" && walletAddress && isValidAddress(walletAddress)) runQuery(walletAddress);
   }, [mode, walletAddress, runQuery]);
@@ -108,27 +105,6 @@ export function PositionsScreen({
   return (
     <ScreenScaffold theme={theme} statusTitle={t("tab.positions")} pill={<NetworkWarning variant="chip" />}>
       <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
-      <View style={[styles.banner, { borderColor: theme.line }]}>
-        <Icon name="eye" color={theme.faint} size={16} />
-        <Text style={[styles.bannerText, { color: theme.muted }]}>
-          {t("positions.viewOnlyBanner")}
-        </Text>
-      </View>
-
-      <View style={styles.inputRow}>
-        <TextInput
-          value={address}
-          onChangeText={setAddress}
-          placeholder={t("positions.addressPlaceholder")}
-          placeholderTextColor={theme.faint}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
-        />
-        <Pressable onPress={onQuery} accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.brand }]}>
-          <Text style={[styles.btnText, { color: theme.bg }]}>{t("positions.query")}</Text>
-        </Pressable>
-      </View>
 
       {error ? <Text style={[styles.msg, { color: theme.down }]}>{error}</Text> : null}
       {loading ? <ActivityIndicator color={theme.brand} style={{ marginTop: 16 }} /> : null}
@@ -164,7 +140,7 @@ export function PositionsScreen({
             portfolio.positions.length === 0 ? (
               <View>
                 <Text style={[styles.msg, { color: theme.muted }]}>{t("positions.emptyPositions")}</Text>
-                {walletAddress && address.trim().toLowerCase() === walletAddress.toLowerCase() ? (
+                {mode === "local" ? (
                   <Pressable
                     onPress={() => navigation?.navigate("Trade")}
                     accessibilityRole="button"
@@ -308,10 +284,6 @@ function OrderRow({ order, theme }: { order: OpenOrder; theme: ThemeTokens }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 12 },
-  bannerText: { flex: 1, fontFamily: fonts.body.regular, fontSize: 12, lineHeight: 18 },
-  inputRow: { flexDirection: "row", gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.mono.regular, fontSize: 13 },
   btn: { paddingHorizontal: 18, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   btnText: { fontFamily: fonts.display.bold, fontSize: 14 },
   msg: { fontFamily: fonts.body.regular, fontSize: 13, marginTop: 14 },

@@ -45,7 +45,6 @@ describe("PositionsScreen", () => {
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     const navigate = jest.fn();
     render(<PositionsScreen deps={fakeDeps} navigation={{ navigate }} />);
-    expect(screen.queryByText("Query")).toBeNull();
     expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
     fireEvent.press(screen.getByTestId("gated-setup-wallet"));
     expect(navigate).toHaveBeenCalledWith("Account");
@@ -57,11 +56,13 @@ describe("PositionsScreen", () => {
     await waitFor(() => expect(fakeDeps.positions.loadPortfolio).toHaveBeenCalledWith(ADDR));
   });
 
-  it("renders the v8 chrome, view-only banner and query control", () => {
-    render(<PositionsScreen />);
+  it("renders the v8 chrome without any view-only address entry", async () => {
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={fakeDeps} />);
     expect(screen.getByText("Positions")).toBeTruthy();
-    expect(screen.getByText(/View-only/)).toBeTruthy();
-    expect(screen.getByText("Query")).toBeTruthy();
+    expect(screen.queryByText("Query")).toBeNull();
+    expect(screen.queryByText(/View-only/)).toBeNull();
+    await waitFor(() => expect(fakeDeps.positions.loadPortfolio).toHaveBeenCalledWith(ADDR));
   });
 
   it("surfaces unconfirmed intents from the persistent ledger as a disclosure-only banner", () => {
@@ -75,25 +76,9 @@ describe("PositionsScreen", () => {
     expect(screen.queryByTestId("unconfirmed-review")).toBeNull();
   });
 
-  it("shows a format error for an invalid address without hitting the network", () => {
-    render(<PositionsScreen deps={fakeDeps} />);
-    fireEvent.changeText(screen.getByPlaceholderText("0x… wallet address"), "not-an-address");
-    fireEvent.press(screen.getByText("Query"));
-    expect(screen.getByText(/地址格式无效/)).toBeTruthy();
-    expect(fakeDeps.positions.loadPortfolio).not.toHaveBeenCalled();
-    expect(fakeDeps.fills.loadRecent).not.toHaveBeenCalled();
-  });
-
-  it("prefills the connected wallet address (own address, read-only)", () => {
+  it("auto-loads positions/fills/orders and switches tabs", async () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
     render(<PositionsScreen deps={fakeDeps} />);
-    expect(screen.getByDisplayValue(ADDR)).toBeTruthy();
-  });
-
-  it("loads positions/fills/orders on query and switches tabs", async () => {
-    render(<PositionsScreen deps={fakeDeps} />);
-    fireEvent.changeText(screen.getByPlaceholderText("0x… wallet address"), ADDR);
-    fireEvent.press(screen.getByText("Query"));
 
     // positions tab (default) shows the position + summary
     await waitFor(() => expect(screen.getByText(/BTC/)).toBeTruthy());
@@ -109,7 +94,7 @@ describe("PositionsScreen", () => {
     expect(screen.getByText(/Filled 2\/2/)).toBeTruthy();
   });
 
-  it("offers a Place your first trade CTA when the connected wallet has no positions", async () => {
+  it("offers a Place your first trade CTA when the connected local wallet has no positions", async () => {
     const empty = { summary: portfolio.summary, positions: [] };
     const deps = {
       positions: { loadPortfolio: jest.fn(async () => empty) },
@@ -119,24 +104,20 @@ describe("PositionsScreen", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
     const navigate = jest.fn();
     render(<PositionsScreen deps={deps} navigation={{ navigate }} />);
-    fireEvent.press(screen.getByText("Query"));
     await waitFor(() => expect(screen.getByTestId("first-trade-cta")).toBeTruthy());
     fireEvent.press(screen.getByTestId("first-trade-cta"));
     expect(navigate).toHaveBeenCalledWith("Trade");
   });
 
-  it("hides the first-trade CTA when viewing someone else's address", async () => {
+  it("hides the first-trade CTA in view-only mode", async () => {
     const empty = { summary: portfolio.summary, positions: [] };
     const deps = {
       positions: { loadPortfolio: jest.fn(async () => empty) },
       fills: { loadRecent: jest.fn(async () => []) },
       orders: { loadOpenOrders: jest.fn(async () => []) },
     } as unknown as typeof fakeDeps;
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    useWalletStore.setState({ mode: "viewOnly", wallet: null, address: ADDR });
     render(<PositionsScreen deps={deps} />);
-    const other = "0x" + "b".repeat(40);
-    fireEvent.changeText(screen.getByPlaceholderText("0x… wallet address"), other);
-    fireEvent.press(screen.getByText("Query"));
     await waitFor(() => expect(screen.getByText(/No open positions/)).toBeTruthy());
     expect(screen.queryByTestId("first-trade-cta")).toBeNull();
   });

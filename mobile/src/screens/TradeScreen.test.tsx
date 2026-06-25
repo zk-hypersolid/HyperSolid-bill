@@ -103,7 +103,8 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     expect(screen.getByText("Buy / Long")).toBeTruthy();
     expect(screen.getByText("Sell / Short")).toBeTruthy();
-    expect(screen.getByText("Buy / Long BTC")).toBeTruthy();
+    expect(screen.getByTestId("submit-buy")).toBeTruthy();
+    expect(screen.getByTestId("submit-sell")).toBeTruthy();
   });
 
   it("shows the current price for the selected coin", () => {
@@ -118,7 +119,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
   });
 
@@ -135,7 +136,7 @@ describe("TradeScreen", () => {
     selectCoin("LOWP");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.4");
     fireEvent.changeText(screen.getByTestId("field-price"), "30");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("size"));
   });
@@ -150,7 +151,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => {
       expect(mockPlaceOrder).toHaveBeenCalled();
       // success is surfaced via a non-blocking toast, not a modal Alert
@@ -170,7 +171,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.changeText(screen.getByTestId("field-stop"), "59000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder).toHaveBeenCalledWith(
       expect.objectContaining({ trigger: { triggerPx: 59000, isMarket: false, tpsl: "sl" } }),
@@ -189,7 +190,7 @@ describe("TradeScreen", () => {
     expect(screen.queryByTestId("field-price")).toBeNull();
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-stop"), "59000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder).toHaveBeenCalledWith(
       expect.objectContaining({ trigger: { triggerPx: 59000, isMarket: true, tpsl: "sl" } }),
@@ -208,7 +209,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     // long TP must be above mid (62481.5)
     fireEvent.changeText(screen.getByTestId("field-stop"), "70000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder).toHaveBeenCalledWith(
       expect.objectContaining({ trigger: { triggerPx: 70000, isMarket: true, tpsl: "tp" } }),
@@ -222,7 +223,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     // long TP below mid is the wrong side
     fireEvent.changeText(screen.getByTestId("field-stop"), "50000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
   });
@@ -233,7 +234,7 @@ describe("TradeScreen", () => {
     selectType("stopLimit");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
   });
 
@@ -248,7 +249,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("size-unit-toggle")); // base → quote (USDC)
     fireEvent.changeText(screen.getByTestId("field-size"), "600"); // 600 USDC / 60000 = 0.01 BTC
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder.mock.calls[0][0].size).toBeCloseTo(0.01, 6);
   });
@@ -270,7 +271,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
     fireEvent.changeText(screen.getByTestId("field-twap-minutes"), "45");
     fireEvent.press(screen.getByLabelText("twap-randomize"));
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceTwap).toHaveBeenCalled());
     expect(mockPlaceTwap).toHaveBeenCalledWith(
       expect.objectContaining({ coin: "BTC", side: "buy", size: 0.02, minutes: 45, randomize: true }),
@@ -283,7 +284,7 @@ describe("TradeScreen", () => {
     selectType("twap");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
     fireEvent.changeText(screen.getByTestId("field-twap-minutes"), "2");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceTwap).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("5–1440"));
   });
@@ -296,11 +297,26 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-scale-start"), "60000");
     fireEvent.changeText(screen.getByTestId("field-scale-end"), "61000");
     fireEvent.changeText(screen.getByTestId("field-scale-count"), "3");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceScale).toHaveBeenCalled());
     expect(mockPlaceScale).toHaveBeenCalledWith(
       expect.objectContaining({ coin: "BTC", side: "buy", totalSize: 0.03, startPx: 60000, endPx: 61000, count: 3 }),
     );
+  });
+
+  it("places a short via the Sell / Short button", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-sell"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder.mock.calls[0][0].side).toBe("sell");
   });
 
   it("shows the HL-style summary with required margin and taker/maker fees", () => {
@@ -320,7 +336,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     // leverage (default 20×, cross) must be set for BTC before the order is placed
     expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 20, true);
@@ -335,7 +351,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockSetLeverage).toHaveBeenCalled());
     expect(mockPlaceOrder).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Couldn't set leverage", "leverage rejected");
@@ -352,7 +368,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByLabelText("reduce-only"));
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockSetLeverage).not.toHaveBeenCalled();
   });
@@ -369,7 +385,7 @@ describe("TradeScreen", () => {
     // no price field for market orders
     expect(screen.queryByTestId("field-price")).toBeNull();
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     const entry = mockPlaceOrder.mock.calls[0][0];
     expect(entry.market).toBe(true);
@@ -389,7 +405,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.001");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(Alert.alert).not.toHaveBeenCalledWith("Invalid order", expect.anything());
   });
@@ -403,12 +419,12 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(1));
     expect(mockPlaceOrder.mock.calls[0][0].cloid).toBeUndefined();
 
     // Retry without editing the form must reuse the same cloid (ledger dedupe).
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(2));
     expect(mockPlaceOrder.mock.calls[1][0].cloid).toBe(failCloid);
   });
@@ -420,11 +436,11 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(1));
 
     fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalledTimes(2));
     expect(mockPlaceOrder.mock.calls[1][0].cloid).toBeUndefined();
   });
@@ -438,7 +454,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
 
     await waitFor(() => expect(screen.getByTestId("retry-order")).toBeTruthy());
     expect(screen.getByText(/Last receipt uncertain/)).toBeTruthy();
@@ -461,7 +477,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(screen.queryByTestId("retry-order")).toBeNull();
   });
@@ -473,7 +489,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(screen.getByTestId("retry-order")).toBeTruthy());
 
     fireEvent.changeText(screen.getByTestId("field-size"), "0.02");
@@ -506,7 +522,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     selectType("market");
     fireEvent.press(screen.getByLabelText("reduce-only"));
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     const req = mockPlaceOrder.mock.calls[0][0];
     expect(req.reduceOnly).toBe(true);
@@ -526,7 +542,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("tif"));
     fireEvent.press(screen.getByTestId("tif-opt-Alo"));
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder.mock.calls[0][0].tif).toBe("Alo");
   });
@@ -543,7 +559,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByLabelText("tpsl-toggle")); // reveal TP/SL fields
     fireEvent.changeText(screen.getByTestId("field-sl"), "58000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceBracket).toHaveBeenCalled());
     const arg = mockPlaceBracket.mock.calls[0][0];
     expect(arg.entry.coin).toBe("BTC");
@@ -574,7 +590,7 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("margin-mode")); // Cross → Isolated
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 20, false));
   });
 
@@ -590,7 +606,7 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("leverage-opt-10"));
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 10, true));
   });
 
@@ -610,7 +626,7 @@ describe("TradeScreen", () => {
     selectCoin("LOWLEV");
     fireEvent.changeText(screen.getByTestId("field-size"), "1");
     fireEvent.changeText(screen.getByTestId("field-price"), "100");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     // default 20× must have been clamped to the asset cap (3×) for setLeverage
     expect(mockSetLeverage).toHaveBeenCalledWith("LOWLEV", 3, true);
@@ -624,7 +640,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByLabelText("tpsl-toggle"));
     fireEvent.changeText(screen.getByTestId("field-sl"), "61000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceBracket).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
   });
@@ -637,7 +653,7 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByLabelText("tpsl-toggle"));
     fireEvent.changeText(screen.getByTestId("field-tp"), "59000");
-    fireEvent.press(screen.getByTestId("submit-order"));
+    fireEvent.press(screen.getByTestId("submit-buy"));
     expect(mockPlaceBracket).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
   });

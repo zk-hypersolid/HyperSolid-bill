@@ -81,7 +81,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const { count: unconfirmedCount, intents: unconfirmedIntents } = useUnconfirmedIntents();
 
   const [coin, setCoin] = useState("BTC");
-  const [side, setSide] = useState<OrderSide>("buy");
+  // The last side a submit was attempted with — drives the uncertain-receipt retry (no side toggle;
+  // the two buy/sell buttons each submit their own side).
+  const [pendingSide, setPendingSide] = useState<OrderSide>("buy");
   const [orderType, setOrderType] = useState<TicketOrderType>("limit");
   const [sizeUnit, setSizeUnit] = useState<SizeUnit>("base");
   const [leverage, setLeverage] = useState(20);
@@ -206,10 +208,13 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     setPrice(v);
   }
 
-  async function onSubmit() {
+  // Place-order handler driven by the two HL-style buy/sell buttons (no separate side toggle). The
+  // side is passed explicitly so a button submits its own side immediately (no stale state).
+  async function onSubmit(orderSide: OrderSide) {
     if (!wallet || mode !== "local" || !index) return;
     const svc = useExchangeStore.getState().service;
     if (!svc) return;
+    setPendingSide(orderSide);
 
     // TWAP: native HL twapOrder (no cloid). Set leverage first (unless reduce-only), then start.
     if (isTwap) {
@@ -234,7 +239,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         }
         const res = await svc.placeTwap({
           coin: coin.toUpperCase(),
-          side,
+          side: orderSide,
           size: baseSize,
           minutes,
           randomize: twapRandomize,
@@ -281,7 +286,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         }
         const res = await svc.placeScale({
           coin: coin.toUpperCase(),
-          side,
+          side: orderSide,
           totalSize: baseSize,
           startPx,
           endPx,
@@ -319,8 +324,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     const submitPrice = usesLimitPrice
       ? Number(price)
       : shape.isTrigger
-        ? marketPrice(Number(stopPrice), side)
-        : marketPrice(mid, side);
+        ? marketPrice(Number(stopPrice), orderSide)
+        : marketPrice(mid, orderSide);
     const rej = validateOrder({ price: submitPrice, size: baseSize, szDecimals: szDec });
     if (rej) {
       Alert.alert(t("trade.invalidOrder"), t(`reject.${rej}` as never));
@@ -341,7 +346,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     for (const check of triggerChecks) {
       if (!check) continue;
       const [tpsl, triggerPx, entryPx] = check;
-      const trej = validateTriggerSide({ side, entryPx, triggerPx, tpsl });
+      const trej = validateTriggerSide({ side: orderSide, entryPx, triggerPx, tpsl });
       if (trej) {
         Alert.alert(t("trade.invalidOrder"), t(`reject.${trej}` as never));
         return;
@@ -364,7 +369,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       // §6.2: placeOrder/placeBracket persist the (pending) cloid BEFORE signing and dedupe by cloid.
       const entry = {
         coin: coin.toUpperCase(),
-        side,
+        side: orderSide,
         size: baseSize,
         price: submitPrice,
         reduceOnly: reduceOnly || undefined,
@@ -440,21 +445,15 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     );
   }
 
-  const liq = estLiqPrice(refPrice, leverage, side);
-  const sideColor = side === "buy" ? theme.up : theme.down;
-  const ctaLabel = `${t(side === "buy" ? "trade.sideBuy" : "trade.sideSell")} ${coin.toUpperCase()}`;
+  // Estimated liquidation for both directions (shown per side near each buy/sell button).
+  const liqBuy = estLiqPrice(refPrice, leverage, "buy");
+  const liqSell = estLiqPrice(refPrice, leverage, "sell");
 
   // What will actually be sent, snapped to HL tick/lot — surfaced so the user sees exactly what they
-  // submit (the encoder applies the same rounding). Market price is the slippage-bounded IOC price.
-  const previewSubmitPrice = usesLimitPrice
-    ? Number(price)
-    : shape.isTrigger
-      ? marketPrice(Number(stopPrice), side)
-      : marketPrice(mid, side);
-  const previewPrice = previewSubmitPrice > 0 ? toHlPrice(previewSubmitPrice, szDec, "perp") : "—";
-  const previewPriceLabel =
-    !usesLimitPrice && previewSubmitPrice > 0 ? `${t("trade.marketCap")} ${previewPrice}` : previewPrice;
+  // submit (the encoder applies the same rounding). Market/trigger-market fill at market.
+  const previewPrice = usesLimitPrice && Number(price) > 0 ? toHlPrice(Number(price), szDec, "perp") : null;
   const previewSize = baseSize > 0 ? String(roundSize(baseSize, szDec)) : "—";
+  const previewPriceLabel = previewPrice ?? t("trade.marketCap");
 
   return (
     <ScreenScaffold
@@ -500,36 +499,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         <Text style={[styles.availValue, { color: theme.text }]}>
           {available != null ? `${available.toFixed(2)} USDC` : "—"}
         </Text>
-      </View>
-
-      <View style={styles.sideRow}>
-        {(["buy", "sell"] as const).map((s) => (
-          <Pressable
-            key={s}
-            onPress={() => {
-              setRetryCloid(null);
-              setUncertain(false);
-              setSide(s);
-            }}
-            accessibilityRole="button"
-            style={[
-              styles.sideBtn,
-              {
-                backgroundColor: side === s ? (s === "buy" ? theme.up : theme.down) : theme.surface,
-                borderColor: theme.line,
-              },
-            ]}
-          >
-            <Text
-              style={[styles.sideText, { color: side === s ? theme.bg : theme.text }]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
-              {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
-            </Text>
-          </Pressable>
-        ))}
       </View>
 
       <Dropdown
@@ -611,17 +580,12 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       />
 
       <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
-
-      <View style={styles.maxRow}>
-        <Text style={[styles.maxLabel, { color: theme.muted }]}>{t("trade.maxPosition")}</Text>
-        <Text style={[styles.maxValue, { color: theme.text }]}>
-          {maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
+      <View style={styles.sliderMeta}>
+        <Text style={[styles.maxLabel, { color: theme.faint }]} testID="size-pct">{`${Math.round(sizePct)}%`}</Text>
+        <Text style={[styles.maxValue, { color: theme.muted }]}>
+          {t("trade.maxPosition")} {maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
         </Text>
       </View>
-
-      <Text style={[styles.hint, { color: notional >= 10 ? theme.muted : theme.down }]}>
-        {t("trade.orderValueHint", { value: notional.toFixed(2) })} {notional < 10 ? t("trade.minTen") : ""}
-      </Text>
 
       <Text style={[styles.preview, { color: theme.faint }]} testID="submit-preview">
         {t("trade.submitPreview", { price: previewPriceLabel, size: previewSize, coin: coin.toUpperCase() })}
@@ -693,7 +657,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       ) : null}
 
       <SurfaceCard theme={theme} rule={false} style={styles.summary}>
-        <SummaryRow theme={theme} label={t("trade.estLiqPrice")} value={refPrice > 0 ? formatPrice(liq) : "—"} />
         <SummaryRow theme={theme} label={t("trade.summaryOrderValue")} value={`≈ ${notional.toFixed(2)} USDC`} />
         <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
         <SummaryRow
@@ -704,7 +667,16 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             maker: (MAKER_FEE_RATE * 100).toFixed(4),
           })}
         />
+        <SummaryRow
+          theme={theme}
+          label={t("trade.estLiqLongShort")}
+          value={refPrice > 0 ? `${formatPrice(liqBuy)} / ${formatPrice(liqSell)}` : "—"}
+        />
       </SurfaceCard>
+
+      {baseSize > 0 && notional < 10 ? (
+        <Text style={[styles.belowMin, { color: theme.warn }]}>{t("trade.belowMin")}</Text>
+      ) : null}
 
       {uncertain ? (
         <View style={[styles.uncertain, { borderColor: theme.down, backgroundColor: theme.surface }]}>
@@ -714,7 +686,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           </Text>
           <Pressable
             disabled={busy}
-            onPress={onSubmit}
+            onPress={() => onSubmit(pendingSide)}
             accessibilityRole="button"
             testID="retry-order"
             style={[styles.retry, { borderColor: theme.brand }]}
@@ -728,19 +700,34 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
 
-      <Pressable
-        disabled={!canSubmit || busy}
-        onPress={onSubmit}
-        accessibilityRole="button"
-        testID="submit-order"
-        style={[styles.submit, { backgroundColor: canSubmit ? sideColor : theme.line }]}
-      >
-        {busy ? (
-          <ActivityIndicator color={theme.bg} />
-        ) : (
-          <Text style={[styles.submitText, { color: canSubmit ? theme.bg : theme.muted }]}>{ctaLabel}</Text>
-        )}
-      </Pressable>
+      <View style={styles.submitRow}>
+        {(["buy", "sell"] as const).map((s) => (
+          <Pressable
+            key={s}
+            disabled={!canSubmit || busy}
+            onPress={() => onSubmit(s)}
+            accessibilityRole="button"
+            testID={s === "buy" ? "submit-buy" : "submit-sell"}
+            style={[
+              styles.submitBtn,
+              { backgroundColor: !canSubmit ? theme.surface : s === "buy" ? theme.up : theme.down, borderColor: theme.line },
+            ]}
+          >
+            {busy && pendingSide === s ? (
+              <ActivityIndicator color={theme.bg} />
+            ) : (
+              <Text
+                style={[styles.submitText, { color: !canSubmit ? theme.muted : theme.bg }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
+              </Text>
+            )}
+          </Pressable>
+        ))}
+      </View>
         </View>
 
         <View style={styles.rightCol}>
@@ -821,9 +808,7 @@ const styles = StyleSheet.create({
   columns: { flexDirection: "row", gap: 12 },
   leftCol: { flex: 1.25 },
   rightCol: { flex: 1, paddingTop: 2 },
-  sideRow: { flexDirection: "row", gap: 10, marginBottom: 14, marginTop: 4 },
-  sideBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 },
-  sideText: { fontFamily: fonts.display.bold, fontSize: 14, letterSpacing: 0.3 },
+  submit: { paddingVertical: 15, borderRadius: 12, alignItems: "center" },
   priceHeader: { flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 },
   priceHeaderLabel: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
   lastPx: { fontFamily: fonts.mono.bold, fontSize: 15 },
@@ -831,7 +816,6 @@ const styles = StyleSheet.create({
   availRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   availLabel: { fontFamily: fonts.body.regular, fontSize: 12 },
   availValue: { fontFamily: fonts.mono.medium, fontSize: 13 },
-  maxRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, marginTop: 2 },
   maxLabel: { fontFamily: fonts.body.regular, fontSize: 11 },
   maxValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
   levRow: { marginBottom: 14 },
@@ -853,8 +837,8 @@ const styles = StyleSheet.create({
   accessory: { position: "absolute", right: 6, top: 0, bottom: 0, justifyContent: "center" },
   midBtn: { borderWidth: 1, borderRadius: 7, paddingHorizontal: 10, paddingVertical: 5 },
   midText: { fontFamily: fonts.mono.bold, fontSize: 11, letterSpacing: 0.3 },
-  hint: { fontFamily: fonts.mono.regular, fontSize: 12, marginBottom: 12 },
-  preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: -6, marginBottom: 14 },
+  preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
+  sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
   opts: { flexDirection: "row", gap: 24, marginBottom: 14 },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   optLabel: { fontFamily: fonts.body.medium, fontSize: 12 },
@@ -882,6 +866,8 @@ const styles = StyleSheet.create({
   uncertainBody: { fontFamily: fonts.body.regular, fontSize: 12, lineHeight: 17, marginBottom: 10 },
   retry: { borderWidth: 1, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
-  submit: { paddingVertical: 15, borderRadius: 12, alignItems: "center", marginTop: 6 },
-  submitText: { fontFamily: fonts.display.bold, fontSize: 16, letterSpacing: 0.3 },
+  belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
+  submitRow: { flexDirection: "row", gap: 10, marginTop: 6 },
+  submitBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

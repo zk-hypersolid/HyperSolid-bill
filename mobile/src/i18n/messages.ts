@@ -139,6 +139,8 @@ export const messages = {
     "trade.summaryOrderValue": "Order value",
     "trade.estLiqPrice": "Est. liq. price",
     "trade.requiredMargin": "Required margin",
+    "trade.estLiqLongShort": "Est. liq · long / short",
+    "trade.belowMin": "Order value is below the $10 minimum",
     "trade.fees": "Fees · taker/maker",
     "trade.feesValue": "{taker}% / {maker}%",
 
@@ -454,6 +456,8 @@ export const messages = {
     "trade.summaryOrderValue": "委托价值",
     "trade.estLiqPrice": "预估强平价",
     "trade.requiredMargin": "所需保证金",
+    "trade.estLiqLongShort": "预估强平 · 多 / 空",
+    "trade.belowMin": "订单价值低于最低 $10",
     "trade.fees": "费用 · taker/maker",
     "trade.feesValue": "{taker}% / {maker}%",
 

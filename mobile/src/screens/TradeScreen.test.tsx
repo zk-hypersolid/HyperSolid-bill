@@ -27,6 +27,7 @@ jest.mock("../lib/hyperliquid/client", () => ({
   createPositionsInfoClient: jest.fn(() => ({})),
 }));
 jest.mock("../components/OrderBookPanel", () => ({ OrderBookPanel: () => null }));
+jest.mock("../components/TradeActivityPanel", () => ({ TradeActivityPanel: () => null }));
 jest.mock("../services/positionsData", () => ({
   PositionsService: class {
     async loadPortfolio() {

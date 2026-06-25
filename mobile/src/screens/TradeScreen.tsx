@@ -21,6 +21,7 @@ import { CoinPicker } from "../components/CoinPicker";
 import { MarginLeverageBar } from "../components/MarginLeverageBar";
 import { Slider } from "../components/Slider";
 import { OrderBookPanel } from "../components/OrderBookPanel";
+import { TradeActivityPanel } from "../components/TradeActivityPanel";
 import { PositionsService } from "../services/positionsData";
 import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { Toggle } from "../components/Toggle";
@@ -617,6 +618,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           />
         </View>
       </View>
+
+      <TradeActivityPanel theme={theme} address={walletAddress} network={network} />
 
       <CoinPicker
         visible={showCoinPicker}

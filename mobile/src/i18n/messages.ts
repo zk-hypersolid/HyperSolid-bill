@@ -142,6 +142,7 @@ export const messages = {
 
     "trade.invalidOrder": "Invalid order",
     "trade.leverageFailed": "Couldn't set leverage",
+    "trade.marketPriceNote": "Market order — fills at the best available price (≤5% slippage).",
     "trade.stopNeedsTrigger": "Enter a valid trigger price",
     "trade.orderPlaced": "Order placed",
     "trade.orderPlacedBody": "Submitted · cloid {cloid}",
@@ -383,6 +384,7 @@ export const messages = {
 
     "trade.invalidOrder": "订单无效",
     "trade.leverageFailed": "设置杠杆失败",
+    "trade.marketPriceNote": "市价单 — 以当前最优价成交（滑点 ≤5%）。",
     "trade.stopNeedsTrigger": "请填写有效的触发价（Trigger price）",
     "trade.orderPlaced": "下单成功",
     "trade.orderPlacedBody": "已提交 · cloid {cloid}",

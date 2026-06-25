@@ -49,6 +49,15 @@ function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
   return side === "buy" ? entry * (1 - 1 / leverage) : entry * (1 + 1 / leverage);
 }
 
+/**
+ * Worst-case bound for a "market" order: it is sent as an IOC limit at mid ± this %, so it fills at
+ * the best available price while capping slippage. The user never types a price for market orders.
+ */
+const MARKET_SLIPPAGE_PCT = 0.05;
+function marketPrice(mid: number, side: OrderSide): number {
+  return side === "buy" ? mid * (1 + MARKET_SLIPPAGE_PCT) : mid * (1 - MARKET_SLIPPAGE_PCT);
+}
+
 export function TradeScreen({ navigation }: { navigation?: { navigate: (name: string) => void } }) {
   const theme = useTheme();
   const t = useT();
@@ -66,6 +75,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [leverage, setLeverage] = useState(20);
   const [size, setSize] = useState("");
   const [price, setPrice] = useState("");
+  const [priceEdited, setPriceEdited] = useState(false);
   const [reduceOnly, setReduceOnly] = useState(false);
   const [postOnly, setPostOnly] = useState(false);
   const [tpPrice, setTpPrice] = useState("");
@@ -102,7 +112,18 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     useExchangeStore.getState().init(client, index, ledger ?? undefined);
   }, [client, index, ledger]);
 
-  const notional = (Number(size) || 0) * (Number(price) || 0);
+  const mid = ticker?.midPx ?? 0;
+  const isMarket = orderType === "market";
+  // Reference price for sizing / liq / notional: live mid for market, the typed price otherwise.
+  const refPrice = isMarket ? mid : Number(price) || 0;
+
+  // Prefill the limit/stop price with the live mid until the user edits it (reset on coin change).
+  useEffect(() => {
+    if (isMarket || priceEdited) return;
+    if (mid > 0) setPrice(String(mid));
+  }, [coin, mid, isMarket, priceEdited]);
+
+  const notional = (Number(size) || 0) * refPrice;
   const positionsSvc = useMemo(
     () => new PositionsService(createPositionsInfoClient(network)),
     [network],
@@ -111,7 +132,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const hasTp = Number(tpPrice) > 0;
   const hasSl = Number(slPrice) > 0;
   const canSubmit =
-    mode === "local" && !!wallet && Number(size) > 0 && Number(price) > 0 && notional >= 10;
+    mode === "local" && !!wallet && Number(size) > 0 && refPrice > 0 && notional >= 10;
 
   // Editing the order means a new intent — drop any retry cloid / uncertain notice.
   function clearRetry() {
@@ -124,13 +145,25 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       setter(v);
     };
   }
+  function onChangeCoin(v: string) {
+    clearRetry();
+    setPriceEdited(false);
+    setCoin(v);
+  }
+  function onChangePrice(v: string) {
+    clearRetry();
+    setPriceEdited(true);
+    setPrice(v);
+  }
 
   async function onSubmit() {
     if (!wallet || mode !== "local" || !index) return;
     const svc = useExchangeStore.getState().service;
     if (!svc) return;
     const szDec = index.szDecimals(coin.toUpperCase()) ?? 2;
-    const rej = validateOrder({ price: Number(price), size: Number(size), szDecimals: szDec });
+    // Market orders never carry a typed price — send IOC at a slippage-bounded price off mid.
+    const submitPrice = isMarket ? marketPrice(mid, side) : Number(price);
+    const rej = validateOrder({ price: submitPrice, size: Number(size), szDecimals: szDec });
     if (rej) {
       Alert.alert(t("trade.invalidOrder"), t(`reject.${rej}` as never));
       return;
@@ -158,7 +191,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         coin: coin.toUpperCase(),
         side,
         size: Number(size),
-        price: Number(price),
+        price: submitPrice,
         reduceOnly: reduceOnly || undefined,
         market: orderType === "market" || undefined,
         tif: postOnly ? ("Alo" as const) : undefined,
@@ -236,7 +269,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   }
 
   const levOptions = leverageOptions(ticker?.maxLeverage ?? 50);
-  const liq = estLiqPrice(Number(price), leverage, side);
+  const liq = estLiqPrice(refPrice, leverage, side);
   const sideColor = side === "buy" ? theme.up : theme.down;
   const ctaLabel = `${t(side === "buy" ? "trade.sideBuy" : "trade.sideSell")} ${coin.toUpperCase()}`;
 
@@ -324,8 +357,12 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       </View>
 
-      <Field label={t("trade.symbol")} value={coin} onChange={edit(setCoin)} theme={theme} autoCap testID="field-coin" />
-      <Field label={t("trade.priceUsdc")} value={price} onChange={edit(setPrice)} theme={theme} keyboard testID="field-price" />
+      <Field label={t("trade.symbol")} value={coin} onChange={onChangeCoin} theme={theme} autoCap testID="field-coin" />
+      {isMarket ? (
+        <Text style={[styles.marketNote, { color: theme.muted }]}>{t("trade.marketPriceNote")}</Text>
+      ) : (
+        <Field label={t("trade.priceUsdc")} value={price} onChange={onChangePrice} theme={theme} keyboard testID="field-price" />
+      )}
       {orderType === "stop" ? (
         <Field label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
       ) : null}
@@ -393,7 +430,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         <SummaryRow
           theme={theme}
           label={t("trade.estLiqPrice")}
-          value={Number(price) > 0 ? formatPrice(liq) : "—"}
+          value={refPrice > 0 ? formatPrice(liq) : "—"}
         />
       </SurfaceCard>
 
@@ -485,6 +522,7 @@ const styles = StyleSheet.create({
   typeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   typeChips: { flexDirection: "row", gap: 7 },
   lastPx: { fontFamily: fonts.mono.bold, fontSize: 13 },
+  marketNote: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 12 },
   levRow: { marginBottom: 14 },
   levLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 6 },
   levChips: { flexDirection: "row", gap: 7, flexWrap: "wrap" },

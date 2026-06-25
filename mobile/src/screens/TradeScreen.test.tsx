@@ -212,6 +212,26 @@ describe("TradeScreen", () => {
     expect(mockSetLeverage).not.toHaveBeenCalled();
   });
 
+  it("market order needs no typed price and submits at a slippage-bounded price off mid", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "f".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByText("Market"));
+    // no price field for market orders
+    expect(screen.queryByTestId("field-price")).toBeNull();
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    const entry = mockPlaceOrder.mock.calls[0][0];
+    expect(entry.market).toBe(true);
+    // buy mid 62481.5 * 1.05 ≈ 65605.6 (aggressive IOC bound)
+    expect(entry.price).toBeCloseTo(62481.5 * 1.05, 1);
+  });
+
   it("uses the real szDecimals so a small BTC order is not wrongly rejected", async () => {
     // BTC szDecimals=5: roundSize(0.001,5)=0.001 (valid). With the old hardcoded
     // szDecimals=2 this rounded to 0 and was rejected before reaching the network.

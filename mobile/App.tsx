@@ -7,6 +7,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { LockScreen } from "./src/screens/LockScreen";
 import { WelcomeScreen } from "./src/screens/WelcomeScreen";
+import { Toast } from "./src/components/Toast";
 import { fontMap } from "./src/theme/fontAssets";
 import { useLiveMarkets } from "./src/hooks/useLiveMarkets";
 import { MarketDataService } from "./src/services/marketData";
@@ -98,6 +99,7 @@ export default function App() {
           <RootNavigator initialTab={startTab} />
         </NavigationContainer>
       )}
+      <Toast />
     </SafeAreaProvider>
   );
 }

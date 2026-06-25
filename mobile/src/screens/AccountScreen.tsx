@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, TextInput, Alert, ActivityIndicator } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import { useToastStore } from "../state/toastStore";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
@@ -263,7 +264,7 @@ export function AccountScreen({
         confirmed: network === "mainnet",
       });
       if (res.ok) {
-        Alert.alert(t("account.depositSent"), t("account.depositSentBody", { tx: res.txHash.slice(0, 12) }));
+        useToastStore.getState().show(t("account.depositSent"), "success");
         setSheet("none");
         setMainnetConfirm(false);
         setDepositAmount("");
@@ -295,7 +296,7 @@ export function AccountScreen({
         withdrawable: summary?.withdrawable ?? 0,
       });
       if (res.ok) {
-        Alert.alert(t("account.withdrawSubmitted"), t("account.withdrawSubmittedBody", { amount: amountInput, dest: shortAddr(destInput.trim()) }));
+        useToastStore.getState().show(t("account.withdrawSubmitted"), "success");
         setSheet("none");
         setWithdrawMainnetConfirm(false);
         setAmountInput("");

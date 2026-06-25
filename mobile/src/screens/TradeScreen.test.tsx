@@ -6,6 +6,7 @@ import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import { useMarketStore } from "../state/marketStore";
 import { useLedgerStore } from "../state/ledgerStore";
+import { useToastStore } from "../state/toastStore";
 import { IntentLedger } from "../lib/hyperliquid/intentLedger";
 import type { MarketTicker } from "../lib/hyperliquid/types";
 
@@ -52,6 +53,7 @@ describe("TradeScreen", () => {
     useMarketStore.setState({ tickers: [btc], loading: false, error: null });
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     useLedgerStore.setState({ ledger: null, scope: null, revision: 0 });
+    useToastStore.setState({ message: null, kind: "info" });
     mockPlaceOrder.mockReset();
     mockPlaceBracket.mockReset();
     mockSetLeverage.mockReset().mockResolvedValue({ ok: true });
@@ -132,7 +134,8 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("submit-order"));
     await waitFor(() => {
       expect(mockPlaceOrder).toHaveBeenCalled();
-      expect(Alert.alert).toHaveBeenCalledWith("Order placed", expect.stringContaining("cloid"));
+      // success is surfaced via a non-blocking toast, not a modal Alert
+      expect(useToastStore.getState().message).toBe("Order placed");
     });
   });
 

@@ -7,6 +7,7 @@ import { useEnvStore } from "../state/envStore";
 import { useMarketStore } from "../state/marketStore";
 import { useLedgerStore } from "../state/ledgerStore";
 import { useExchangeStore } from "../state/exchangeStore";
+import { useToastStore } from "../state/toastStore";
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
 import { createExchangeClient, createPositionsInfoClient } from "../lib/hyperliquid/client";
 import { buildAssetIndex } from "../lib/hyperliquid/assetId";
@@ -212,7 +213,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       if (res.ok) {
         setRetryCloid(null);
         setUncertain(false);
-        Alert.alert(t("trade.orderPlaced"), t("trade.orderPlacedBody", { cloid: `${res.cloid.slice(0, 10)}…` }));
+        useToastStore.getState().show(t("trade.orderPlaced"), "success");
         setSize("");
       } else if (res.uncertain && res.cloid) {
         // Uncertain receipt: keep the cloid so an explicit retry reuses it (HL dedupes), and tell

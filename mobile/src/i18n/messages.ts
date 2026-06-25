@@ -141,6 +141,7 @@ export const messages = {
     "agent.strategyDca": "{coin} DCA",
 
     "trade.invalidOrder": "Invalid order",
+    "trade.leverageFailed": "Couldn't set leverage",
     "trade.stopNeedsTrigger": "Enter a valid trigger price",
     "trade.orderPlaced": "Order placed",
     "trade.orderPlacedBody": "Submitted · cloid {cloid}",
@@ -381,6 +382,7 @@ export const messages = {
     "agent.strategyDca": "{coin} DCA",
 
     "trade.invalidOrder": "订单无效",
+    "trade.leverageFailed": "设置杠杆失败",
     "trade.stopNeedsTrigger": "请填写有效的触发价（Trigger price）",
     "trade.orderPlaced": "下单成功",
     "trade.orderPlacedBody": "已提交 · cloid {cloid}",

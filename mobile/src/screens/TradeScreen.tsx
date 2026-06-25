@@ -141,6 +141,18 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     }
     setBusy(true);
     try {
+      // HL leverage is per-asset account state, NOT carried on the order — set it to the user's
+      // choice before placing so the position uses the intended leverage (and the est. liq price
+      // shown is real). Skip for reduce-only (closing doesn't change leverage). Abort on failure
+      // rather than silently open at a stale leverage.
+      if (!reduceOnly) {
+        const lev = await svc.setLeverage(coin.toUpperCase(), leverage, true);
+        if (!lev.ok) {
+          Alert.alert(t("trade.leverageFailed"), lev.error);
+          setBusy(false);
+          return;
+        }
+      }
       // §6.2: placeOrder/placeBracket persist the (pending) cloid BEFORE signing and dedupe by cloid.
       const entry = {
         coin: coin.toUpperCase(),

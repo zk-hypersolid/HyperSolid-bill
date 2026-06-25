@@ -11,10 +11,15 @@ import type { MarketTicker } from "../lib/hyperliquid/types";
 
 const mockPlaceOrder = jest.fn();
 const mockPlaceBracket = jest.fn();
+const mockSetLeverage = jest.fn();
 jest.mock("../services/exchange", () => ({
   ExchangeService: jest
     .fn()
-    .mockImplementation(() => ({ placeOrder: mockPlaceOrder, placeBracket: mockPlaceBracket })),
+    .mockImplementation(() => ({
+      placeOrder: mockPlaceOrder,
+      placeBracket: mockPlaceBracket,
+      setLeverage: mockSetLeverage,
+    })),
 }));
 jest.mock("../lib/hyperliquid/client", () => ({
   createExchangeClient: jest.fn(() => ({})),
@@ -49,6 +54,7 @@ describe("TradeScreen", () => {
     useLedgerStore.setState({ ledger: null, scope: null, revision: 0 });
     mockPlaceOrder.mockReset();
     mockPlaceBracket.mockReset();
+    mockSetLeverage.mockReset().mockResolvedValue({ ok: true });
     jest.spyOn(Alert, "alert").mockReset().mockImplementation(() => {});
   });
 
@@ -157,6 +163,53 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("submit-order"));
     expect(mockPlaceOrder).not.toHaveBeenCalled();
+  });
+
+  it("applies the selected leverage to the venue before placing the order", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "d".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    // leverage (default 20×, cross) must be set for BTC before the order is placed
+    expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 20, true);
+    expect(mockSetLeverage.mock.invocationCallOrder[0]).toBeLessThan(
+      mockPlaceOrder.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("aborts (no order) and alerts if the leverage update fails", async () => {
+    mockSetLeverage.mockResolvedValue({ ok: false, error: "leverage rejected" });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockSetLeverage).toHaveBeenCalled());
+    expect(mockPlaceOrder).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith("Couldn't set leverage", "leverage rejected");
+  });
+
+  it("skips the leverage update for a reduce-only order", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "e".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.press(screen.getByLabelText("reduce-only"));
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockSetLeverage).not.toHaveBeenCalled();
   });
 
   it("uses the real szDecimals so a small BTC order is not wrongly rejected", async () => {

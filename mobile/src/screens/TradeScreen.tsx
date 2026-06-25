@@ -473,7 +473,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         coin={coin}
         maxLeverage={maxLev}
         changePct={ticker?.changePct ?? 0}
-        lastPx={ticker?.midPx ?? 0}
         onPress={() => setShowCoinPicker(true)}
       />
 
@@ -503,7 +502,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
 
       <Dropdown
         testID="order-type"
-        label={t("trade.orderType")}
         value={orderType}
         options={ORDER_TYPES.map(([type, labelKey]) => ({ value: type, label: t(labelKey) }))}
         onChange={(v) => {
@@ -532,8 +530,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             ) : undefined
           }
         />
-      ) : isMarketType ? (
-        <Text style={[styles.marketNote, { color: theme.muted }]}>{t("trade.marketPriceNote")}</Text>
       ) : null}
       {shape.isTrigger ? (
         <Field label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} keyboard testID="field-stop" />
@@ -543,7 +539,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           <Field label={t("trade.scaleStart")} value={scaleStart} onChange={edit(setScaleStart)} theme={theme} keyboard testID="field-scale-start" />
           <Field label={t("trade.scaleEnd")} value={scaleEnd} onChange={edit(setScaleEnd)} theme={theme} keyboard testID="field-scale-end" />
           <Field label={t("trade.scaleCount")} value={scaleCount} onChange={edit(setScaleCount)} theme={theme} keyboard testID="field-scale-count" />
-          <Text style={[styles.marketNote, { color: theme.faint }]}>{t("trade.scaleNote")}</Text>
         </>
       ) : null}
       {isTwap ? (
@@ -553,11 +548,10 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.twapRandomize")}</Text>
             <Toggle theme={theme} value={twapRandomize} onValueChange={edit(setTwapRandomize)} accessibilityLabel="twap-randomize" />
           </View>
-          <Text style={[styles.marketNote, { color: theme.faint }]}>{t("trade.twapNote")}</Text>
         </>
       ) : null}
       <Field
-        label={sizeUnit === "quote" ? t("trade.sizeQuote") : t("trade.size", { coin: coin.toUpperCase() })}
+        label={t("trade.sizeLabel")}
         value={size}
         onChange={edit(setSize)}
         theme={theme}
@@ -580,21 +574,10 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       />
 
       <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
-      <View style={styles.sliderMeta}>
-        <Text style={[styles.maxLabel, { color: theme.faint }]} testID="size-pct">{`${Math.round(sizePct)}%`}</Text>
-        <Text style={[styles.maxValue, { color: theme.muted }]}>
-          {t("trade.maxPosition")} {maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
-        </Text>
-      </View>
-
-      <Text style={[styles.preview, { color: theme.faint }]} testID="submit-preview">
-        {t("trade.submitPreview", { price: previewPriceLabel, size: previewSize, coin: coin.toUpperCase() })}
-      </Text>
 
       {usesLimitPrice ? (
         <Dropdown
           testID="tif"
-          label={t("trade.tif")}
           value={tif}
           options={[
             { value: "Gtc" as const, label: t("trade.tifGtc") },
@@ -656,24 +639,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </SurfaceCard>
       ) : null}
 
-      <SurfaceCard theme={theme} rule={false} style={styles.summary}>
-        <SummaryRow theme={theme} label={t("trade.summaryOrderValue")} value={`≈ ${notional.toFixed(2)} USDC`} />
-        <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
-        <SummaryRow
-          theme={theme}
-          label={t("trade.fees")}
-          value={t("trade.feesValue", {
-            taker: (TAKER_FEE_RATE * 100).toFixed(4),
-            maker: (MAKER_FEE_RATE * 100).toFixed(4),
-          })}
-        />
-        <SummaryRow
-          theme={theme}
-          label={t("trade.estLiqLongShort")}
-          value={refPrice > 0 ? `${formatPrice(liqBuy)} / ${formatPrice(liqSell)}` : "—"}
-        />
-      </SurfaceCard>
-
       {baseSize > 0 && notional < 10 ? (
         <Text style={[styles.belowMin, { color: theme.warn }]}>{t("trade.belowMin")}</Text>
       ) : null}
@@ -700,10 +665,15 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
 
-      <View style={styles.submitRow}>
-        {(["buy", "sell"] as const).map((s) => (
+      {(["buy", "sell"] as const).map((s) => (
+        <View key={s} style={styles.sideBlock}>
+          <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
+          <SummaryRow
+            theme={theme}
+            label={t(s === "buy" ? "trade.maxLong" : "trade.maxShort")}
+            value={maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
+          />
           <Pressable
-            key={s}
             disabled={!canSubmit || busy}
             onPress={() => onSubmit(s)}
             accessibilityRole="button"
@@ -726,8 +696,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
               </Text>
             )}
           </Pressable>
-        ))}
-      </View>
+        </View>
+      ))}
         </View>
 
         <View style={styles.rightCol}>
@@ -867,7 +837,7 @@ const styles = StyleSheet.create({
   retry: { borderWidth: 1, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
   belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
-  submitRow: { flexDirection: "row", gap: 10, marginTop: 6 },
-  submitBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  sideBlock: { marginTop: 10 },
+  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 6 },
   submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

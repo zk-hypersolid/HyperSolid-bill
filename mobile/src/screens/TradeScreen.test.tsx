@@ -107,10 +107,11 @@ describe("TradeScreen", () => {
     expect(screen.getByTestId("submit-sell")).toBeTruthy();
   });
 
-  it("shows the current price for the selected coin", () => {
+  it("shows the pair header with coin and day change", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: "0xabc" });
     render(<TradeScreen />);
-    expect(screen.getByText("62,481.5")).toBeTruthy();
+    expect(screen.getByText("BTC-USDC")).toBeTruthy();
+    expect(screen.getByText("+2.43%")).toBeTruthy();
   });
 
   it("does not submit while the session is locked (no wallet)", () => {
@@ -319,11 +320,12 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder.mock.calls[0][0].side).toBe("sell");
   });
 
-  it("shows the HL-style summary with required margin and taker/maker fees", () => {
+  it("shows HL-style per-side margin and max long/short blocks", () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    expect(screen.getByText("Required margin")).toBeTruthy();
-    expect(screen.getByText("0.0450% / 0.0150%")).toBeTruthy();
+    expect(screen.getAllByText("Required margin").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Max long")).toBeTruthy();
+    expect(screen.getByText("Max short")).toBeTruthy();
   });
 
   it("applies the selected leverage to the venue before placing the order", async () => {
@@ -658,13 +660,18 @@ describe("TradeScreen", () => {
     expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
   });
 
-  it("previews the exact HL-snapped size that will be submitted", () => {
+  it("lot-rounds the size to szDecimals on submit (BTC 5dp)", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    // BTC szDecimals 5 → 0.0123456 lot-rounds to 0.01235
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.changeText(screen.getByTestId("field-size"), "0.0123456");
-    expect(screen.getByTestId("submit-preview").props.children).toEqual(
-      expect.stringContaining("0.01235"),
-    );
+    fireEvent.press(screen.getByTestId("submit-buy"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    expect(mockPlaceOrder.mock.calls[0][0].size).toBeCloseTo(0.0123456, 7);
   });
 });

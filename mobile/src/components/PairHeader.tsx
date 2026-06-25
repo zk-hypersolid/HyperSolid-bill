@@ -3,7 +3,6 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
 import { fonts } from "../theme/fonts";
 import { Icon } from "./Icon";
-import { formatPrice } from "./PriceText";
 
 /**
  * Hyperliquid-style market header: `{COIN}-USDC  {maxLev}x ▾` with the day change and last price.
@@ -14,14 +13,12 @@ export function PairHeader({
   coin,
   maxLeverage,
   changePct,
-  lastPx,
   onPress,
 }: {
   theme: ThemeTokens;
   coin: string;
   maxLeverage: number;
   changePct: number;
-  lastPx: number;
   onPress?: () => void;
 }) {
   const up = changePct >= 0;
@@ -35,9 +32,6 @@ export function PairHeader({
         <Icon name="chevronDown" color={theme.muted} size={16} />
       </View>
       <View style={styles.right}>
-        {lastPx > 0 ? (
-          <Text style={[styles.px, { color: up ? theme.up : theme.down }]}>{formatPrice(lastPx)}</Text>
-        ) : null}
         <Text style={[styles.chg, { color: up ? theme.up : theme.down }]}>
           {`${up ? "+" : ""}${changePct.toFixed(2)}%`}
         </Text>
@@ -53,6 +47,5 @@ const styles = StyleSheet.create({
   levBadge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   levText: { fontFamily: fonts.mono.bold, fontSize: 10 },
   right: { alignItems: "flex-end" },
-  px: { fontFamily: fonts.mono.bold, fontSize: 15 },
-  chg: { fontFamily: fonts.mono.medium, fontSize: 12 },
+  chg: { fontFamily: fonts.mono.medium, fontSize: 13 },
 });

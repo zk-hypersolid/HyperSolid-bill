@@ -54,6 +54,13 @@ export function MarginLeverageBar({
       >
         <Text style={[styles.pillText, { color: theme.text }]}>{`${leverage}x`}</Text>
       </Pressable>
+      <View
+        accessibilityRole="text"
+        testID="position-mode"
+        style={[styles.pill, styles.pillInfo, { borderColor: theme.line }]}
+      >
+        <Text style={[styles.pillText, { color: theme.muted }]}>{t("trade.oneWay")}</Text>
+      </View>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={[styles.backdrop, { backgroundColor: theme.scrim }]} onPress={() => setOpen(false)}>
@@ -105,6 +112,7 @@ export function MarginLeverageBar({
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8, marginBottom: 12 },
   pill: { flex: 1, alignItems: "center", paddingVertical: 10, borderWidth: 1, borderRadius: 10 },
+  pillInfo: { borderStyle: "dashed" },
   pillText: { fontFamily: fonts.display.bold, fontSize: 13.5 },
   backdrop: { flex: 1, justifyContent: "center", padding: 28 },
   sheet: { borderWidth: 1, borderRadius: 16, padding: 18 },

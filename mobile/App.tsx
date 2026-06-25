@@ -6,6 +6,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import * as LocalAuthentication from "expo-local-authentication";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { LockScreen } from "./src/screens/LockScreen";
+import { PinSetupScreen } from "./src/screens/PinSetupScreen";
 import { WelcomeScreen } from "./src/screens/WelcomeScreen";
 import { Toast } from "./src/components/Toast";
 import { fontMap } from "./src/theme/fontAssets";
@@ -17,15 +18,17 @@ import { useEnvStore } from "./src/state/envStore";
 import { useAuthStore } from "./src/state/authStore";
 import { useWalletStore } from "./src/state/walletStore";
 import { useOnboardingStore } from "./src/state/onboardingStore";
+import { useLockPrefsStore } from "./src/state/lockPrefsStore";
 import { useLedgerStore } from "./src/state/ledgerStore";
 import { reconcilePendingIntents } from "./src/services/ledgerRecovery";
 import { hydrateRuntimeConfig } from "./src/services/appConfig";
 import { useAutoLock } from "./src/wallet/useAutoLock";
-import { unlockSession, recoverFromLock } from "./src/wallet/sessionController";
+import { unlockSession, unlockWithPin, recoverFromLock } from "./src/wallet/sessionController";
 import { BiometricGate } from "./src/wallet/biometricGate";
 import { AlwaysTrustedIntegrity } from "./src/wallet/deviceIntegrity";
 import { WalletManager } from "./src/wallet/walletManager";
 import { SecureStoreKeyStore } from "./src/wallet/secureKeyStore";
+import { PinStore } from "./src/wallet/pinStore";
 
 const INTENT_DB_NAME = "hypersolid-intents.db";
 
@@ -73,13 +76,19 @@ export default function App() {
   const welcomeSeen = useOnboardingStore((s) => s.welcomeSeen);
   const startTab = useOnboardingStore((s) => s.startTab);
   const dismissWelcome = useOnboardingStore((s) => s.dismiss);
+  const biometricEnabled = useLockPrefsStore((s) => s.biometricEnabled);
   const manager = useMemo(() => new WalletManager(new SecureStoreKeyStore()), []);
+  const pinStore = useMemo(() => new PinStore(), []);
   const gate = useMemo(() => new BiometricGate(LocalAuthentication), []);
   const integrity = useMemo(() => new AlwaysTrustedIntegrity(), []);
 
   useEffect(() => {
-    useAuthStore.getState().evaluate(() => manager.hasWallet());
-  }, [manager]);
+    void useLockPrefsStore.getState().hydrate();
+    useAuthStore.getState().evaluate(
+      () => manager.hasWallet(),
+      () => pinStore.hasPin(),
+    );
+  }, [manager, pinStore]);
 
   // Hold first paint until fonts are ready (avoids a system→custom font flash); never block on error.
   if (!fontsLoaded && !fontError) return null;
@@ -89,9 +98,13 @@ export default function App() {
       <StatusBar style="light" />
       {status === "locked" ? (
         <LockScreen
-          onUnlock={() => unlockSession(gate, manager, integrity)}
-          onRecover={() => recoverFromLock(manager)}
+          onUnlockBiometric={() => unlockSession(gate, manager, integrity)}
+          onUnlockPin={(pin) => unlockWithPin(pinStore, manager, integrity, pin)}
+          biometricEnabled={biometricEnabled}
+          onRecover={() => recoverFromLock(manager, pinStore)}
         />
+      ) : status === "needsPinSetup" ? (
+        <PinSetupScreen pinStore={pinStore} manager={manager} gate={gate} />
       ) : status === "noWallet" && !welcomeSeen ? (
         <WelcomeScreen
           onGetStarted={() => dismissWelcome("Account")}

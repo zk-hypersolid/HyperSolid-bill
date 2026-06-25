@@ -21,6 +21,7 @@ export type IconName =
   | "repeat"
   | "bolt"
   | "shield"
+  | "backspace"
   | "plus";
 
 export interface IconProps {
@@ -189,6 +190,13 @@ function renderGlyph(
           <Rect x={4.5} y={10.5} width={15} height={10} rx={2.2} />
           <Path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
           <Circle cx={12} cy={15.2} r={1.1} {...fillSolid} />
+        </>
+      );
+    case "backspace":
+      return (
+        <>
+          <Path d="M9 5.5h9.5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9L3 12z" />
+          <Path d="M12.5 9.5 16 13M16 9.5 12.5 13" />
         </>
       );
     case "search":

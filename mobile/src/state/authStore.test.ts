@@ -13,6 +13,16 @@ describe("authStore", () => {
     expect(useAuthStore.getState().status).toBe("locked");
   });
 
+  it("evaluate -> needsPinSetup when a wallet exists but no PIN is set", async () => {
+    await useAuthStore.getState().evaluate(async () => true, async () => false);
+    expect(useAuthStore.getState().status).toBe("needsPinSetup");
+  });
+
+  it("evaluate -> locked when a wallet exists and a PIN is set", async () => {
+    await useAuthStore.getState().evaluate(async () => true, async () => true);
+    expect(useAuthStore.getState().status).toBe("locked");
+  });
+
   it("evaluate fails closed to locked when the existence check throws", async () => {
     await useAuthStore.getState().evaluate(async () => {
       throw new Error("keychain error");

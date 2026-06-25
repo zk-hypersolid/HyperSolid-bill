@@ -4,6 +4,8 @@ import * as Clipboard from "expo-clipboard";
 import { useToastStore } from "../state/toastStore";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
+import { useAuthStore } from "../state/authStore";
+import { useLockPrefsStore } from "../state/lockPrefsStore";
 import { useEnvStore } from "../state/envStore";
 import { useThemeStore } from "../state/themeStore";
 import { useLocaleStore } from "../state/localeStore";
@@ -11,6 +13,9 @@ import { useT } from "../i18n/useT";
 import type { Locale } from "../i18n/messages";
 import { WalletManager } from "../wallet/walletManager";
 import { SecureStoreKeyStore } from "../wallet/secureKeyStore";
+import { PinStore } from "../wallet/pinStore";
+import { BiometricGate } from "../wallet/biometricGate";
+import * as LocalAuthentication from "expo-local-authentication";
 import { isValidAddress } from "../hooks/useViewOnlyPortfolio";
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
 import { PositionsService } from "../services/positionsData";
@@ -42,6 +47,8 @@ export interface AccountScreenDeps {
   positions: PositionsService;
   fundings: FundingsService;
   manager?: WalletManager;
+  pinStore?: PinStore;
+  gate?: BiometricGate;
 }
 
 const THEME_ORDER: ThemeName[] = ["electrum", "daylight", "oscilloscope"];
@@ -86,6 +93,30 @@ export function AccountScreen({
   const t = useT();
   const { count: unconfirmedCount } = useUnconfirmedIntents();
   const manager = useMemo(() => deps?.manager ?? new WalletManager(new SecureStoreKeyStore()), [deps]);
+  const pinStore = useMemo(() => deps?.pinStore ?? new PinStore(), [deps]);
+  const gate = useMemo(() => deps?.gate ?? new BiometricGate(LocalAuthentication), [deps]);
+  const biometricEnabled = useLockPrefsStore((s) => s.biometricEnabled);
+  const setBiometricEnabled = useLockPrefsStore((s) => s.setBiometricEnabled);
+
+  // After a fresh create (post backup-verify) or restore, re-evaluate auth so a wallet without an app
+  // PIN routes to mandatory PIN setup (App renders PinSetupScreen on "needsPinSetup").
+  const requirePinSetup = useCallback(() => {
+    void useAuthStore.getState().evaluate(
+      () => manager.hasWallet(),
+      () => pinStore.hasPin(),
+    );
+  }, [manager, pinStore]);
+
+  async function onToggleBiometric() {
+    if (!biometricEnabled) {
+      const avail = await gate.isAvailable();
+      if (!avail.hasHardware || !avail.isEnrolled) {
+        Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
+        return;
+      }
+    }
+    await setBiometricEnabled(!biometricEnabled);
+  }
 
   const services = useMemo<AccountScreenDeps>(
     () =>
@@ -178,6 +209,7 @@ export function AccountScreen({
       const wallet = await manager.restoreWallet(mnemonicInput);
       setLocalWallet(wallet);
       setMnemonicInput("");
+      requirePinSetup();
     } catch {
       Alert.alert(t("account.restoreFailed"), t("account.invalidMnemonic"));
     } finally {
@@ -563,6 +595,7 @@ export function AccountScreen({
               setNewMnemonic(null);
               setNeedsVerify(false);
               setVerifyPhrase(false);
+              requirePinSetup();
             }}
           />
         ) : newMnemonic ? (
@@ -591,6 +624,15 @@ export function AccountScreen({
         <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
         {mode === "local" ? (
           <SettingRow theme={theme} icon="key" name={t("account.exportBackup")} value="" onPress={onExportBackup} />
+        ) : null}
+        {mode === "local" ? (
+          <SettingRow
+            theme={theme}
+            icon="shield"
+            name={t("account.security")}
+            value={biometricEnabled ? t("account.faceIdOn") : t("account.faceIdOff")}
+            onPress={onToggleBiometric}
+          />
         ) : null}
 
         <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>

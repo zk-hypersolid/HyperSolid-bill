@@ -1,4 +1,4 @@
-import { unlockSession, lockSession, recoverFromLock } from "./sessionController";
+import { unlockSession, unlockWithPin, completePinSetup, lockSession, recoverFromLock } from "./sessionController";
 import { useAuthStore } from "../state/authStore";
 import { useWalletStore } from "../state/walletStore";
 import { AlwaysTrustedIntegrity } from "./deviceIntegrity";
@@ -53,22 +53,46 @@ describe("sessionController", () => {
     expect(useAuthStore.getState().status).toBe("locked");
   });
 
-  it("degrades gracefully when biometrics are unavailable: loads the (non-auth) wallet and unlocks", async () => {
+  it("biometric 'unavailable' returns as-is and does NOT auto-unlock (PIN is the fallback)", async () => {
     const gate = { authenticate: jest.fn().mockResolvedValue("unavailable") };
-    const manager = { loadWallet: jest.fn().mockResolvedValue(fakeWallet) };
+    const manager = { loadWallet: jest.fn() };
     const r = await unlockSession(gate as never, manager as never, trusted);
-    expect(r).toBe("success");
-    expect(manager.loadWallet).toHaveBeenCalled();
+    expect(r).toBe("unavailable");
+    expect(manager.loadWallet).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe("locked");
+  });
+
+  it("unlockWithPin: correct PIN loads the wallet and unlocks", async () => {
+    const pinStore = { verify: jest.fn().mockResolvedValue({ ok: true }) };
+    const manager = { loadWallet: jest.fn().mockResolvedValue(fakeWallet) };
+    const r = await unlockWithPin(pinStore as never, manager as never, trusted, "123456");
+    expect(r).toEqual({ status: "unlocked" });
     expect(useWalletStore.getState().wallet).toBe(fakeWallet);
     expect(useAuthStore.getState().status).toBe("unlocked");
   });
 
-  it("stays locked if biometrics unavailable AND the wallet can't be read", async () => {
-    const gate = { authenticate: jest.fn().mockResolvedValue("unavailable") };
-    const manager = { loadWallet: jest.fn().mockRejectedValue(new Error("biometric item invalidated")) };
-    const r = await unlockSession(gate as never, manager as never, trusted);
-    expect(r).toBe("failed");
+  it("unlockWithPin: wrong PIN reports remaining attempts and stays locked", async () => {
+    const pinStore = { verify: jest.fn().mockResolvedValue({ ok: false, lockedOut: false, remaining: 7 }) };
+    const manager = { loadWallet: jest.fn() };
+    const r = await unlockWithPin(pinStore as never, manager as never, trusted, "000000");
+    expect(r).toEqual({ status: "wrong", remaining: 7 });
+    expect(manager.loadWallet).not.toHaveBeenCalled();
     expect(useAuthStore.getState().status).toBe("locked");
+  });
+
+  it("unlockWithPin: locked out after too many attempts", async () => {
+    const pinStore = { verify: jest.fn().mockResolvedValue({ ok: false, lockedOut: true }) };
+    const manager = { loadWallet: jest.fn() };
+    const r = await unlockWithPin(pinStore as never, manager as never, trusted, "000000");
+    expect(r).toEqual({ status: "lockedOut" });
+  });
+
+  it("unlockWithPin: fails closed on a compromised device (no PIN check)", async () => {
+    const pinStore = { verify: jest.fn() };
+    const manager = { loadWallet: jest.fn() };
+    const r = await unlockWithPin(pinStore as never, manager as never, compromised as never, "123456");
+    expect(r).toEqual({ status: "compromised" });
+    expect(pinStore.verify).not.toHaveBeenCalled();
   });
 
   it("returns 'failed' when loading the wallet rejects (e.g. read prompt cancelled)", async () => {
@@ -79,6 +103,16 @@ describe("sessionController", () => {
     expect(useAuthStore.getState().status).toBe("locked");
   });
 
+  it("completePinSetup persists the PIN then loads the wallet and unlocks", async () => {
+    const pinStore = { setPin: jest.fn().mockResolvedValue(undefined) };
+    const manager = { loadWallet: jest.fn().mockResolvedValue(fakeWallet) };
+    const ok = await completePinSetup(pinStore as never, manager as never, "123456");
+    expect(ok).toBe(true);
+    expect(pinStore.setPin).toHaveBeenCalledWith("123456");
+    expect(useWalletStore.getState().wallet).toBe(fakeWallet);
+    expect(useAuthStore.getState().status).toBe("unlocked");
+  });
+
   it("lockSession clears in-memory wallet and locks", () => {
     useWalletStore.setState({ mode: "local", wallet: fakeWallet, address: "0xabc" });
     useAuthStore.setState({ status: "unlocked", lastActiveAt: 1 });
@@ -87,14 +121,16 @@ describe("sessionController", () => {
     expect(useAuthStore.getState().status).toBe("locked");
   });
 
-  it("recoverFromLock signs out, clears the wallet, and re-evaluates to noWallet", async () => {
+  it("recoverFromLock signs out, clears the PIN and wallet, and re-evaluates to noWallet", async () => {
     useWalletStore.setState({ mode: "local", wallet: fakeWallet, address: "0xabc" });
     const manager = {
       signOut: jest.fn().mockResolvedValue(undefined),
       hasWallet: jest.fn().mockResolvedValue(false),
     };
-    await recoverFromLock(manager as never);
+    const pinStore = { clear: jest.fn().mockResolvedValue(undefined) };
+    await recoverFromLock(manager as never, pinStore as never);
     expect(manager.signOut).toHaveBeenCalled();
+    expect(pinStore.clear).toHaveBeenCalled();
     expect(useWalletStore.getState().wallet).toBeNull();
     expect(useAuthStore.getState().status).toBe("noWallet");
   });

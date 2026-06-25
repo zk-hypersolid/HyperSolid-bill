@@ -3,6 +3,8 @@ import {
   stripTrailingZeros,
   formatPrice,
   validateOrder,
+  clampLeverage,
+  validateTriggerSide,
   rejectionMessage,
   normalizeOrderStatus,
   REJECTION_MESSAGES,
@@ -69,6 +71,37 @@ describe("validateOrder", () => {
   });
   it("rejects size that rounds to zero at lot precision", () => {
     expect(validateOrder({ price: 100000, size: 0.0000001, szDecimals: 2 })).toBe("sizeRejected");
+  });
+});
+
+describe("clampLeverage", () => {
+  it("caps at the asset max", () => {
+    expect(clampLeverage(20, 5)).toBe(5);
+    expect(clampLeverage(20, 50)).toBe(20);
+  });
+  it("floors below 1 to 1 and floors fractional input", () => {
+    expect(clampLeverage(0, 10)).toBe(1);
+    expect(clampLeverage(3.9, 10)).toBe(3);
+    expect(clampLeverage(7, 0)).toBe(1);
+  });
+});
+
+describe("validateTriggerSide", () => {
+  it("long: TP must be above entry, SL below", () => {
+    expect(validateTriggerSide({ side: "buy", entryPx: 100, triggerPx: 110, tpsl: "tp" })).toBeNull();
+    expect(validateTriggerSide({ side: "buy", entryPx: 100, triggerPx: 90, tpsl: "tp" })).toBe("badTriggerPxRejected");
+    expect(validateTriggerSide({ side: "buy", entryPx: 100, triggerPx: 90, tpsl: "sl" })).toBeNull();
+    expect(validateTriggerSide({ side: "buy", entryPx: 100, triggerPx: 110, tpsl: "sl" })).toBe("badTriggerPxRejected");
+  });
+  it("short: TP must be below entry, SL above", () => {
+    expect(validateTriggerSide({ side: "sell", entryPx: 100, triggerPx: 90, tpsl: "tp" })).toBeNull();
+    expect(validateTriggerSide({ side: "sell", entryPx: 100, triggerPx: 110, tpsl: "tp" })).toBe("badTriggerPxRejected");
+    expect(validateTriggerSide({ side: "sell", entryPx: 100, triggerPx: 110, tpsl: "sl" })).toBeNull();
+    expect(validateTriggerSide({ side: "sell", entryPx: 100, triggerPx: 90, tpsl: "sl" })).toBe("badTriggerPxRejected");
+  });
+  it("rejects a non-positive trigger or entry", () => {
+    expect(validateTriggerSide({ side: "buy", entryPx: 100, triggerPx: 0, tpsl: "tp" })).toBe("priceRejected");
+    expect(validateTriggerSide({ side: "buy", entryPx: 0, triggerPx: 100, tpsl: "tp" })).toBe("priceRejected");
   });
 });
 

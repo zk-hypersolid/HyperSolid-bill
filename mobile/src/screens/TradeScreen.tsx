@@ -27,7 +27,7 @@ import type { ThemeTokens } from "../theme/tokens";
 import type { TranslationKey } from "../i18n/messages";
 import type { LocalWalletService } from "../wallet/localWallet";
 import type { OrderSide } from "../lib/hyperliquid/buildOrder";
-import { validateOrder } from "../lib/hyperliquid/order";
+import { validateOrder, clampLeverage, validateTriggerSide, roundSize, formatPrice as toHlPrice } from "../lib/hyperliquid/order";
 
 type OrderType = "limit" | "market" | "stop";
 
@@ -115,14 +115,25 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
 
   const mid = ticker?.midPx ?? 0;
   const isMarket = orderType === "market";
+  // HL lot/tick precision for the active market (perps universe). szDecimals drives both size lot
+  // rounding and the price tick (≤5 sig figs AND ≤ 6−szDecimals decimals).
+  const szDec = ticker?.szDecimals ?? 2;
+  const maxLev = ticker?.maxLeverage ?? 50;
   // Reference price for sizing / liq / notional: live mid for market, the typed price otherwise.
   const refPrice = isMarket ? mid : Number(price) || 0;
 
-  // Prefill the limit/stop price with the live mid until the user edits it (reset on coin change).
+  // Keep leverage within the active asset's HL cap (e.g. a 5× market can't carry the 20× default) so
+  // the est. liq price is real and the pre-submit setLeverage call won't be rejected.
+  useEffect(() => {
+    setLeverage((lev) => clampLeverage(lev, maxLev));
+  }, [maxLev]);
+
+  // Prefill the limit/stop price with the live mid until the user edits it (reset on coin change),
+  // snapped to a valid HL tick so what is shown is exactly what will be sent.
   useEffect(() => {
     if (isMarket || priceEdited) return;
-    if (mid > 0) setPrice(String(mid));
-  }, [coin, mid, isMarket, priceEdited]);
+    if (mid > 0) setPrice(toHlPrice(mid, szDec, "perp"));
+  }, [coin, mid, isMarket, priceEdited, szDec]);
 
   const notional = (Number(size) || 0) * refPrice;
   const positionsSvc = useMemo(
@@ -172,6 +183,22 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     if (orderType === "stop" && !(Number(stopPrice) > 0)) {
       Alert.alert(t("trade.invalidOrder"), t("trade.stopNeedsTrigger"));
       return;
+    }
+    // Trigger-side rules (HL badTriggerPxRejected): a stop trigger must sit on the loss side, and
+    // bracket TP/SL must straddle entry on the correct sides for the position direction.
+    const entryPx = refPrice;
+    const triggerChecks: Array<["sl" | "tp", number] | null> = [
+      orderType === "stop" ? (["sl", Number(stopPrice)] as ["sl", number]) : null,
+      hasTp ? (["tp", Number(tpPrice)] as ["tp", number]) : null,
+      hasSl ? (["sl", Number(slPrice)] as ["sl", number]) : null,
+    ];
+    for (const check of triggerChecks) {
+      if (!check) continue;
+      const trej = validateTriggerSide({ side, entryPx, triggerPx: check[1], tpsl: check[0] });
+      if (trej) {
+        Alert.alert(t("trade.invalidOrder"), t(`reject.${trej}` as never));
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -274,6 +301,13 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const sideColor = side === "buy" ? theme.up : theme.down;
   const ctaLabel = `${t(side === "buy" ? "trade.sideBuy" : "trade.sideSell")} ${coin.toUpperCase()}`;
 
+  // What will actually be sent, snapped to HL tick/lot — surfaced so the user sees exactly what they
+  // submit (the encoder applies the same rounding). Market price is the slippage-bounded IOC price.
+  const previewSubmitPrice = isMarket ? marketPrice(mid, side) : Number(price);
+  const previewPrice = previewSubmitPrice > 0 ? toHlPrice(previewSubmitPrice, szDec, "perp") : "—";
+  const previewPriceLabel = isMarket ? `${t("trade.marketCap")} ${previewPrice}` : previewPrice;
+  const previewSize = Number(size) > 0 ? String(roundSize(Number(size), szDec)) : "—";
+
   return (
     <ScreenScaffold
       theme={theme}
@@ -341,7 +375,10 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       </View>
 
       <View style={styles.levRow}>
-        <Text style={[styles.levLabel, { color: theme.muted }]}>{t("trade.leverage")}</Text>
+        <View style={styles.levHead}>
+          <Text style={[styles.levLabel, { color: theme.muted }]}>{t("trade.leverage")}</Text>
+          <Text style={[styles.levMax, { color: theme.faint }]}>{t("trade.leverageMax", { max: maxLev })}</Text>
+        </View>
         <View style={styles.levChips}>
           {levOptions.map((l) => (
             <Chip
@@ -379,6 +416,10 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
 
       <Text style={[styles.hint, { color: notional >= 10 ? theme.muted : theme.down }]}>
         {t("trade.orderValueHint", { value: notional.toFixed(2) })} {notional < 10 ? t("trade.minTen") : ""}
+      </Text>
+
+      <Text style={[styles.preview, { color: theme.faint }]} testID="submit-preview">
+        {t("trade.submitPreview", { price: previewPriceLabel, size: previewSize, coin: coin.toUpperCase() })}
       </Text>
 
       <View style={styles.opts}>
@@ -525,7 +566,9 @@ const styles = StyleSheet.create({
   lastPx: { fontFamily: fonts.mono.bold, fontSize: 13 },
   marketNote: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 12 },
   levRow: { marginBottom: 14 },
-  levLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 6 },
+  levHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  levLabel: { fontFamily: fonts.body.regular, fontSize: 11 },
+  levMax: { fontFamily: fonts.mono.regular, fontSize: 10.5 },
   levChips: { flexDirection: "row", gap: 7, flexWrap: "wrap" },
   field: { marginBottom: 12 },
   label: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4 },
@@ -538,6 +581,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   hint: { fontFamily: fonts.mono.regular, fontSize: 12, marginBottom: 12 },
+  preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: -6, marginBottom: 14 },
   opts: { flexDirection: "row", gap: 24, marginBottom: 14 },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   optLabel: { fontFamily: fonts.body.medium, fontSize: 12 },

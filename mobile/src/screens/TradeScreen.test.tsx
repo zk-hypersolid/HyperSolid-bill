@@ -406,4 +406,60 @@ describe("TradeScreen", () => {
       expect(screen.getByTestId("field-size").props.value).toBe("0.125");
     });
   });
+
+  it("clamps leverage to the asset's HL max before placing (no 20× on a 3× market)", async () => {
+    mockPlaceOrder.mockResolvedValue({
+      ok: true,
+      cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
+      status: { kind: "resting", message: "ok" },
+    });
+    useMarketStore.setState({
+      tickers: [btc, { ...btc, coin: "LOWLEV", midPx: 100, szDecimals: 2, maxLeverage: 3 }],
+      loading: false,
+      error: null,
+    });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.changeText(screen.getByTestId("field-coin"), "LOWLEV");
+    fireEvent.changeText(screen.getByTestId("field-size"), "1");
+    fireEvent.changeText(screen.getByTestId("field-price"), "100");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
+    // default 20× must have been clamped to the asset cap (3×) for setLeverage
+    expect(mockSetLeverage).toHaveBeenCalledWith("LOWLEV", 3, true);
+  });
+
+  it("rejects a stop-loss placed on the wrong side of entry (HL badTriggerPxRejected)", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    // long entry 60000; an SL above entry is the wrong side
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.changeText(screen.getByTestId("field-sl"), "61000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    expect(mockPlaceBracket).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
+  });
+
+  it("rejects a take-profit on the wrong side of entry", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    // long entry 60000; a TP below entry is the wrong side
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
+    fireEvent.changeText(screen.getByTestId("field-price"), "60000");
+    fireEvent.changeText(screen.getByTestId("field-tp"), "59000");
+    fireEvent.press(screen.getByTestId("submit-order"));
+    expect(mockPlaceBracket).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith("Invalid order", expect.stringContaining("wrong side"));
+  });
+
+  it("previews the exact HL-snapped size that will be submitted", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    // BTC szDecimals 5 → 0.0123456 lot-rounds to 0.01235
+    fireEvent.changeText(screen.getByTestId("field-size"), "0.0123456");
+    expect(screen.getByTestId("submit-preview").props.children).toEqual(
+      expect.stringContaining("0.01235"),
+    );
+  });
 });

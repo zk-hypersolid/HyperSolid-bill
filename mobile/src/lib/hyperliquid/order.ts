@@ -17,6 +17,34 @@ export function roundSize(size: number, szDecimals: number): number {
   return Math.round(size * f) / f;
 }
 
+/** Clamp a desired leverage into the asset's allowed range [1, maxLeverage] (HL per-asset cap). */
+export function clampLeverage(desired: number, maxLeverage: number): number {
+  const max = Math.max(1, Math.floor(maxLeverage || 1));
+  if (!Number.isFinite(desired) || desired < 1) return 1;
+  return Math.min(Math.floor(desired), max);
+}
+
+/**
+ * Validate a TP/SL trigger price sits on the correct side of entry (HL rejects otherwise with
+ * badTriggerPxRejected). For a long (entry buy): TP must be above entry, SL below; reversed for a
+ * short. Returns null when valid, or the rejection code.
+ */
+export function validateTriggerSide(params: {
+  side: "buy" | "sell";
+  entryPx: number;
+  triggerPx: number;
+  tpsl: "tp" | "sl";
+}): "badTriggerPxRejected" | "priceRejected" | null {
+  const { side, entryPx, triggerPx, tpsl } = params;
+  if (!(triggerPx > 0) || !Number.isFinite(triggerPx) || !(entryPx > 0)) return "priceRejected";
+  const isLong = side === "buy";
+  // long: TP above / SL below entry. short: TP below / SL above entry.
+  const mustBeAbove = isLong ? tpsl === "tp" : tpsl === "sl";
+  if (mustBeAbove && triggerPx <= entryPx) return "badTriggerPxRejected";
+  if (!mustBeAbove && triggerPx >= entryPx) return "badTriggerPxRejected";
+  return null;
+}
+
 /** Strip trailing zeros from a fixed-decimal string (HL requires this before signing). */
 export function stripTrailingZeros(s: string): string {
   if (!s.includes(".")) return s;

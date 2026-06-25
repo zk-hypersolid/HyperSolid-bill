@@ -50,6 +50,9 @@ export const messages = {
     "markets.search": "Search markets",
     "markets.filterAll": "All",
     "markets.filterWatchlist": "Watchlist",
+    "markets.sortVol": "Vol",
+    "markets.sortChg": "Chg",
+    "markets.sortPrice": "Price",
     "markets.loading": "Loading markets…",
     "markets.emptyWatchlist": "No watchlist yet · tap the star to follow markets",
 
@@ -293,6 +296,9 @@ export const messages = {
     "markets.search": "搜索市场",
     "markets.filterAll": "全部",
     "markets.filterWatchlist": "自选",
+    "markets.sortVol": "成交",
+    "markets.sortChg": "涨跌",
+    "markets.sortPrice": "价格",
     "markets.loading": "正在加载市场…",
     "markets.emptyWatchlist": "暂无自选 · 点击星标关注市场",
 

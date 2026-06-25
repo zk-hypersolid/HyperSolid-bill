@@ -28,6 +28,18 @@ describe("MarketsScreen", () => {
     expect(screen.getByText("ETH")).toBeTruthy();
   });
 
+  it("offers Vol/Chg/Price sort and toggles direction", () => {
+    useMarketStore.getState().setMarkets(tickers);
+    render(<MarketsScreen />);
+    // default sort: volume, descending
+    expect(screen.getByText(/Vol\s*↓/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId("sort-chg"));
+    expect(screen.getByText(/Chg\s*↓/)).toBeTruthy();
+    // tapping the active key flips direction
+    fireEvent.press(screen.getByTestId("sort-chg"));
+    expect(screen.getByText(/Chg\s*↑/)).toBeTruthy();
+  });
+
   it("shows an error message when set", () => {
     useMarketStore.getState().setError("network down");
     render(<MarketsScreen />);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useMarketStore } from "../state/marketStore";
@@ -17,6 +17,13 @@ const TABS = [
   ["favorites", "markets.filterWatchlist"],
 ] as const satisfies readonly (readonly [string, TranslationKey])[];
 
+type SortKey = "vol" | "chg" | "price";
+const SORTS = [
+  ["vol", "markets.sortVol"],
+  ["chg", "markets.sortChg"],
+  ["price", "markets.sortPrice"],
+] as const satisfies readonly (readonly [SortKey, TranslationKey])[];
+
 export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: string) => void }) {
   const theme = useTheme();
   const t = useT();
@@ -25,10 +32,25 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
   const toggleFavorite = useWatchlistStore((s) => s.toggle);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("vol");
+  const [sortDesc, setSortDesc] = useState(true);
 
   const base = filter === "favorites" ? tickers.filter((t) => favorites.includes(t.coin)) : tickers;
   const q = query.trim().toUpperCase();
-  const data = q ? base.filter((t) => t.coin.toUpperCase().includes(q)) : base;
+  const filtered = q ? base.filter((t) => t.coin.toUpperCase().includes(q)) : base;
+  const data = useMemo(() => {
+    const val = (tk: (typeof filtered)[number]) =>
+      sortKey === "vol" ? tk.dayNtlVlm : sortKey === "chg" ? tk.changePct : tk.midPx;
+    return [...filtered].sort((a, b) => (sortDesc ? -1 : 1) * (val(a) - val(b)));
+  }, [filtered, sortKey, sortDesc]);
+
+  function onSort(k: SortKey) {
+    if (k === sortKey) setSortDesc((d) => !d);
+    else {
+      setSortKey(k);
+      setSortDesc(true);
+    }
+  }
 
   return (
     <ScreenScaffold
@@ -51,26 +73,38 @@ export function MarketsScreen({ onSelectMarket }: { onSelectMarket?: (coin: stri
       </View>
 
       <View style={[styles.tabs, { borderBottomColor: theme.line }]}>
-        {TABS.map(([f, labelKey]) => (
-          <Pressable
-            key={f}
-            onPress={() => setFilter(f)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: filter === f }}
-          >
-            <Text
-              style={[
-                styles.tab,
-                {
-                  color: filter === f ? theme.brand : theme.muted,
-                  borderBottomColor: filter === f ? theme.brand : "transparent",
-                },
-              ]}
+        <View style={styles.tabGroup}>
+          {TABS.map(([f, labelKey]) => (
+            <Pressable
+              key={f}
+              onPress={() => setFilter(f)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === f }}
             >
-              {t(labelKey)}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                style={[
+                  styles.tab,
+                  {
+                    color: filter === f ? theme.brand : theme.muted,
+                    borderBottomColor: filter === f ? theme.brand : "transparent",
+                  },
+                ]}
+              >
+                {t(labelKey)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.sortGroup}>
+          {SORTS.map(([k, labelKey]) => (
+            <Pressable key={k} onPress={() => onSort(k)} accessibilityRole="button" testID={`sort-${k}`}>
+              <Text style={[styles.sortChip, { color: sortKey === k ? theme.brand : theme.faint }]}>
+                {t(labelKey)}
+                {sortKey === k ? (sortDesc ? " ↓" : " ↑") : ""}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <View style={styles.listArea}>
@@ -117,7 +151,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: { flex: 1, fontFamily: fonts.body.regular, fontSize: 13, padding: 0 },
-  tabs: { flexDirection: "row", gap: 18, borderBottomWidth: 1, marginBottom: 4 },
+  tabs: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 1, marginBottom: 4 },
+  tabGroup: { flexDirection: "row", gap: 18 },
+  sortGroup: { flexDirection: "row", gap: 12, paddingBottom: 8 },
+  sortChip: { fontFamily: fonts.mono.medium, fontSize: 11, letterSpacing: 0.2 },
   tab: {
     fontFamily: fonts.display.bold,
     fontSize: 13,

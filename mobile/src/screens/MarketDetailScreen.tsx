@@ -25,6 +25,7 @@ import { IndicatorRow } from "../components/IndicatorRow";
 import { Icon } from "../components/Icon";
 import { fonts } from "../theme/fonts";
 import { formatCompact, formatFundingPct } from "../lib/hyperliquid/format";
+import { fundingCountdown } from "../lib/hyperliquid/fundingClock";
 import { periodReturns } from "../lib/hyperliquid/performance";
 import { sma, ema, bollinger, rsi, macd, kdj, sar } from "../lib/hyperliquid/indicators";
 import { bookImbalance } from "../lib/hyperliquid/bookImbalance";
@@ -42,14 +43,6 @@ type Indicator = (typeof INDICATORS)[number];
 function lastVal(values: (number | null)[]): number | null {
   for (let i = values.length - 1; i >= 0; i--) if (values[i] != null) return values[i];
   return null;
-}
-
-/** Time left until the next hourly funding settlement (UTC), as HH:MM:SS. */
-function fundingCountdown(nowMs: number): string {
-  const ms = 3_600_000 - (nowMs % 3_600_000);
-  const total = Math.floor(ms / 1000);
-  const p = (x: number) => x.toString().padStart(2, "0");
-  return `${p(Math.floor(total / 3600))}:${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
 }
 
 export function MarketDetailScreen({ route, navigation }: Props) {

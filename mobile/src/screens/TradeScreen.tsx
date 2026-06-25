@@ -20,6 +20,7 @@ import { PairHeader } from "../components/PairHeader";
 import { CoinPicker } from "../components/CoinPicker";
 import { MarginLeverageBar } from "../components/MarginLeverageBar";
 import { Slider } from "../components/Slider";
+import { OrderBookPanel } from "../components/OrderBookPanel";
 import { PositionsService } from "../services/positionsData";
 import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { Toggle } from "../components/Toggle";
@@ -364,7 +365,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         onPress={() => setShowCoinPicker(true)}
       />
 
-      <MarginLeverageBar
+      <View style={styles.columns}>
+        <View style={styles.leftCol}>
+          <MarginLeverageBar
         theme={theme}
         isCross={isCross}
         onToggleCross={() => {
@@ -602,6 +605,18 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
           <Text style={[styles.submitText, { color: canSubmit ? theme.bg : theme.muted }]}>{ctaLabel}</Text>
         )}
       </Pressable>
+        </View>
+
+        <View style={styles.rightCol}>
+          <OrderBookPanel
+            theme={theme}
+            coin={coin.toUpperCase()}
+            network={network}
+            ticker={ticker}
+            onPickPrice={(px) => usesLimitPrice && onChangePrice(toHlPrice(px, szDec, "perp"))}
+          />
+        </View>
+      </View>
 
       <CoinPicker
         visible={showCoinPicker}
@@ -665,6 +680,9 @@ function Field({
 
 const styles = StyleSheet.create({
   msg: { fontFamily: fonts.body.regular, fontSize: 14, marginTop: 10 },
+  columns: { flexDirection: "row", gap: 12 },
+  leftCol: { flex: 1.25 },
+  rightCol: { flex: 1, paddingTop: 2 },
   sideRow: { flexDirection: "row", gap: 10, marginBottom: 14, marginTop: 4 },
   sideBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 },
   sideText: { fontFamily: fonts.display.bold, fontSize: 14, letterSpacing: 0.3 },

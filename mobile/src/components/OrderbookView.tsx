@@ -1,10 +1,10 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { Orderbook } from "../lib/hyperliquid/types";
 import type { ThemeTokens } from "../theme/tokens";
 import { useT } from "../i18n/useT";
 
-export function OrderbookView({ book, theme, coin }: { book: Orderbook; theme: ThemeTokens; coin?: string }) {
+export function OrderbookView({ book, theme, coin, compact = false, onPickPrice }: { book: Orderbook; theme: ThemeTokens; coin?: string; compact?: boolean; onPickPrice?: (px: number) => void }) {
   const t = useT();
   // Cumulative totals accumulate floating-point noise (e.g. 18.68313000000000002); round to a clean
   // 5-decimal display value.
@@ -18,12 +18,18 @@ export function OrderbookView({ book, theme, coin }: { book: Orderbook; theme: T
     const levels = side === "bid" ? book.bids : book.asks;
     const color = side === "bid" ? theme.up : theme.down;
     return levels.slice(0, 8).map((l, i) => (
-      <View key={`${side}-${i}`} style={styles.row}>
+      <Pressable
+        key={`${side}-${i}`}
+        style={styles.row}
+        disabled={!onPickPrice}
+        onPress={() => onPickPrice?.(l.px)}
+        accessibilityRole={onPickPrice ? "button" : undefined}
+      >
         <View style={[styles.depth, { backgroundColor: color, opacity: 0.12, width: `${(l.total / maxTotal) * 100}%` }]} />
         <Text style={[styles.cell, styles.price, { color }]}>{l.px}</Text>
         <Text style={[styles.cell, styles.num, { color: theme.text }]}>{fmt(l.sz)}</Text>
-        <Text style={[styles.cell, styles.num, { color: theme.muted }]}>{fmt(l.total)}</Text>
-      </View>
+        {compact ? null : <Text style={[styles.cell, styles.num, { color: theme.muted }]}>{fmt(l.total)}</Text>}
+      </Pressable>
     ));
   };
   return (
@@ -33,7 +39,7 @@ export function OrderbookView({ book, theme, coin }: { book: Orderbook; theme: T
         <Text style={[styles.h, styles.num, { color: theme.muted }]}>
           {coin ? `${t("orderbook.size")} (${coin})` : t("orderbook.size")}
         </Text>
-        <Text style={[styles.h, styles.num, { color: theme.muted }]}>{t("orderbook.sum")}</Text>
+        {compact ? null : <Text style={[styles.h, styles.num, { color: theme.muted }]}>{t("orderbook.sum")}</Text>}
       </View>
       {rows("ask")}
       <Text style={[styles.spread, { color: theme.text }]}>

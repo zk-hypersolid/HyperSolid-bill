@@ -3,6 +3,7 @@ import { View, Text, Pressable, Modal, StyleSheet } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
 import { fonts } from "../theme/fonts";
 import { useT } from "../i18n/useT";
+import { Slider } from "./Slider";
 
 /** Leverage choices offered for a market, capped at its max (always includes the max). */
 export function leverageChoices(maxLeverage: number): number[] {
@@ -29,6 +30,12 @@ export function MarginLeverageBar({
   const t = useT();
   const [open, setOpen] = useState(false);
   const choices = leverageChoices(maxLeverage);
+  // Map the 0–100% slider onto the 1×–max× range and apply live.
+  const sliderPct = maxLeverage > 1 ? ((leverage - 1) / (maxLeverage - 1)) * 100 : 0;
+  function onSlide(pct: number) {
+    const lev = Math.max(1, Math.min(maxLeverage, Math.round(1 + (pct / 100) * (maxLeverage - 1))));
+    onSetLeverage(lev);
+  }
   return (
     <View style={styles.row}>
       <Pressable
@@ -52,6 +59,15 @@ export function MarginLeverageBar({
         <Pressable style={[styles.backdrop, { backgroundColor: theme.scrim }]} onPress={() => setOpen(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: theme.bg, borderColor: theme.line }]} onPress={() => {}}>
             <Text style={[styles.sheetTitle, { color: theme.muted }]}>{t("trade.leverageMax", { max: maxLeverage })}</Text>
+            <View style={styles.sliderRow}>
+              <View style={styles.sliderWrap}>
+                <Slider value={sliderPct} onChange={onSlide} testID="leverage-slider" />
+              </View>
+              <View style={[styles.levBox, { borderColor: theme.lineStrong, backgroundColor: theme.surface }]}>
+                <Text style={[styles.levBoxNum, { color: theme.text }]}>{leverage}</Text>
+                <Text style={[styles.levBoxX, { color: theme.muted }]}>x</Text>
+              </View>
+            </View>
             <View style={styles.chips}>
               {choices.map((l) => (
                 <Pressable
@@ -71,6 +87,14 @@ export function MarginLeverageBar({
                 </Pressable>
               ))}
             </View>
+            <Pressable
+              accessibilityRole="button"
+              testID="leverage-confirm"
+              onPress={() => setOpen(false)}
+              style={[styles.confirm, { backgroundColor: theme.brand }]}
+            >
+              <Text style={[styles.confirmText, { color: theme.bg }]}>{t("common.confirm")}</Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -85,7 +109,14 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "center", padding: 28 },
   sheet: { borderWidth: 1, borderRadius: 16, padding: 18 },
   sheetTitle: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 12, textAlign: "center" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
+  sliderRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  sliderWrap: { flex: 1 },
+  levBox: { flexDirection: "row", alignItems: "baseline", gap: 3, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  levBoxNum: { fontFamily: fonts.mono.bold, fontSize: 18 },
+  levBoxX: { fontFamily: fonts.mono.medium, fontSize: 12 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center", marginBottom: 16 },
   chip: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 16, paddingVertical: 10 },
   chipText: { fontFamily: fonts.mono.bold, fontSize: 14 },
+  confirm: { paddingVertical: 13, borderRadius: 12, alignItems: "center" },
+  confirmText: { fontFamily: fonts.display.bold, fontSize: 15 },
 });

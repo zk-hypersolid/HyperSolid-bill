@@ -558,49 +558,54 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         keyboard
         testID="field-size"
         accessory={
-          <Pressable
-            accessibilityRole="button"
-            testID="size-unit-toggle"
-            onPress={() => {
+          <Dropdown
+            compact
+            testID="size-unit"
+            value={sizeUnit}
+            options={[
+              { value: "base" as const, label: coin.toUpperCase() },
+              { value: "quote" as const, label: "USDC" },
+            ]}
+            onChange={(u) => {
               clearRetry();
               setSize("");
-              setSizeUnit((u) => (u === "base" ? "quote" : "base"));
+              setSizeUnit(u);
             }}
-            style={[styles.midBtn, { borderColor: theme.line }]}
-          >
-            <Text style={[styles.midText, { color: theme.brand }]}>{sizeUnit === "quote" ? "USDC" : coin.toUpperCase()}</Text>
-          </Pressable>
+          />
         }
       />
 
       <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
 
-      {usesLimitPrice ? (
-        <Dropdown
-          testID="tif"
-          value={tif}
-          options={[
-            { value: "Gtc" as const, label: t("trade.tifGtc") },
-            { value: "Ioc" as const, label: t("trade.tifIoc") },
-            { value: "Alo" as const, label: t("trade.tifAlo") },
-          ]}
-          onChange={(v) => {
-            clearRetry();
-            setTif(v);
-          }}
-        />
-      ) : null}
-
       <View style={styles.opts}>
-        <View style={styles.optRow}>
-          <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
-          <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
-        </View>
-        {!shape.isTrigger && !isTwap && !isScale ? (
+        <View style={styles.optGroup}>
           <View style={styles.optRow}>
-            <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
-            <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
+            <Text style={[styles.optLabel, { color: theme.text }]}>{t("positions.reduceOnly")}</Text>
+            <Toggle theme={theme} value={reduceOnly} onValueChange={edit(setReduceOnly)} accessibilityLabel="reduce-only" />
           </View>
+          {!shape.isTrigger && !isTwap && !isScale ? (
+            <View style={styles.optRow}>
+              <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.tpSl")}</Text>
+              <Toggle theme={theme} value={tpSlOn} onValueChange={edit(setTpSlOn)} accessibilityLabel="tpsl-toggle" />
+            </View>
+          ) : null}
+        </View>
+        {usesLimitPrice ? (
+          <Dropdown
+            compact
+            prefix="TIF"
+            testID="tif"
+            value={tif}
+            options={[
+              { value: "Gtc" as const, label: t("trade.tifGtc") },
+              { value: "Ioc" as const, label: t("trade.tifIoc") },
+              { value: "Alo" as const, label: t("trade.tifAlo") },
+            ]}
+            onChange={(v) => {
+              clearRetry();
+              setTif(v);
+            }}
+          />
         ) : null}
       </View>
 
@@ -809,7 +814,8 @@ const styles = StyleSheet.create({
   midText: { fontFamily: fonts.mono.bold, fontSize: 11, letterSpacing: 0.3 },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
   sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
-  opts: { flexDirection: "row", gap: 24, marginBottom: 14 },
+  opts: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, zIndex: 5 },
+  optGroup: { flexDirection: "row", gap: 18, alignItems: "center" },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   optLabel: { fontFamily: fonts.body.medium, fontSize: 12 },
   tpsl: { padding: 12 },

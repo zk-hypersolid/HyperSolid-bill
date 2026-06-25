@@ -10,39 +10,53 @@ export interface DropdownOption<T extends string> {
 }
 
 /**
- * Lightweight inline select: a control showing the current label that expands a list of options
- * below it (no native picker / modal positioning). Used for the order-type and TIF menus.
+ * Lightweight select: a control showing the current label that expands a list of options. In
+ * `compact` mode it shrinks to its content and the menu overlays (absolute) instead of pushing the
+ * layout — used for the inline TIF and size-unit controls; otherwise it's a full-width field.
  */
 export function Dropdown<T extends string>({
   label,
+  prefix,
   value,
   options,
   onChange,
   testID,
+  compact = false,
 }: {
   label?: string;
+  prefix?: string;
   value: T;
   options: DropdownOption<T>[];
   onChange: (v: T) => void;
   testID?: string;
+  compact?: boolean;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
+  const display = `${prefix ? `${prefix} ` : ""}${current?.label ?? value}`;
   return (
-    <View style={styles.wrap}>
+    <View style={compact ? styles.wrapCompact : styles.wrap}>
       {label ? <Text style={[styles.label, { color: theme.muted }]}>{label}</Text> : null}
       <Pressable
         testID={testID}
         accessibilityRole="button"
         onPress={() => setOpen((o) => !o)}
-        style={[styles.control, { borderColor: theme.line, backgroundColor: theme.surface }]}
+        style={[
+          compact ? styles.controlCompact : styles.control,
+          { borderColor: theme.line, backgroundColor: theme.surface },
+        ]}
       >
-        <Text style={[styles.value, { color: theme.text }]}>{current?.label ?? value}</Text>
-        <Icon name="chevronDown" color={theme.muted} size={16} />
+        <Text style={[compact ? styles.valueCompact : styles.value, { color: theme.text }]}>{display}</Text>
+        <Icon name="chevronDown" color={theme.muted} size={compact ? 13 : 16} />
       </Pressable>
       {open ? (
-        <View style={[styles.menu, { borderColor: theme.line, backgroundColor: theme.surface }]}>
+        <View
+          style={[
+            compact ? styles.menuCompact : styles.menu,
+            { borderColor: theme.line, backgroundColor: theme.surface },
+          ]}
+        >
           {options.map((o) => (
             <Pressable
               key={o.value}
@@ -67,6 +81,7 @@ export function Dropdown<T extends string>({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 12 },
+  wrapCompact: { position: "relative", alignSelf: "flex-start" },
   label: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4 },
   control: {
     flexDirection: "row",
@@ -77,8 +92,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
+  controlCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
   value: { fontFamily: fonts.mono.medium, fontSize: 14 },
+  valueCompact: { fontFamily: fonts.mono.medium, fontSize: 12.5 },
   menu: { borderWidth: 1, borderRadius: 10, marginTop: 4, overflow: "hidden" },
+  menuCompact: {
+    position: "absolute",
+    top: "100%",
+    right: 0,
+    marginTop: 4,
+    minWidth: 96,
+    borderWidth: 1,
+    borderRadius: 10,
+    overflow: "hidden",
+    zIndex: 30,
+    elevation: 8,
+  },
   option: { paddingHorizontal: 12, paddingVertical: 11 },
   optionText: { fontFamily: fonts.body.medium, fontSize: 13.5 },
 });

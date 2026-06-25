@@ -248,7 +248,8 @@ describe("TradeScreen", () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("size-unit-toggle")); // base → quote (USDC)
+    fireEvent.press(screen.getByTestId("size-unit")); // open unit dropdown
+    fireEvent.press(screen.getByTestId("size-unit-opt-quote")); // base → quote (USDC)
     fireEvent.changeText(screen.getByTestId("field-size"), "600"); // 600 USDC / 60000 = 0.01 BTC
     fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
@@ -610,6 +611,14 @@ describe("TradeScreen", () => {
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
     fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockSetLeverage).toHaveBeenCalledWith("BTC", 10, true));
+  });
+
+  it("opens a leverage slider + value box in the leverage chooser", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    fireEvent.press(screen.getByTestId("leverage-pill"));
+    expect(screen.getByTestId("leverage-slider")).toBeTruthy();
+    expect(screen.getByTestId("leverage-confirm")).toBeTruthy();
   });
 
   it("clamps leverage to the asset's HL max before placing (no 20× on a 3× market)", async () => {

@@ -11,6 +11,7 @@ import { formatFundingPct } from "../lib/hyperliquid/format";
 import { fundingCountdown } from "../lib/hyperliquid/fundingClock";
 import { OrderbookView } from "./OrderbookView";
 import { BookImbalanceBar } from "./BookImbalanceBar";
+import { BookViewIcon, type BookView } from "./BookViewIcon";
 import { Dropdown } from "./Dropdown";
 
 /**
@@ -51,6 +52,11 @@ export function OrderBookPanel({
   // Server-side book aggregation (HL nSigFigs). 5 = finest; lower = coarser tick, ALWAYS a full
   // ~20-level book (so changing it never collapses the ladder the way client-side bucketing did).
   const [nSigFigs, setNSigFigs] = useState<BookSigFigs>(5);
+  // Order-book display emphasis (HL's red/green toggle): balanced shows equal asks/bids; asks/bids
+  // shift more rows to that side while keeping the panel height stable.
+  const [bookView, setBookView] = useState<BookView>("balanced");
+  const askDepth = bookView === "asks" ? 14 : bookView === "bids" ? 5 : 9;
+  const bidDepth = bookView === "bids" ? 14 : bookView === "asks" ? 5 : 9;
 
   // Clear the ladder only when the coin changes (a tick change keeps the old book visible until the
   // re-aggregated one arrives, avoiding a flicker).
@@ -124,7 +130,8 @@ export function OrderBookPanel({
             theme={theme}
             coin={coin}
             compact
-            depth={9}
+            askDepth={askDepth}
+            bidDepth={bidDepth}
             sizeInQuote={sizeInQuote}
             midColor={midColor}
             onPickPrice={onPickPrice}
@@ -141,6 +148,15 @@ export function OrderBookPanel({
               options={tickOptions}
               onChange={(v) => setNSigFigs(Number(v) as BookSigFigs)}
             />
+            <Pressable
+              testID="book-view"
+              accessibilityRole="button"
+              hitSlop={6}
+              onPress={() => setBookView((v) => (v === "balanced" ? "asks" : v === "asks" ? "bids" : "balanced"))}
+              style={[styles.viewBtn, { borderColor: theme.line, backgroundColor: theme.surface }]}
+            >
+              <BookViewIcon theme={theme} mode={bookView} />
+            </Pressable>
           </View>
         </>
       ) : (
@@ -159,6 +175,7 @@ const styles = StyleSheet.create({
   unitBtn: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2.5 },
   unitText: { fontFamily: fonts.mono.medium, fontSize: 10 },
   imbalance: { marginTop: 8 },
-  bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", marginTop: 10, zIndex: 30 },
+  bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 10, zIndex: 30 },
+  viewBtn: { width: 30, height: 30, borderRadius: 7, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   loading: { marginTop: 30 },
 });

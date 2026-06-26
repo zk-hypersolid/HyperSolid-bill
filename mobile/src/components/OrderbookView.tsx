@@ -17,6 +17,8 @@ export function OrderbookView({
   coin,
   compact = false,
   depth = 8,
+  askDepth,
+  bidDepth,
   sizeInQuote = false,
   midColor,
   onPickPrice,
@@ -26,6 +28,8 @@ export function OrderbookView({
   coin?: string;
   compact?: boolean;
   depth?: number;
+  askDepth?: number;
+  bidDepth?: number;
   sizeInQuote?: boolean;
   midColor?: string;
   onPickPrice?: (px: number) => void;
@@ -44,8 +48,9 @@ export function OrderbookView({
   const mid = book.asks[0] && book.bids[0] ? (book.asks[0].px + book.bids[0].px) / 2 : 0;
   const rows = (side: "bid" | "ask") => {
     const levels = side === "bid" ? book.bids : book.asks;
+    const limit = side === "bid" ? bidDepth ?? depth : askDepth ?? depth;
     const color = side === "bid" ? theme.up : theme.down;
-    return levels.slice(0, depth).map((l, i) => (
+    return levels.slice(0, limit).map((l, i) => (
       <Pressable
         key={`${side}-${i}`}
         style={styles.row}

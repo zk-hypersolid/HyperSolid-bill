@@ -27,6 +27,7 @@ import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { useCoinPosition } from "../hooks/useCoinPosition";
 import { Toggle } from "../components/Toggle";
 import { Checkbox } from "../components/Checkbox";
+import { FloatingField } from "../components/FloatingField";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
 import { Icon } from "../components/Icon";
@@ -550,7 +551,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       />
       {usesLimitPrice ? (
         <View style={styles.priceRow}>
-          <InlineField
+          <FloatingField
             label={t("trade.priceUsdc")}
             value={price}
             onChange={onChangePrice}
@@ -571,25 +572,25 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
       {shape.isTrigger ? (
-        <InlineField label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} testID="field-stop" />
+        <FloatingField label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} testID="field-stop" />
       ) : null}
       {isScale ? (
         <>
-          <InlineField label={t("trade.scaleStart")} value={scaleStart} onChange={edit(setScaleStart)} theme={theme} testID="field-scale-start" />
-          <InlineField label={t("trade.scaleEnd")} value={scaleEnd} onChange={edit(setScaleEnd)} theme={theme} testID="field-scale-end" />
-          <InlineField label={t("trade.scaleCount")} value={scaleCount} onChange={edit(setScaleCount)} theme={theme} testID="field-scale-count" />
+          <FloatingField label={t("trade.scaleStart")} value={scaleStart} onChange={edit(setScaleStart)} theme={theme} testID="field-scale-start" />
+          <FloatingField label={t("trade.scaleEnd")} value={scaleEnd} onChange={edit(setScaleEnd)} theme={theme} testID="field-scale-end" />
+          <FloatingField label={t("trade.scaleCount")} value={scaleCount} onChange={edit(setScaleCount)} theme={theme} testID="field-scale-count" />
         </>
       ) : null}
       {isTwap ? (
         <>
-          <InlineField label={t("trade.twapMinutes")} value={twapMinutes} onChange={edit(setTwapMinutes)} theme={theme} testID="field-twap-minutes" />
+          <FloatingField label={t("trade.twapMinutes")} value={twapMinutes} onChange={edit(setTwapMinutes)} theme={theme} testID="field-twap-minutes" />
           <View style={styles.optRow}>
             <Text style={[styles.optLabel, { color: theme.text }]}>{t("trade.twapRandomize")}</Text>
             <Toggle theme={theme} value={twapRandomize} onValueChange={edit(setTwapRandomize)} accessibilityLabel="twap-randomize" />
           </View>
         </>
       ) : null}
-      <InlineField
+      <FloatingField
         label={t("trade.sizeLabel")}
         value={size}
         onChange={edit(setSize)}
@@ -789,48 +790,6 @@ function SummaryRow({ theme, label, value }: { theme: ThemeTokens; label: string
   );
 }
 
-function InlineField({
-  label,
-  value,
-  onChange,
-  theme,
-  testID,
-  keyboard = true,
-  autoCap,
-  rightInside,
-  style,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  theme: ThemeTokens;
-  testID?: string;
-  keyboard?: boolean;
-  autoCap?: boolean;
-  rightInside?: React.ReactNode;
-  style?: object;
-}) {
-  return (
-    <View style={[styles.inlineBox, { borderColor: theme.line, backgroundColor: theme.surface }, style]}>
-      <View style={styles.inlineMain}>
-        <Text style={[styles.inlineLabel, { color: theme.muted }]}>{label}</Text>
-        <TextInput
-          value={value}
-          onChangeText={onChange}
-          testID={testID}
-          keyboardType={keyboard ? "decimal-pad" : "default"}
-          autoCapitalize={autoCap ? "characters" : "none"}
-          placeholder="0"
-          placeholderTextColor={theme.faint}
-          style={[styles.inlineInput, { color: theme.text }]}
-        />
-      </View>
-      {rightInside ? <View style={[styles.inlineDivider, { backgroundColor: theme.line }]} /> : null}
-      {rightInside}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   msg: { fontFamily: fonts.body.regular, fontSize: 14, marginTop: 10 },
   columns: { flexDirection: "row", gap: 12 },
@@ -857,19 +816,6 @@ const styles = StyleSheet.create({
   field: { marginBottom: 12 },
   priceField: { flex: 1, marginBottom: 0 },
   priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 12 },
-  inlineBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    minHeight: 60,
-    marginBottom: 12,
-  },
-  inlineMain: { flex: 1, justifyContent: "center", paddingVertical: 9 },
-  inlineLabel: { fontFamily: fonts.body.regular, fontSize: 11, textAlign: "center", marginBottom: 3 },
-  inlineInput: { fontFamily: fonts.mono.bold, fontSize: 19, textAlign: "center", padding: 0 },
-  inlineDivider: { width: 1, height: 28, marginHorizontal: 10 },
   bboBox: { justifyContent: "center", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 16 },
   bboText: { fontFamily: fonts.mono.bold, fontSize: 13, letterSpacing: 0.5 },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },

@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
-  controlCenter: { justifyContent: "center" },
+  controlCenter: { justifyContent: "center", minHeight: 58 },
   controlBare: { borderWidth: 0, paddingHorizontal: 0, paddingVertical: 0 },
   centerChevron: { position: "absolute", right: 12 },
   valueCenter: { textAlign: "center" },

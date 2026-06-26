@@ -15,7 +15,6 @@ import { ScreenScaffold } from "../components/ScreenScaffold";
 import { NetworkWarning } from "../components/NetworkWarning";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { SurfaceCard } from "../components/SurfaceCard";
-import { Dropdown } from "../components/Dropdown";
 import { PairHeader } from "../components/PairHeader";
 import { CoinPicker } from "../components/CoinPicker";
 import { MarginLeverageBar } from "../components/MarginLeverageBar";
@@ -109,6 +108,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [showOrderSheet, setShowOrderSheet] = useState(false);
   const [showUnitSheet, setShowUnitSheet] = useState(false);
   const [showBboSheet, setShowBboSheet] = useState(false);
+  const [showTifSheet, setShowTifSheet] = useState(false);
   const [book, setBook] = useState<Orderbook | null>(null);
   const [bboMode, setBboMode] = useState<BboMode | null>(null);
   const [size, setSize] = useState("");
@@ -478,23 +478,27 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   // TP/SL applies to plain entries (not trigger/twap/scale). The compact TIF dropdown rides on that
   // row when shown, otherwise on the reduce-only row.
   const showTpSl = !shape.isTrigger && !isTwap && !isScale;
+  const tifLabel = tif === "Gtc" ? t("trade.tifGtc") : tif === "Ioc" ? t("trade.tifIoc") : t("trade.tifAloShort");
   const tifControl = (
-    <Dropdown
-      compact
-      prefix="TIF"
+    <Pressable
       testID="tif"
-      value={tif}
-      options={[
-        { value: "Gtc" as const, label: t("trade.tifGtc") },
-        { value: "Ioc" as const, label: t("trade.tifIoc") },
-        { value: "Alo" as const, label: t("trade.tifAloShort") },
-      ]}
-      onChange={(v) => {
-        clearRetry();
-        setTif(v);
-      }}
-    />
+      accessibilityRole="button"
+      onPress={() => setShowTifSheet(true)}
+      style={[styles.tifTrigger, { borderColor: theme.line, backgroundColor: theme.surface }]}
+    >
+      <Text style={[styles.tifTriggerText, { color: theme.text }]}>{`TIF ${tifLabel}`}</Text>
+      <Icon name="chevronDown" color={theme.muted} size={13} />
+    </Pressable>
   );
+  const tifSections = [
+    {
+      options: [
+        { value: "Gtc", label: t("trade.tifGtc"), subtitle: t("trade.tifGtcSub") },
+        { value: "Ioc", label: t("trade.tifIoc"), subtitle: t("trade.tifIocSub") },
+        { value: "Alo", label: t("trade.tifAloShort"), subtitle: t("trade.tifAloSub") },
+      ],
+    },
+  ];
 
   const orderTypeLabelKey = ORDER_TYPES.find(([type]) => type === orderType)?.[1] ?? "trade.typeLimit";
   const orderSections = [
@@ -899,6 +903,20 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         theme={theme}
         testIDPrefix="bbo"
       />
+
+      <SheetSelect
+        visible={showTifSheet}
+        onClose={() => setShowTifSheet(false)}
+        title={t("trade.tif")}
+        sections={tifSections}
+        value={tif}
+        onSelect={(v) => {
+          clearRetry();
+          setTif(v as TimeInForce);
+        }}
+        theme={theme}
+        testIDPrefix="tif"
+      />
     </ScreenScaffold>
   );
 }
@@ -945,17 +963,19 @@ const styles = StyleSheet.create({
     minHeight: 50,
     marginBottom: 10,
   },
-  selectFieldText: { fontFamily: fonts.mono.medium, fontSize: 15 },
+  selectFieldText: { fontFamily: fonts.display.bold, fontSize: 15 },
   selectChevron: { position: "absolute", right: 12 },
   unitTrigger: { flexDirection: "row", alignItems: "center", gap: 4 },
-  unitTriggerText: { fontFamily: fonts.mono.medium, fontSize: 12.5 },
+  unitTriggerText: { fontFamily: fonts.display.bold, fontSize: 12.5 },
+  tifTrigger: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  tifTriggerText: { fontFamily: fonts.display.bold, fontSize: 12.5 },
   priceField: { flex: 1, marginBottom: 0 },
   priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 10 },
   bboBox: { justifyContent: "center", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 16 },
-  bboText: { fontFamily: fonts.mono.bold, fontSize: 13, letterSpacing: 0.5 },
+  bboText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.5 },
   bboModeField: { flex: 1, justifyContent: "center", borderWidth: 1, borderRadius: 12, height: 50, marginBottom: 0, paddingHorizontal: 12 },
   bboModeLabel: { fontFamily: fonts.body.regular, fontSize: 11, textAlign: "center", marginBottom: 2 },
-  bboModeValue: { fontFamily: fonts.mono.bold, fontSize: 16, textAlign: "center" },
+  bboModeValue: { fontFamily: fonts.display.bold, fontSize: 16, textAlign: "center" },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
   sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
   optsCol: { marginBottom: 14, gap: 12, zIndex: 20 },

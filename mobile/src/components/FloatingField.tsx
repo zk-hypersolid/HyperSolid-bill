@@ -36,9 +36,9 @@ export function FloatingField({
   }, [floated, anim]);
 
   const labelStyle = {
-    fontSize: anim.interpolate({ inputRange: [0, 1], outputRange: [18, 11] }),
+    fontSize: anim.interpolate({ inputRange: [0, 1], outputRange: [17, 11] }),
     color: anim.interpolate({ inputRange: [0, 1], outputRange: [theme.faint, theme.muted] }),
-    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [18, 4] }) }],
+    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [13, 2] }) }],
   };
 
   return (
@@ -70,11 +70,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 58,
-    marginBottom: 12,
+    height: 50,
+    marginBottom: 10,
   },
   main: { flex: 1, height: "100%", position: "relative", justifyContent: "center" },
   label: { position: "absolute", top: 0, left: 0, right: 0, textAlign: "center", fontFamily: fonts.body.regular },
-  input: { fontFamily: fonts.mono.bold, fontSize: 19, textAlign: "center", padding: 0, marginTop: 6 },
-  divider: { width: 1, height: 28, marginHorizontal: 10 },
+  input: { fontFamily: fonts.mono.bold, fontSize: 18, textAlign: "center", padding: 0, marginTop: 7 },
+  divider: { width: 1, height: 26, marginHorizontal: 10 },
 });

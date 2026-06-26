@@ -28,8 +28,7 @@ import { useCoinPosition } from "../hooks/useCoinPosition";
 import { Toggle } from "../components/Toggle";
 import { Checkbox } from "../components/Checkbox";
 import { FloatingField } from "../components/FloatingField";
-import { SheetSelect } from "../components/SheetSelect";
-import { PriceText, formatPrice } from "../components/PriceText";
+import { SheetSelect } from "../components/SheetSelect";import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
 import { Icon } from "../components/Icon";
 import { withAlpha } from "../theme/color";
@@ -39,6 +38,8 @@ import type { TranslationKey } from "../i18n/messages";
 import type { LocalWalletService } from "../wallet/localWallet";
 import type { OrderSide, TimeInForce } from "../lib/hyperliquid/buildOrder";
 import { validateOrder, clampLeverage, validateTriggerSide, roundSize, formatPrice as toHlPrice } from "../lib/hyperliquid/order";
+import { bboPrice, type BboMode } from "../lib/hyperliquid/bboLevels";
+import type { Orderbook } from "../lib/hyperliquid/types";
 import {
   orderTypeShape,
   toBaseSize,
@@ -59,6 +60,16 @@ const ORDER_TYPES: Array<[TicketOrderType, TranslationKey]> = [
   ["twap", "trade.typeTwap"],
   ["scale", "trade.typeScale"],
 ];
+
+const BBO_MODE_KEY: Record<BboMode, TranslationKey> = {
+  opp1: "trade.bboOpp1",
+  opp5: "trade.bboOpp5",
+  queue1: "trade.bboQueue1",
+  queue5: "trade.bboQueue5",
+};
+function bboModeKey(mode: BboMode): TranslationKey {
+  return BBO_MODE_KEY[mode];
+}
 
 /** Rough isolated-liquidation estimate (excludes maintenance margin) — clearly labelled "Est.". */
 function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
@@ -97,6 +108,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [showCoinPicker, setShowCoinPicker] = useState(false);
   const [showOrderSheet, setShowOrderSheet] = useState(false);
   const [showUnitSheet, setShowUnitSheet] = useState(false);
+  const [showBboSheet, setShowBboSheet] = useState(false);
+  const [book, setBook] = useState<Orderbook | null>(null);
+  const [bboMode, setBboMode] = useState<BboMode | null>(null);
   const [size, setSize] = useState("");
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
@@ -153,8 +167,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   // rounding and the price tick (≤5 sig figs AND ≤ 6−szDecimals decimals).
   const szDec = ticker?.szDecimals ?? 2;
   const maxLev = ticker?.maxLeverage ?? 50;
-  // Reference price for sizing / liq / notional: the typed limit price when used, else live mid.
-  const refPrice = usesLimitPrice ? Number(price) || 0 : mid;
+  // Reference price for sizing / liq / notional: the typed limit price when used (BBO mode has no
+  // single typed price, so it falls back to the live mid for the preview), else live mid.
+  const refPrice = usesLimitPrice ? (bboMode ? mid : Number(price) || 0) : mid;
 
   // Keep leverage within the active asset's HL cap (e.g. a 5× market can't carry the 20× default) so
   // the est. liq price is real and the pre-submit setLeverage call won't be rejected.
@@ -331,7 +346,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     // Resolve the price actually sent: limit-style types use the typed limit price; market and the
     // *-Market trigger types fill at a slippage-bounded IOC price (off mid, or off the trigger).
     const submitPrice = usesLimitPrice
-      ? Number(price)
+      ? bboMode
+        ? bboPrice(book ?? { asks: [], bids: [], spread: 0, spreadPct: 0 }, bboMode, orderSide) || mid
+        : Number(price)
       : shape.isTrigger
         ? marketPrice(Number(stopPrice), orderSide)
         : marketPrice(mid, orderSide);
@@ -504,6 +521,20 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       ],
     },
   ];
+  const bboSections = [
+    {
+      options: [{ value: "custom", label: t("trade.bboCustom"), subtitle: t("trade.bboCustomSub") }],
+    },
+    {
+      header: t("trade.bbo"),
+      options: [
+        { value: "opp1", label: t("trade.bboOpp1"), subtitle: t("trade.bboOppSub") },
+        { value: "opp5", label: t("trade.bboOpp5"), subtitle: t("trade.bboOppSub") },
+        { value: "queue1", label: t("trade.bboQueue1"), subtitle: t("trade.bboQueueSub") },
+        { value: "queue5", label: t("trade.bboQueue5"), subtitle: t("trade.bboQueueSub") },
+      ],
+    },
+  ];
 
   // What will actually be sent, snapped to HL tick/lot — surfaced so the user sees exactly what they
   // submit (the encoder applies the same rounding). Market/trigger-market fill at market.
@@ -581,24 +612,44 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
       </Pressable>
       {usesLimitPrice ? (
         <View style={styles.priceRow}>
-          <FloatingField
-            label={t("trade.priceUsdc")}
-            value={price}
-            onChange={onChangePrice}
-            theme={theme}
-            testID="field-price"
-            style={styles.priceField}
-          />
-          {mid > 0 ? (
+          {bboMode ? (
             <Pressable
               accessibilityRole="button"
-              testID="price-mid"
-              onPress={() => onChangePrice(toHlPrice(mid, szDec, "perp"))}
-              style={[styles.bboBox, { borderColor: theme.line, backgroundColor: theme.surface }]}
+              testID="bbo-mode-field"
+              onPress={() => setShowBboSheet(true)}
+              style={[styles.bboModeField, { borderColor: theme.line, backgroundColor: theme.surface }]}
             >
-              <Text style={[styles.bboText, { color: theme.muted }]}>{t("trade.mid")}</Text>
+              <Text style={[styles.bboModeLabel, { color: theme.muted }]}>{t("trade.priceUsdc")}</Text>
+              <Text
+                style={[styles.bboModeValue, { color: theme.text }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.65}
+              >
+                {t(bboModeKey(bboMode))}
+              </Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <FloatingField
+              label={t("trade.priceUsdc")}
+              value={price}
+              onChange={onChangePrice}
+              theme={theme}
+              testID="field-price"
+              style={styles.priceField}
+            />
+          )}
+          <Pressable
+            accessibilityRole="button"
+            testID="bbo-button"
+            onPress={() => setShowBboSheet(true)}
+            style={[
+              styles.bboBox,
+              { borderColor: bboMode ? theme.brand : theme.line, backgroundColor: theme.surface },
+            ]}
+          >
+            <Text style={[styles.bboText, { color: bboMode ? theme.brand : theme.muted }]}>{t("trade.bbo")}</Text>
+          </Pressable>
         </View>
       ) : null}
       {shape.isTrigger ? (
@@ -791,6 +842,7 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             coin={coin.toUpperCase()}
             network={network}
             ticker={ticker}
+            onBook={setBook}
             onPickPrice={(px) => usesLimitPrice && onChangePrice(toHlPrice(px, szDec, "perp"))}
           />
         </View>
@@ -832,6 +884,20 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         }}
         theme={theme}
         testIDPrefix="size-unit"
+      />
+
+      <SheetSelect
+        visible={showBboSheet}
+        onClose={() => setShowBboSheet(false)}
+        title={t("trade.bbo")}
+        sections={bboSections}
+        value={bboMode ?? "custom"}
+        onSelect={(v) => {
+          clearRetry();
+          setBboMode(v === "custom" ? null : (v as BboMode));
+        }}
+        theme={theme}
+        testIDPrefix="bbo"
       />
     </ScreenScaffold>
   );
@@ -887,6 +953,9 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 10 },
   bboBox: { justifyContent: "center", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 16 },
   bboText: { fontFamily: fonts.mono.bold, fontSize: 13, letterSpacing: 0.5 },
+  bboModeField: { flex: 1, justifyContent: "center", borderWidth: 1, borderRadius: 12, height: 50, marginBottom: 0, paddingHorizontal: 12 },
+  bboModeLabel: { fontFamily: fonts.body.regular, fontSize: 11, textAlign: "center", marginBottom: 2 },
+  bboModeValue: { fontFamily: fonts.mono.bold, fontSize: 16, textAlign: "center" },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
   sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
   optsCol: { marginBottom: 14, gap: 12, zIndex: 20 },

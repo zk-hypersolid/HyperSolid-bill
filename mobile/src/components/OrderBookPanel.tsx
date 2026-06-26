@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
 import type { MarketTicker, Orderbook, Subscription, BookSigFigs } from "../lib/hyperliquid/types";
@@ -24,12 +24,14 @@ export function OrderBookPanel({
   network,
   ticker,
   onPickPrice,
+  onBook,
 }: {
   theme: ThemeTokens;
   coin: string;
   network: "mainnet" | "testnet";
   ticker?: MarketTicker;
   onPickPrice?: (px: number) => void;
+  onBook?: (book: Orderbook) => void;
 }) {
   const t = useT();
   const service = useMemo(
@@ -39,6 +41,13 @@ export function OrderBookPanel({
   const [orderbook, setOrderbook] = useState<Orderbook | null>(null);
   const [now, setNow] = useState(Date.now());
   const [sizeInQuote, setSizeInQuote] = useState(true);
+  // Surface the live book to the parent (for BBO pricing) without re-subscribing when the callback
+  // identity changes.
+  const onBookRef = useRef(onBook);
+  onBookRef.current = onBook;
+  useEffect(() => {
+    if (orderbook) onBookRef.current?.(orderbook);
+  }, [orderbook]);
   // Server-side book aggregation (HL nSigFigs). 5 = finest; lower = coarser tick, ALWAYS a full
   // ~20-level book (so changing it never collapses the ladder the way client-side bucketing did).
   const [nSigFigs, setNSigFigs] = useState<BookSigFigs>(5);

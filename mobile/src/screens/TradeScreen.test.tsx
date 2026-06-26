@@ -256,15 +256,6 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder.mock.calls[0][0].size).toBeCloseTo(0.01, 6);
   });
 
-  it("the Mid button snaps the price to the live mid", () => {
-    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
-    render(<TradeScreen />);
-    fireEvent.changeText(screen.getByTestId("field-price"), "1");
-    fireEvent.press(screen.getByTestId("price-mid"));
-    // mid 62481.5 snaps to a valid HL tick (5 sig figs) → 62482
-    expect(screen.getByTestId("field-price").props.value).toBe("62482");
-  });
-
   it("places a TWAP order with size, duration and randomize (no price field)", async () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
@@ -548,6 +539,20 @@ describe("TradeScreen", () => {
     fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder.mock.calls[0][0].tif).toBe("Alo");
+  });
+
+  it("swaps the typed price field for a BBO mode selector when a BBO level is chosen", () => {
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    expect(screen.queryByTestId("field-price")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("bbo-button"));
+    fireEvent.press(screen.getByTestId("bbo-opt-opp1"));
+    expect(screen.queryByTestId("field-price")).toBeNull();
+    expect(screen.getByTestId("bbo-mode-field")).toBeTruthy();
+    // Custom restores the typed field.
+    fireEvent.press(screen.getByTestId("bbo-button"));
+    fireEvent.press(screen.getByTestId("bbo-opt-custom"));
+    expect(screen.queryByTestId("field-price")).toBeTruthy();
   });
 
   it("routes through placeBracket when a TP or SL price is set", async () => {

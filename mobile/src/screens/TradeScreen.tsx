@@ -27,6 +27,7 @@ import { useAvailableBalance } from "../hooks/useAvailableBalance";
 import { useCoinPosition } from "../hooks/useCoinPosition";
 import { Toggle } from "../components/Toggle";
 import { Checkbox } from "../components/Checkbox";
+import { Segmented } from "../components/Segmented";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
 import { Icon } from "../components/Icon";
@@ -544,10 +545,27 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
               onPress={() => onChangePrice(toHlPrice(mid, szDec, "perp"))}
               style={[styles.bboBox, { borderColor: theme.line, backgroundColor: theme.surface }]}
             >
-              <Text style={[styles.bboText, { color: theme.muted }]}>{t("trade.bbo")}</Text>
+              <Text style={[styles.bboText, { color: theme.muted }]}>{t("trade.mid")}</Text>
             </Pressable>
           ) : null}
         </View>
+      ) : null}
+      {usesLimitPrice ? (
+        <Segmented
+          theme={theme}
+          testID="tif"
+          label="TIF"
+          value={tif}
+          options={[
+            { value: "Gtc" as const, label: t("trade.tifGtc") },
+            { value: "Ioc" as const, label: t("trade.tifIoc") },
+            { value: "Alo" as const, label: t("trade.tifAloShort") },
+          ]}
+          onChange={(v) => {
+            clearRetry();
+            setTif(v);
+          }}
+        />
       ) : null}
       {shape.isTrigger ? (
         <InlineField label={t("trade.triggerPriceUsdc")} value={stopPrice} onChange={edit(setStopPrice)} theme={theme} testID="field-stop" />
@@ -614,32 +632,13 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
             accessibilityLabel="tpsl-toggle"
           />
         ) : null}
-        <View style={styles.reduceRow}>
-          <Checkbox
-            theme={theme}
-            value={reduceOnly}
-            onValueChange={edit(setReduceOnly)}
-            label={t("positions.reduceOnly")}
-            accessibilityLabel="reduce-only"
-          />
-          {usesLimitPrice ? (
-            <Dropdown
-              compact
-              prefix="TIF"
-              testID="tif"
-              value={tif}
-              options={[
-                { value: "Gtc" as const, label: t("trade.tifGtc") },
-                { value: "Ioc" as const, label: t("trade.tifIoc") },
-                { value: "Alo" as const, label: t("trade.tifAlo") },
-              ]}
-              onChange={(v) => {
-                clearRetry();
-                setTif(v);
-              }}
-            />
-          ) : null}
-        </View>
+        <Checkbox
+          theme={theme}
+          value={reduceOnly}
+          onValueChange={edit(setReduceOnly)}
+          label={t("positions.reduceOnly")}
+          accessibilityLabel="reduce-only"
+        />
       </View>
 
       {!shape.isTrigger && !isTwap && !isScale && tpSlOn ? (
@@ -703,50 +702,50 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
 
-      {(["buy", "sell"] as const).map((s) => {
-        const sideColor = s === "buy" ? theme.up : theme.down;
-        const liq = s === "buy" ? liqBuy : liqSell;
-        return (
-        <View key={s} style={styles.sideBlock}>
-          <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
-          <SummaryRow
-            theme={theme}
-            label={t(s === "buy" ? "trade.maxLong" : "trade.maxShort")}
-            value={maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
-          />
-          {liq > 0 ? (
-            <Text style={[styles.liqLine, { color: theme.faint }]}>
-              {t("trade.liqShort", { price: formatPrice(liq) })}
-            </Text>
-          ) : null}
-          <Pressable
-            disabled={!canSubmit || busy}
-            onPress={() => onSubmit(s)}
-            accessibilityRole="button"
-            testID={s === "buy" ? "submit-buy" : "submit-sell"}
-            style={[
-              styles.submitBtn,
-              canSubmit
-                ? { backgroundColor: sideColor, borderColor: sideColor }
-                : { backgroundColor: withAlpha(sideColor, 0.14), borderColor: withAlpha(sideColor, 0.45) },
-            ]}
-          >
-            {busy && pendingSide === s ? (
-              <ActivityIndicator color={theme.bg} />
-            ) : (
-              <Text
-                style={[styles.submitText, { color: canSubmit ? theme.bg : withAlpha(sideColor, 0.85) }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
+      <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
+      <View style={styles.sideButtons}>
+        {(["buy", "sell"] as const).map((s) => {
+          const sideColor = s === "buy" ? theme.up : theme.down;
+          const liq = s === "buy" ? liqBuy : liqSell;
+          return (
+            <View key={s} style={styles.sideCol}>
+              <Text style={[styles.sideMax, { color: theme.muted }]} numberOfLines={1}>
+                {`${t(s === "buy" ? "trade.maxLong" : "trade.maxShort")} ${maxBase > 0 ? maxBase.toFixed(szDec) : "—"}`}
               </Text>
-            )}
-          </Pressable>
-        </View>
-        );
-      })}
+              {liq > 0 ? (
+                <Text style={[styles.sideMax, { color: theme.faint }]} numberOfLines={1}>
+                  {t("trade.liqShort", { price: formatPrice(liq) })}
+                </Text>
+              ) : null}
+              <Pressable
+                disabled={!canSubmit || busy}
+                onPress={() => onSubmit(s)}
+                accessibilityRole="button"
+                testID={s === "buy" ? "submit-buy" : "submit-sell"}
+                style={[
+                  styles.submitBtn,
+                  canSubmit
+                    ? { backgroundColor: sideColor, borderColor: sideColor }
+                    : { backgroundColor: withAlpha(sideColor, 0.14), borderColor: withAlpha(sideColor, 0.45) },
+                ]}
+              >
+                {busy && pendingSide === s ? (
+                  <ActivityIndicator color={theme.bg} />
+                ) : (
+                  <Text
+                    style={[styles.submitText, { color: canSubmit ? theme.bg : withAlpha(sideColor, 0.85) }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                  >
+                    {t(s === "buy" ? "trade.sideBuy" : "trade.sideSell")}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
         </View>
 
         <View style={styles.rightCol}>
@@ -867,7 +866,6 @@ const styles = StyleSheet.create({
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
   sliderMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 8 },
   optsCol: { marginBottom: 14, gap: 12, zIndex: 20 },
-  reduceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 20 },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   optLabel: { fontFamily: fonts.body.medium, fontSize: 12 },
   tpsl: { padding: 12 },
@@ -895,8 +893,9 @@ const styles = StyleSheet.create({
   retry: { borderWidth: 1, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
   belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
-  sideBlock: { marginTop: 10 },
-  liqLine: { fontFamily: fonts.mono.regular, fontSize: 10.5, textAlign: "right", marginTop: 2, marginBottom: 4 },
-  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 6 },
+  sideButtons: { flexDirection: "row", gap: 10, marginTop: 8 },
+  sideCol: { flex: 1, alignItems: "stretch" },
+  sideMax: { fontFamily: fonts.mono.regular, fontSize: 10.5, textAlign: "center", marginBottom: 3 },
+  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 4 },
   submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

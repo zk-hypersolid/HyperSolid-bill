@@ -321,12 +321,12 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder.mock.calls[0][0].side).toBe("sell");
   });
 
-  it("shows HL-style per-side margin and max long/short blocks", () => {
+  it("shows a single shared required-margin line and per-side max long/short", () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    expect(screen.getAllByText("Required margin").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Max long")).toBeTruthy();
-    expect(screen.getByText("Max short")).toBeTruthy();
+    expect(screen.getAllByText("Required margin").length).toBe(1);
+    expect(screen.getByText(/Max long/)).toBeTruthy();
+    expect(screen.getByText(/Max short/)).toBeTruthy();
   });
 
   it("applies the selected leverage to the venue before placing the order", async () => {
@@ -533,7 +533,7 @@ describe("TradeScreen", () => {
     expect(mockPlaceBracket).not.toHaveBeenCalled();
   });
 
-  it("sets TIF to ALO (post-only) on a limit order via the TIF dropdown", async () => {
+  it("sets TIF to ALO (post-only) on a limit order via the TIF selector", async () => {
     mockPlaceOrder.mockResolvedValue({
       ok: true,
       cloid: ("0x" + "a".repeat(32)) as `0x${string}`,
@@ -543,8 +543,7 @@ describe("TradeScreen", () => {
     render(<TradeScreen />);
     fireEvent.changeText(screen.getByTestId("field-size"), "0.01");
     fireEvent.changeText(screen.getByTestId("field-price"), "60000");
-    fireEvent.press(screen.getByTestId("tif"));
-    fireEvent.press(screen.getByTestId("tif-opt-Alo"));
+    fireEvent.press(screen.getByTestId("tif-Alo"));
     fireEvent.press(screen.getByTestId("submit-buy"));
     await waitFor(() => expect(mockPlaceOrder).toHaveBeenCalled());
     expect(mockPlaceOrder.mock.calls[0][0].tif).toBe("Alo");

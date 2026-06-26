@@ -27,8 +27,7 @@ import { useCoinPosition } from "../hooks/useCoinPosition";
 import { Toggle } from "../components/Toggle";
 import { Checkbox } from "../components/Checkbox";
 import { FloatingField } from "../components/FloatingField";
-import { SheetSelect } from "../components/SheetSelect";import { PriceText, formatPrice } from "../components/PriceText";
-import { ChangeText } from "../components/ChangeText";
+import { SheetSelect } from "../components/SheetSelect";
 import { Icon } from "../components/Icon";
 import { withAlpha } from "../theme/color";
 import { fonts } from "../theme/fonts";
@@ -68,12 +67,6 @@ const BBO_MODE_KEY: Record<BboMode, TranslationKey> = {
 };
 function bboModeKey(mode: BboMode): TranslationKey {
   return BBO_MODE_KEY[mode];
-}
-
-/** Rough isolated-liquidation estimate (excludes maintenance margin) — clearly labelled "Est.". */
-function estLiqPrice(entry: number, leverage: number, side: OrderSide): number {
-  if (entry <= 0 || leverage <= 0) return 0;
-  return side === "buy" ? entry * (1 - 1 / leverage) : entry * (1 + 1 / leverage);
 }
 
 /**
@@ -471,10 +464,6 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     );
   }
 
-  // Estimated liquidation for both directions (shown per side near each buy/sell button).
-  const liqBuy = estLiqPrice(refPrice, leverage, "buy");
-  const liqSell = estLiqPrice(refPrice, leverage, "sell");
-
   // TP/SL applies to plain entries (not trigger/twap/scale). The compact TIF dropdown rides on that
   // row when shown, otherwise on the reduce-only row.
   const showTpSl = !shape.isTrigger && !isTwap && !isScale;
@@ -794,22 +783,14 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
 
-      <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`≈ ${margin.toFixed(2)} USDC`} />
+      <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`${margin.toFixed(2)} USDC`} />
       {(["buy", "sell"] as const).map((s) => {
         const sideColor = s === "buy" ? theme.up : theme.down;
-        const liq = s === "buy" ? liqBuy : liqSell;
         return (
           <View key={s} style={styles.sideBlock}>
-            <View style={styles.sideMeta}>
-              <Text style={[styles.sideMetaText, { color: theme.muted }]} numberOfLines={1}>
-                {`${t(s === "buy" ? "trade.maxLong" : "trade.maxShort")} ${maxBase > 0 ? maxBase.toFixed(szDec) : "—"}`}
-              </Text>
-              {liq > 0 ? (
-                <Text style={[styles.sideMetaText, { color: theme.faint }]} numberOfLines={1}>
-                  {t("trade.liqShort", { price: formatPrice(liq) })}
-                </Text>
-              ) : null}
-            </View>
+            <Text style={[styles.sideMetaText, { color: theme.muted }]} numberOfLines={1}>
+              {`${t(s === "buy" ? "trade.maxLong" : "trade.maxShort")} ${maxBase > 0 ? maxBase.toFixed(szDec) : "—"}`}
+            </Text>
             <Pressable
               disabled={!canSubmit || busy}
               onPress={() => onSubmit(s)}
@@ -1009,8 +990,7 @@ const styles = StyleSheet.create({
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
   belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
   sideBlock: { marginTop: 10 },
-  sideMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },
-  sideMetaText: { fontFamily: fonts.mono.regular, fontSize: 11 },
+  sideMetaText: { fontFamily: fonts.mono.regular, fontSize: 11, marginBottom: 6 },
   submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

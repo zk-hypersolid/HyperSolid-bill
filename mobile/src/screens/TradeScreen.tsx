@@ -28,6 +28,7 @@ import { useCoinPosition } from "../hooks/useCoinPosition";
 import { Toggle } from "../components/Toggle";
 import { Checkbox } from "../components/Checkbox";
 import { FloatingField } from "../components/FloatingField";
+import { SheetSelect } from "../components/SheetSelect";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { ChangeText } from "../components/ChangeText";
 import { Icon } from "../components/Icon";
@@ -94,6 +95,8 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [leverage, setLeverage] = useState(20);
   const [isCross, setIsCross] = useState(true);
   const [showCoinPicker, setShowCoinPicker] = useState(false);
+  const [showOrderSheet, setShowOrderSheet] = useState(false);
+  const [showUnitSheet, setShowUnitSheet] = useState(false);
   const [size, setSize] = useState("");
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
@@ -476,6 +479,32 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
     />
   );
 
+  const orderTypeLabelKey = ORDER_TYPES.find(([type]) => type === orderType)?.[1] ?? "trade.typeLimit";
+  const orderSections = [
+    {
+      header: t("trade.orderGroupBasic"),
+      options: (["limit", "market"] as TicketOrderType[]).map((type) => ({
+        value: type,
+        label: t(ORDER_TYPES.find(([o]) => o === type)![1]),
+      })),
+    },
+    {
+      header: t("trade.orderGroupPro"),
+      options: (["scale", "stopLimit", "stopMarket", "tpLimit", "tpMarket", "twap"] as TicketOrderType[]).map((type) => ({
+        value: type,
+        label: t(ORDER_TYPES.find(([o]) => o === type)![1]),
+      })),
+    },
+  ];
+  const unitSections = [
+    {
+      options: [
+        { value: "base" as SizeUnit, label: coin.toUpperCase(), subtitle: t("trade.sizeUnitBaseSub", { coin: coin.toUpperCase() }) },
+        { value: "quote" as SizeUnit, label: "USDC", subtitle: t("trade.sizeUnitQuoteSub") },
+      ],
+    },
+  ];
+
   // What will actually be sent, snapped to HL tick/lot — surfaced so the user sees exactly what they
   // submit (the encoder applies the same rounding). Market/trigger-market fill at market.
   const previewPrice = usesLimitPrice && Number(price) > 0 ? toHlPrice(Number(price), szDec, "perp") : null;
@@ -539,16 +568,17 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       </View>
 
-      <Dropdown
+      <Pressable
         testID="order-type"
-        center
-        value={orderType}
-        options={ORDER_TYPES.map(([type, labelKey]) => ({ value: type, label: t(labelKey) }))}
-        onChange={(v) => {
-          clearRetry();
-          setOrderType(v);
-        }}
-      />
+        accessibilityRole="button"
+        onPress={() => setShowOrderSheet(true)}
+        style={[styles.selectField, { borderColor: theme.line, backgroundColor: theme.surface }]}
+      >
+        <Text style={[styles.selectFieldText, { color: theme.text }]}>{t(orderTypeLabelKey)}</Text>
+        <View style={styles.selectChevron}>
+          <Icon name="chevronDown" color={theme.muted} size={16} />
+        </View>
+      </Pressable>
       {usesLimitPrice ? (
         <View style={styles.priceRow}>
           <FloatingField
@@ -597,21 +627,18 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         theme={theme}
         testID="field-size"
         rightInside={
-          <Dropdown
-            compact
-            bare
+          <Pressable
             testID="size-unit"
-            value={sizeUnit}
-            options={[
-              { value: "base" as const, label: coin.toUpperCase() },
-              { value: "quote" as const, label: "USDC" },
-            ]}
-            onChange={(u) => {
-              clearRetry();
-              setSize("");
-              setSizeUnit(u);
-            }}
-          />
+            accessibilityRole="button"
+            onPress={() => setShowUnitSheet(true)}
+            hitSlop={6}
+            style={styles.unitTrigger}
+          >
+            <Text style={[styles.unitTriggerText, { color: theme.text }]}>
+              {sizeUnit === "base" ? coin.toUpperCase() : "USDC"}
+            </Text>
+            <Icon name="chevronDown" color={theme.muted} size={13} />
+          </Pressable>
         }
       />
 
@@ -777,6 +804,35 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         onSelect={onChangeCoin}
         onClose={() => setShowCoinPicker(false)}
       />
+
+      <SheetSelect
+        visible={showOrderSheet}
+        onClose={() => setShowOrderSheet(false)}
+        title={t("trade.orderTypeTitle")}
+        sections={orderSections}
+        value={orderType}
+        onSelect={(v) => {
+          clearRetry();
+          setOrderType(v);
+        }}
+        theme={theme}
+        testIDPrefix="order-type"
+      />
+
+      <SheetSelect
+        visible={showUnitSheet}
+        onClose={() => setShowUnitSheet(false)}
+        title={t("trade.sizeUnitTitle")}
+        sections={unitSections}
+        value={sizeUnit}
+        onSelect={(u) => {
+          clearRetry();
+          setSize("");
+          setSizeUnit(u);
+        }}
+        theme={theme}
+        testIDPrefix="size-unit"
+      />
     </ScreenScaffold>
   );
 }
@@ -814,6 +870,19 @@ const styles = StyleSheet.create({
   levMax: { fontFamily: fonts.mono.regular, fontSize: 10.5 },
   levChips: { flexDirection: "row", gap: 7, flexWrap: "wrap" },
   field: { marginBottom: 12 },
+  selectField: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 58,
+    marginBottom: 12,
+  },
+  selectFieldText: { fontFamily: fonts.mono.medium, fontSize: 15 },
+  selectChevron: { position: "absolute", right: 12 },
+  unitTrigger: { flexDirection: "row", alignItems: "center", gap: 4 },
+  unitTriggerText: { fontFamily: fonts.mono.medium, fontSize: 12.5 },
   priceField: { flex: 1, marginBottom: 0 },
   priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 12 },
   bboBox: { justifyContent: "center", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 16 },

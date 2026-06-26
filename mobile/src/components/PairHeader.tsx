@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import type { ThemeTokens } from "../theme/tokens";
 import { fonts } from "../theme/fonts";
+import { useT } from "../i18n/useT";
 import { Icon } from "./Icon";
 
 /**
@@ -22,12 +23,13 @@ export function PairHeader({
   onPress?: () => void;
 }) {
   const up = changePct >= 0;
+  const t = useT();
   return (
     <Pressable accessibilityRole="button" testID="pair-header" onPress={onPress} style={styles.row}>
       <View style={styles.left}>
         <Text style={[styles.pair, { color: theme.text }]}>{`${coin.toUpperCase()}-USDC`}</Text>
         <View style={[styles.levBadge, { borderColor: theme.lineStrong }]}>
-          <Text style={[styles.levText, { color: theme.muted }]}>{`${maxLeverage}x`}</Text>
+          <Text style={[styles.levText, { color: theme.muted }]}>{t("trade.maxLev", { lev: maxLeverage })}</Text>
         </View>
         <Icon name="chevronDown" color={theme.muted} size={16} />
       </View>

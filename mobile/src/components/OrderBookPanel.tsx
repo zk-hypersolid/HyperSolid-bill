@@ -110,8 +110,11 @@ export function OrderBookPanel({
       <View style={styles.topRow}>
         <View style={styles.funding}>
           <Text style={[styles.fundingLabel, { color: theme.muted }]}>{t("trade.fundingRate")}</Text>
-          <Text style={[styles.fundingValue, { color: theme.text }]}>
-            {`${ticker ? formatFundingPct(ticker.funding) : "—"} · ${fundingCountdown(now)}`}
+          <Text style={[styles.fundingValue, { color: theme.text }]} numberOfLines={1}>
+            {ticker ? formatFundingPct(ticker.funding) : "—"}
+          </Text>
+          <Text style={[styles.fundingCountdown, { color: theme.muted }]} numberOfLines={1}>
+            {fundingCountdown(now)}
           </Text>
         </View>
         <Pressable
@@ -172,6 +175,7 @@ const styles = StyleSheet.create({
   funding: { flex: 1 },
   fundingLabel: { fontFamily: fonts.body.regular, fontSize: 10, marginBottom: 2 },
   fundingValue: { fontFamily: fonts.mono.medium, fontSize: 11.5 },
+  fundingCountdown: { fontFamily: fonts.mono.regular, fontSize: 10.5, marginTop: 1 },
   unitBtn: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2.5 },
   unitText: { fontFamily: fonts.mono.medium, fontSize: 10 },
   imbalance: { marginTop: 8 },

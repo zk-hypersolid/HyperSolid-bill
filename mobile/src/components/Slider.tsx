@@ -11,17 +11,25 @@ export function pctFromX(x: number, width: number): number {
   return Math.max(0, Math.min(100, pct));
 }
 
+/** Round a percentage to the nearest quarter notch (0/25/50/75/100). */
+export function snapPct(pct: number): number {
+  return NOTCHES.reduce((best, n) => (Math.abs(n - pct) < Math.abs(best - pct) ? n : best), 0);
+}
+
 /**
  * Horizontal 0–100% slider with quarter notches (no native dependency; PanResponder over a measured
- * track). Controlled via `value`; reports continuous changes through `onChange`.
+ * track). Controlled via `value`; reports continuous changes through `onChange`. `snap` rounds drags
+ * to the nearest quarter notch.
  */
 export function Slider({
   value,
   onChange,
+  snap = false,
   testID,
 }: {
   value: number;
   onChange: (pct: number) => void;
+  snap?: boolean;
   testID?: string;
 }) {
   const theme = useTheme();
@@ -32,10 +40,15 @@ export function Slider({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => onChange(pctFromX(e.nativeEvent.locationX, widthRef.current)),
-      onPanResponderMove: (e) => onChange(pctFromX(e.nativeEvent.locationX, widthRef.current)),
+      onPanResponderGrant: (e) => onChange(report(e.nativeEvent.locationX)),
+      onPanResponderMove: (e) => onChange(report(e.nativeEvent.locationX)),
     }),
   ).current;
+
+  function report(x: number): number {
+    const pct = pctFromX(x, widthRef.current);
+    return snap ? snapPct(pct) : pct;
+  }
 
   function onLayout(e: LayoutChangeEvent) {
     const w = e.nativeEvent.layout.width;

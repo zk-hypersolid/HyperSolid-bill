@@ -24,6 +24,7 @@ export function Dropdown<T extends string>({
   compact = false,
   center = false,
   bare = false,
+  fill = false,
 }: {
   label?: string;
   prefix?: string;
@@ -34,6 +35,7 @@ export function Dropdown<T extends string>({
   compact?: boolean;
   center?: boolean;
   bare?: boolean;
+  fill?: boolean;
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
@@ -41,7 +43,7 @@ export function Dropdown<T extends string>({
   const display = `${prefix ? `${prefix} ` : ""}${current?.label ?? value}`;
   const centered = center && !compact;
   return (
-    <View style={compact ? styles.wrapCompact : styles.wrap}>
+    <View style={[compact ? styles.wrapCompact : styles.wrap, fill ? styles.wrapFill : null]}>
       {label ? <Text style={[styles.label, { color: theme.muted }]}>{label}</Text> : null}
       <Pressable
         testID={testID}
@@ -50,6 +52,7 @@ export function Dropdown<T extends string>({
         style={[
           compact ? styles.controlCompact : styles.control,
           centered ? styles.controlCenter : null,
+          fill ? styles.controlFill : null,
           bare ? styles.controlBare : { borderColor: theme.line, backgroundColor: theme.surface },
         ]}
       >
@@ -96,6 +99,7 @@ export function Dropdown<T extends string>({
 const styles = StyleSheet.create({
   wrap: { marginBottom: 12 },
   wrapCompact: { position: "relative", alignSelf: "flex-start" },
+  wrapFill: { flex: 1, alignSelf: "stretch" },
   label: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4 },
   control: {
     flexDirection: "row",
@@ -108,6 +112,7 @@ const styles = StyleSheet.create({
   },
   controlCenter: { justifyContent: "center", minHeight: 58 },
   controlBare: { borderWidth: 0, paddingHorizontal: 0, paddingVertical: 0 },
+  controlFill: { flex: 1, justifyContent: "space-between", paddingHorizontal: 12 },
   centerChevron: { position: "absolute", right: 12 },
   valueCenter: { textAlign: "center" },
   controlCompact: {
@@ -125,7 +130,7 @@ const styles = StyleSheet.create({
   menuCompact: {
     position: "absolute",
     top: "100%",
-    right: 0,
+    left: 0,
     marginTop: 4,
     minWidth: 96,
     borderWidth: 1,

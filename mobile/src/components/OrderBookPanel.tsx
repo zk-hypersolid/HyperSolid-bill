@@ -144,6 +144,7 @@ export function OrderBookPanel({
               testID="book-tick"
               value={String(nSigFigs)}
               compact
+              fill
               options={tickOptions}
               onChange={(v) => setNSigFigs(Number(v) as BookSigFigs)}
             />

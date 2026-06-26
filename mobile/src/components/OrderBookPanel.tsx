@@ -143,7 +143,6 @@ export function OrderBookPanel({
             <Dropdown
               testID="book-tick"
               value={String(nSigFigs)}
-              prefix={t("trade.bookGroupPrefix")}
               compact
               options={tickOptions}
               onChange={(v) => setNSigFigs(Number(v) as BookSigFigs)}

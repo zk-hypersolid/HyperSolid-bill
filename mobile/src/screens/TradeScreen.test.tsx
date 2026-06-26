@@ -312,12 +312,12 @@ describe("TradeScreen", () => {
     expect(mockPlaceOrder.mock.calls[0][0].side).toBe("sell");
   });
 
-  it("shows a single shared required-margin line and per-side max long/short", () => {
+  it("shows a per-side required-margin line plus max long/short", () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
     render(<TradeScreen />);
-    expect(screen.getAllByText("Required margin").length).toBe(1);
-    expect(screen.getByText(/Max long/)).toBeTruthy();
-    expect(screen.getByText(/Max short/)).toBeTruthy();
+    expect(screen.getAllByText("Required margin").length).toBe(2);
+    expect(screen.getByText("Max long")).toBeTruthy();
+    expect(screen.getByText("Max short")).toBeTruthy();
   });
 
   it("applies the selected leverage to the venue before placing the order", async () => {

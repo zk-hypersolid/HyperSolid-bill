@@ -783,14 +783,16 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </View>
       ) : null}
 
-      <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`${margin.toFixed(2)} USDC`} />
       {(["buy", "sell"] as const).map((s) => {
         const sideColor = s === "buy" ? theme.up : theme.down;
         return (
           <View key={s} style={styles.sideBlock}>
-            <Text style={[styles.sideMetaText, { color: theme.muted }]} numberOfLines={1}>
-              {`${t(s === "buy" ? "trade.maxLong" : "trade.maxShort")} ${maxBase > 0 ? maxBase.toFixed(szDec) : "—"}`}
-            </Text>
+            <SummaryRow theme={theme} label={t("trade.requiredMargin")} value={`${margin.toFixed(2)} USDC`} />
+            <SummaryRow
+              theme={theme}
+              label={t(s === "buy" ? "trade.maxLong" : "trade.maxShort")}
+              value={maxBase > 0 ? `${maxBase.toFixed(szDec)} ${coin.toUpperCase()}` : "—"}
+            />
             <Pressable
               disabled={!canSubmit || busy}
               onPress={() => onSubmit(s)}
@@ -980,7 +982,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   summary: { padding: 12 },
-  sumRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  sumRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2.5 },
   sumLabel: { fontFamily: fonts.body.regular, fontSize: 12 },
   sumValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
   uncertain: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 10 },
@@ -989,8 +991,7 @@ const styles = StyleSheet.create({
   retry: { borderWidth: 1, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
   belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
-  sideBlock: { marginTop: 10 },
-  sideMetaText: { fontFamily: fonts.mono.regular, fontSize: 11, marginBottom: 6 },
-  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  sideBlock: { marginTop: 14 },
+  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 6 },
   submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
   controlCompact: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 3,
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 7,
   },
   value: { fontFamily: fonts.mono.medium, fontSize: 14 },

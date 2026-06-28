@@ -695,7 +695,9 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
         </Text>
       ) : null}
 
-      <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
+      <View style={styles.sizeSlider}>
+        <Slider value={sizePct} onChange={onSlide} testID="size-slider" />
+      </View>
 
       <View style={styles.optsCol}>
         {showTpSl ? (
@@ -944,23 +946,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     minHeight: 50,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  selectFieldText: { fontFamily: fonts.display.bold, fontSize: 15 },
+  selectFieldText: { fontFamily: fonts.display.bold, fontSize: 18 },
   selectChevron: { position: "absolute", right: 12 },
   unitTrigger: { flexDirection: "row", alignItems: "center", gap: 4 },
   unitTriggerText: { fontFamily: fonts.display.bold, fontSize: 12.5 },
   tifTrigger: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
   tifTriggerText: { fontFamily: fonts.display.bold, fontSize: 12.5 },
   priceField: { flex: 1, marginBottom: 0 },
-  priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 10 },
+  priceRow: { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: 12 },
   bboBox: { justifyContent: "center", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 16 },
   bboText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.5 },
   bboModeField: { flex: 1, justifyContent: "center", borderWidth: 1, borderRadius: 12, height: 50, marginBottom: 0, paddingHorizontal: 12 },
   bboModeLabel: { fontFamily: fonts.body.regular, fontSize: 11, textAlign: "center", marginBottom: 2 },
   bboModeValue: { fontFamily: fonts.display.bold, fontSize: 16, textAlign: "center" },
   preview: { fontFamily: fonts.mono.regular, fontSize: 11.5, marginTop: 4, marginBottom: 14 },
-  optsCol: { marginBottom: 14, gap: 12, zIndex: 20 },
+  sizeSlider: { marginBottom: 12 },
+  optsCol: { marginBottom: 12, gap: 12, zIndex: 20 },
   optsRowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 2 },
   optsRowBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 1 },
   optRow: { flexDirection: "row", alignItems: "center", gap: 9 },
@@ -990,7 +993,7 @@ const styles = StyleSheet.create({
   retry: { borderWidth: 1, borderRadius: 8, paddingVertical: 11, alignItems: "center" },
   retryText: { fontFamily: fonts.body.semibold, fontSize: 14 },
   belowMin: { fontFamily: fonts.body.regular, fontSize: 12, marginBottom: 8 },
-  sideBlock: { marginTop: 14 },
-  submitBtn: { paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 6 },
+  sideBlock: { marginTop: 12 },
+  submitBtn: { paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", borderWidth: 1, marginTop: 6 },
   submitText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
 });

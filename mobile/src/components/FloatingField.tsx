@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 50,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   main: { flex: 1, height: "100%", position: "relative", justifyContent: "center" },
   label: { position: "absolute", top: 0, left: 0, right: 0, textAlign: "center", fontFamily: fonts.body.regular },

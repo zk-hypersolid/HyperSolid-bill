@@ -83,7 +83,7 @@ export function Slider({
 }
 
 const styles = StyleSheet.create({
-  wrap: { height: 28, justifyContent: "center", marginVertical: 6 },
+  wrap: { height: 28, justifyContent: "center" },
   track: { height: 3, borderRadius: 2 },
   fill: { position: "absolute", left: 0, height: 3, borderRadius: 2 },
   notch: { position: "absolute", width: 8, height: 8, borderRadius: 4, marginLeft: -4 },

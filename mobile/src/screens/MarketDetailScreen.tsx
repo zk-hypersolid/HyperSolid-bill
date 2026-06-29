@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { MarketsStackParamList } from "../navigation/types";
 import { useMarketStore } from "../state/marketStore";
+import { useTradeStore } from "../state/tradeStore";
 import { useEnvStore } from "../state/envStore";
 import { useTheme } from "../theme/useTheme";
 import { useT } from "../i18n/useT";
@@ -288,7 +289,10 @@ export function MarketDetailScreen({ route, navigation }: Props) {
       <Pressable
         style={[styles.cta, { backgroundColor: theme.brand }]}
         accessibilityRole="button"
-        onPress={() => navigation.getParent()?.navigate("Trade" as never)}
+        onPress={() => {
+          useTradeStore.getState().setSelectedCoin(coin);
+          navigation.getParent()?.navigate("Trade" as never);
+        }}
       >
         <Text style={[styles.ctaText, { color: theme.bg }]}>{t("common.trade")}</Text>
         <Icon name="arrowRight" color={theme.bg} size={18} />

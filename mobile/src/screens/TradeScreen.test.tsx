@@ -5,6 +5,7 @@ import { TradeScreen } from "./TradeScreen";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import { useMarketStore } from "../state/marketStore";
+import { useTradeStore } from "../state/tradeStore";
 import { useLedgerStore } from "../state/ledgerStore";
 import { useToastStore } from "../state/toastStore";
 import { IntentLedger } from "../lib/hyperliquid/intentLedger";
@@ -69,6 +70,7 @@ describe("TradeScreen", () => {
   beforeEach(() => {
     useEnvStore.setState({ network: "mainnet" });
     useMarketStore.setState({ tickers: [btc], loading: false, error: null });
+    useTradeStore.setState({ selectedCoin: null });
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     useLedgerStore.setState({ ledger: null, scope: null, revision: 0 });
     useToastStore.setState({ message: null, kind: "info" });
@@ -317,6 +319,20 @@ describe("TradeScreen", () => {
     expect(screen.getAllByText("Required margin").length).toBe(2);
     expect(screen.getByText("Max long")).toBeTruthy();
     expect(screen.getByText("Max short")).toBeTruthy();
+  });
+
+  it("opens with the coin chosen from market detail (tradeStore.selectedCoin)", () => {
+    useMarketStore.setState({
+      tickers: [btc, { ...btc, coin: "ETH", midPx: 3000 }],
+      loading: false,
+      error: null,
+    });
+    useTradeStore.setState({ selectedCoin: "ETH" });
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: "0xabc" });
+    render(<TradeScreen />);
+    expect(screen.getByText("ETH-USDC")).toBeTruthy();
+    // store consumed once so manual coin changes aren't overridden later
+    expect(useTradeStore.getState().selectedCoin).toBeNull();
   });
 
   it("applies the selected leverage to the venue before placing the order", async () => {

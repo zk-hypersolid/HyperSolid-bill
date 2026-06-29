@@ -5,6 +5,7 @@ import { useT } from "../i18n/useT";
 import { useWalletStore } from "../state/walletStore";
 import { useEnvStore } from "../state/envStore";
 import { useMarketStore } from "../state/marketStore";
+import { useTradeStore } from "../state/tradeStore";
 import { useLedgerStore } from "../state/ledgerStore";
 import { useExchangeStore } from "../state/exchangeStore";
 import { useToastStore } from "../state/toastStore";
@@ -124,6 +125,16 @@ export function TradeScreen({ navigation }: { navigation?: { navigate: (name: st
   const [retryCloid, setRetryCloid] = useState<`0x${string}` | null>(null);
   // The last submit got an uncertain (network/timeout) receipt — exposure is ambiguous (§6.1).
   const [uncertain, setUncertain] = useState(false);
+
+  // Coin chosen from market detail's "Trade" CTA (cross-tab). Apply once, then clear so manual
+  // changes here aren't overridden on the next visit.
+  const selectedCoin = useTradeStore((s) => s.selectedCoin);
+  useEffect(() => {
+    if (!selectedCoin) return;
+    setCoin(selectedCoin);
+    setPriceEdited(false);
+    useTradeStore.getState().clearSelectedCoin();
+  }, [selectedCoin]);
 
   const ticker = tickers.find((t) => t.coin === coin.toUpperCase());
   const index = useMemo(() => {

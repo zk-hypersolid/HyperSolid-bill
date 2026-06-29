@@ -95,17 +95,27 @@ describe("AccountScreen", () => {
     expect(navigate).toHaveBeenCalledWith("Settings");
   });
 
-  it("shows a copyable wallet address with funding guidance in the deposit sheet", async () => {
+  it("shows a copyable address, QR and a USDC.e warning in the deposit sheet", async () => {
     (Clipboard.setStringAsync as jest.Mock).mockClear();
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
     render(<AccountScreen deps={fakeDeps} />);
     fireEvent.press(screen.getByText("Deposit"));
-    expect(screen.getByText("Fund this wallet first")).toBeTruthy();
+    expect(screen.getByTestId("qr-code")).toBeTruthy();
     expect(screen.getByText(ADDR)).toBeTruthy();
+    expect(screen.getByText(/never USDC.e/i)).toBeTruthy();
     expect(screen.getByText("Copy")).toBeTruthy();
     fireEvent.press(screen.getByTestId("copy-address"));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith(ADDR));
     await waitFor(() => expect(screen.getByText("Copied")).toBeTruthy());
+  });
+
+  it("fills deposit amount from a balance preset (50%)", async () => {
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    fireEvent.press(screen.getByText("Deposit"));
+    await waitFor(() => expect(screen.getByTestId("deposit-preset-50")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("deposit-preset-50"));
+    expect(screen.getByTestId("deposit-amount").props.value).toBe("250.00");
   });
 
   it("nudges an unfunded wallet to deposit", async () => {

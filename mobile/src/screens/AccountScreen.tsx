@@ -27,6 +27,7 @@ import { Icon } from "../components/Icon";
 import { ScreenScaffold } from "../components/ScreenScaffold";
 import { NetworkWarning } from "../components/NetworkWarning";
 import { SurfaceCard } from "../components/SurfaceCard";
+import { QrCode } from "../components/QrCode";
 import { UnconfirmedBanner } from "../components/UnconfirmedBanner";
 import { PriceText, formatPrice } from "../components/PriceText";
 import { SectionLabel } from "../components/SectionLabel";
@@ -383,9 +384,13 @@ export function AccountScreen({
           <SurfaceCard theme={theme} testID="deposit-panel" style={styles.card}>
             <Text style={[styles.sheetTitle, { color: theme.text }]}>{t("account.depositTitle")}</Text>
             <Text style={[styles.sheetHint, { color: theme.muted }]}>
-              {t("account.depositHint", { min: MIN_DEPOSIT_USDC })}
+              {t("account.depositHintShort", { min: MIN_DEPOSIT_USDC })}
             </Text>
-            <Text style={[styles.fundTitle, { color: theme.text }]}>{t("account.fundWalletTitle")}</Text>
+
+            <View style={styles.qrWrap}>
+              {address ? <QrCode value={address} size={148} color={theme.text} bg={theme.bg} /> : null}
+            </View>
+
             <View style={[styles.fundRow, { borderColor: theme.line, backgroundColor: theme.surfaceAlt }]}>
               <Text style={[styles.fundAddr, { color: theme.muted }]} numberOfLines={1} ellipsizeMode="middle">
                 {address ?? "—"}
@@ -396,8 +401,12 @@ export function AccountScreen({
                 </Text>
               </Pressable>
             </View>
-            <Text style={[styles.fundHint, { color: theme.faint }]}>{t("account.fundWalletHint")}</Text>
-            <Text style={[styles.fundHint, { color: theme.faint }]}>{t("account.minTradeNote")}</Text>
+
+            <View style={[styles.warnBar, { borderColor: theme.warn, backgroundColor: withAlpha(theme.warn, 0.1) }]}>
+              <Icon name="alert" color={theme.warn} size={14} />
+              <Text style={[styles.warnBarText, { color: theme.warn }]}>{t("account.depositWarnUsdce")}</Text>
+            </View>
+
             <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.amountUsdc")}</Text>
             <TextInput
               value={depositAmount}
@@ -411,6 +420,21 @@ export function AccountScreen({
               placeholderTextColor={theme.faint}
               style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
             />
+            {depositBalances && depositBalances.usdc > 0 ? (
+              <View style={styles.presetRow}>
+                {([["25%", 0.25], ["50%", 0.5], ["account.max", 1]] as const).map(([label, frac]) => (
+                  <Pressable
+                    key={label}
+                    accessibilityRole="button"
+                    testID={`deposit-preset-${frac * 100}`}
+                    onPress={() => { setMainnetConfirm(false); setDepositAmount((depositBalances.usdc * frac).toFixed(2)); }}
+                    style={[styles.preset, { borderColor: theme.lineStrong }]}
+                  >
+                    <Text style={[styles.presetText, { color: theme.text }]}>{label === "account.max" ? t("account.max") : label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             {depositBalances ? (
               <Text style={[styles.feeLine, { color: theme.muted }]} testID="deposit-available">
                 {t("account.depositAvailable", { usdc: depositBalances.usdc.toFixed(2), eth: depositBalances.eth.toFixed(4) })}
@@ -688,6 +712,12 @@ const styles = StyleSheet.create({
   sheetHint: { fontFamily: fonts.body.regular, fontSize: 11.5, lineHeight: 17, marginBottom: 12 },
   fundTitle: { fontFamily: fonts.body.semibold, fontSize: 12, marginBottom: 6 },
   fundRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, paddingLeft: 10, paddingRight: 6, paddingVertical: 6, marginBottom: 6 },
+  qrWrap: { alignSelf: "center", padding: 8, marginBottom: 10 },
+  warnBar: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 12 },
+  warnBarText: { flex: 1, fontFamily: fonts.body.semibold, fontSize: 11, lineHeight: 15 },
+  presetRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  preset: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: "center" },
+  presetText: { fontFamily: fonts.mono.medium, fontSize: 12 },
   fundAddr: { flex: 1, fontFamily: fonts.mono.regular, fontSize: 12 },
   copyBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
   copyText: { fontFamily: fonts.display.bold, fontSize: 12 },

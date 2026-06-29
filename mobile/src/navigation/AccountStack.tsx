@@ -24,8 +24,8 @@ export function AccountStack() {
         contentStyle: { backgroundColor: theme.bg },
       }}
     >
-      <Stack.Screen name="AccountHome" component={AccountHome} options={{ headerShown: false }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title") }} />
+      <Stack.Screen name="AccountHome" component={AccountHome} options={{ headerShown: false, title: t("tab.wallet") }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t("settings.title"), headerBackTitle: t("tab.wallet") }} />
     </Stack.Navigator>
   );
 }

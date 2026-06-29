@@ -18,17 +18,19 @@ describe("SettingsScreen", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
   });
 
-  it("shows app preferences and a sign-out", () => {
+  it("shows app preferences, about and a sign-out", () => {
     render(<SettingsScreen />);
     expect(screen.getByText("Network")).toBeTruthy();
     expect(screen.getByText("Theme")).toBeTruthy();
     expect(screen.getByText("Language")).toBeTruthy();
+    expect(screen.getByText("Version")).toBeTruthy();
     expect(screen.getByText("Sign out / switch wallet")).toBeTruthy();
   });
 
   it("toggles the locale en <-> zh", () => {
     render(<SettingsScreen />);
-    fireEvent.press(screen.getByText("English"));
+    fireEvent.press(screen.getByText("Language"));
+    fireEvent.press(screen.getByTestId("locale-opt-zh"));
     expect(useLocaleStore.getState().locale).toBe("zh");
   });
 
@@ -68,5 +70,14 @@ describe("SettingsScreen", () => {
     expect(screen.getByText("Network")).toBeTruthy();
     expect(screen.queryByText("Change PIN")).toBeNull();
     expect(screen.queryByText("Auto-lock")).toBeNull();
+  });
+
+  it("confirms before signing out", () => {
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    const manager = { signOut: jest.fn() } as never;
+    render(<SettingsScreen deps={{ manager }} />);
+    fireEvent.press(screen.getByText("Sign out / switch wallet"));
+    expect(alertSpy).toHaveBeenCalledWith("Sign out?", expect.any(String), expect.any(Array));
+    alertSpy.mockRestore();
   });
 });

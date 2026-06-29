@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Linking } from "react-native";
+import appJson from "../../app.json";
 import * as Clipboard from "expo-clipboard";
 import * as LocalAuthentication from "expo-local-authentication";
 import { useToastStore } from "../state/toastStore";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
-import { useEnvStore } from "../state/envStore";
+import { useEnvStore, type Network } from "../state/envStore";
 import { useThemeStore } from "../state/themeStore";
 import { useLocaleStore } from "../state/localeStore";
 import { useLockPrefsStore, AUTO_LOCK_OPTIONS } from "../state/lockPrefsStore";
@@ -18,6 +19,8 @@ import { BiometricGate } from "../wallet/biometricGate";
 import { Icon, type IconName } from "../components/Icon";
 import { ScreenScaffold } from "../components/ScreenScaffold";
 import { SurfaceCard } from "../components/SurfaceCard";
+import { SectionLabel } from "../components/SectionLabel";
+import { SheetSelect } from "../components/SheetSelect";
 import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
 import type { ThemeName, ThemeTokens } from "../theme/tokens";
@@ -31,19 +34,24 @@ export interface SettingsScreenDeps {
 const THEME_ORDER: ThemeName[] = ["electrum", "daylight", "oscilloscope"];
 const THEME_LABEL: Record<ThemeName, string> = { electrum: "Electrum", daylight: "Daylight", oscilloscope: "Oscilloscope" };
 const LOCALE_LABEL: Record<Locale, string> = { en: "English", zh: "中文" };
+const APP_VERSION = (appJson as { expo?: { version?: string } }).expo?.version ?? "1.0.0";
+const PRIVACY_URL = "https://hypersolid.app/privacy";
+const TERMS_URL = "https://hypersolid.app/terms";
 
-/** Wallet settings sub-page (Wallet › gear): app prefs + security + dangerous actions, away from funds. */
+type Picker = "none" | "network" | "theme" | "locale" | "autolock";
+
+/** Wallet settings sub-page (Wallet › gear): grouped app prefs + security + backup + sign-out. */
 export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
   const theme = useTheme();
   const t = useT();
   const mode = useWalletStore((s) => s.mode);
   const reset = useWalletStore((s) => s.reset);
   const network = useEnvStore((s) => s.network);
-  const toggleNetwork = useEnvStore((s) => s.toggleNetwork);
+  const setNetwork = useEnvStore((s) => s.setNetwork);
   const themeName = useThemeStore((s) => s.name);
   const setTheme = useThemeStore((s) => s.setTheme);
   const locale = useLocaleStore((s) => s.locale);
-  const toggleLocale = useLocaleStore((s) => s.toggleLocale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
   const biometricEnabled = useLockPrefsStore((s) => s.biometricEnabled);
   const setBiometricEnabled = useLockPrefsStore((s) => s.setBiometricEnabled);
   const autoLockMinutes = useLockPrefsStore((s) => s.autoLockMinutes);
@@ -53,6 +61,7 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
   const pinStore = useMemo(() => deps?.pinStore ?? new PinStore(), [deps]);
   const gate = useMemo(() => deps?.gate ?? new BiometricGate(LocalAuthentication), [deps]);
 
+  const [picker, setPicker] = useState<Picker>("none");
   const [sheet, setSheet] = useState<"none" | "changepin">("none");
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -60,6 +69,8 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
   const [pinBusy, setPinBusy] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<{ kind: "mnemonic" | "key"; value: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const autoLockLabel = (m: number) => (m === 0 ? t("account.autoLockImmediate") : t("account.autoLockMin", { min: m }));
 
   async function onToggleBiometric() {
     if (!biometricEnabled) {
@@ -70,14 +81,6 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
       }
     }
     await setBiometricEnabled(!biometricEnabled);
-  }
-
-  function cycleAutoLock() {
-    const i = AUTO_LOCK_OPTIONS.indexOf(autoLockMinutes as (typeof AUTO_LOCK_OPTIONS)[number]);
-    void setAutoLockMinutes(AUTO_LOCK_OPTIONS[(i + 1) % AUTO_LOCK_OPTIONS.length]);
-  }
-  function cycleTheme() {
-    setTheme(THEME_ORDER[(THEME_ORDER.indexOf(themeName) + 1) % THEME_ORDER.length]);
   }
 
   function openChangePin() {
@@ -129,8 +132,17 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
     setCopied(true);
   }
   async function onSignOut() {
-    await manager.signOut();
-    reset();
+    Alert.alert(t("account.signOutTitle"), t("account.signOutConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("account.signOutSwitch"),
+        style: "destructive",
+        onPress: async () => {
+          await manager.signOut();
+          reset();
+        },
+      },
+    ]);
   }
 
   return (
@@ -141,7 +153,7 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
           <PinField theme={theme} label={t("account.changePinOld")} value={oldPin} onChange={setOldPin} testID="changepin-old" />
           <PinField theme={theme} label={t("account.changePinNew")} value={newPin} onChange={setNewPin} testID="changepin-new" />
           <PinField theme={theme} label={t("account.changePinConfirm")} value={confirmPin} onChange={setConfirmPin} testID="changepin-confirm" />
-          <View style={styles.row}>
+          <View style={styles.btnRow}>
             <Pressable disabled={pinBusy} onPress={onConfirmChangePin} accessibilityRole="button" testID="changepin-confirm-btn" style={[styles.btn, { backgroundColor: theme.brand }]}>
               <Text style={[styles.btnText, { color: theme.bg }]}>{t("account.changePinSave")}</Text>
             </Pressable>
@@ -159,7 +171,7 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
             <Text style={[styles.warn, { color: theme.warn }]}>{revealedSecret.kind === "key" ? t("account.exportKeyWarn") : t("account.backupWarn")}</Text>
           </View>
           <Text style={[styles.secret, { color: theme.text }]} testID="revealed-secret">{revealedSecret.value}</Text>
-          <View style={styles.row}>
+          <View style={styles.btnRow}>
             <Pressable onPress={onCopySecret} accessibilityRole="button" testID="copy-secret" style={[styles.btn, styles.btnOutline, { borderColor: theme.lineStrong }]}>
               <Text style={[styles.btnText, { color: theme.text }]}>{copied ? t("account.copied") : t("account.copyAddress")}</Text>
             </Pressable>
@@ -170,22 +182,74 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
         </SurfaceCard>
       ) : null}
 
-      <SettingRow theme={theme} icon="swap" name={t("account.network")} value={network} onPress={toggleNetwork} />
-      <SettingRow theme={theme} icon="agent" name={t("account.theme")} value={THEME_LABEL[themeName]} onPress={cycleTheme} />
-      <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
+      <SectionLabel theme={theme}>{t("settings.prefs")}</SectionLabel>
+      <SettingRow theme={theme} icon="swap" name={t("account.network")} value={network} onPress={() => setPicker("network")} />
+      <SettingRow theme={theme} icon="grid" name={t("account.theme")} value={THEME_LABEL[themeName]} onPress={() => setPicker("theme")} />
+      <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={() => setPicker("locale")} />
+
       {mode === "local" ? (
         <>
+          <SectionLabel theme={theme}>{t("settings.security")}</SectionLabel>
           <SettingRow theme={theme} icon="shield" name={t("account.security")} value={biometricEnabled ? t("account.faceIdOn") : t("account.faceIdOff")} onPress={onToggleBiometric} />
-          <SettingRow theme={theme} icon="lock" name={t("account.autoLock")} value={autoLockMinutes === 0 ? t("account.autoLockImmediate") : t("account.autoLockMin", { min: autoLockMinutes })} onPress={cycleAutoLock} />
-          <SettingRow theme={theme} icon="lock" name={t("account.changePin")} value="" onPress={openChangePin} />
-          <SettingRow theme={theme} icon="key" name={t("account.exportBackup")} value="" onPress={onExportBackup} />
-          <SettingRow theme={theme} icon="key" name={t("account.exportKey")} value="" onPress={onExportKey} />
+          <SettingRow theme={theme} icon="lock" name={t("account.autoLock")} value={autoLockLabel(autoLockMinutes)} onPress={() => setPicker("autolock")} />
+          <SettingRow theme={theme} icon="key" name={t("account.changePin")} value="" onPress={openChangePin} />
+
+          <SectionLabel theme={theme}>{t("settings.backup")}</SectionLabel>
+          <SettingRow theme={theme} icon="key" name={t("account.exportBackup")} value="" danger onPress={onExportBackup} />
+          <SettingRow theme={theme} icon="key" name={t("account.exportKey")} value="" danger onPress={onExportKey} />
         </>
       ) : null}
 
+      <SectionLabel theme={theme}>{t("settings.about")}</SectionLabel>
+      <SettingRow theme={theme} icon="bolt" name={t("settings.version")} value={APP_VERSION} onPress={() => {}} />
+      <SettingRow theme={theme} icon="shield" name={t("settings.privacy")} value="" onPress={() => void Linking.openURL(PRIVACY_URL)} />
+      <SettingRow theme={theme} icon="grid" name={t("settings.terms")} value="" onPress={() => void Linking.openURL(TERMS_URL)} />
+
+      <SectionLabel theme={theme}>{t("settings.danger")}</SectionLabel>
       <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>
         <Text style={[styles.signOutText, { color: theme.down }]}>{t("account.signOutSwitch")}</Text>
       </Pressable>
+
+      <SheetSelect<Network>
+        visible={picker === "network"}
+        onClose={() => setPicker("none")}
+        title={t("settings.networkTitle")}
+        value={network}
+        onSelect={(v) => { setNetwork(v); setPicker("none"); }}
+        sections={[{ options: [{ value: "mainnet", label: "mainnet" }, { value: "testnet", label: "testnet" }] }]}
+        theme={theme}
+        testIDPrefix="network"
+      />
+      <SheetSelect<ThemeName>
+        visible={picker === "theme"}
+        onClose={() => setPicker("none")}
+        title={t("settings.themeTitle")}
+        value={themeName}
+        onSelect={(v) => { setTheme(v); setPicker("none"); }}
+        sections={[{ options: THEME_ORDER.map((th) => ({ value: th, label: THEME_LABEL[th] })) }]}
+        theme={theme}
+        testIDPrefix="theme"
+      />
+      <SheetSelect<Locale>
+        visible={picker === "locale"}
+        onClose={() => setPicker("none")}
+        title={t("settings.langTitle")}
+        value={locale}
+        onSelect={(v) => { setLocale(v); setPicker("none"); }}
+        sections={[{ options: [{ value: "en", label: "English" }, { value: "zh", label: "中文" }] }]}
+        theme={theme}
+        testIDPrefix="locale"
+      />
+      <SheetSelect<string>
+        visible={picker === "autolock"}
+        onClose={() => setPicker("none")}
+        title={t("settings.autoLockTitle")}
+        value={String(autoLockMinutes)}
+        onSelect={(v) => { void setAutoLockMinutes(Number(v)); setPicker("none"); }}
+        sections={[{ options: AUTO_LOCK_OPTIONS.map((m) => ({ value: String(m), label: autoLockLabel(m) })) }]}
+        theme={theme}
+        testIDPrefix="autolock"
+      />
     </ScreenScaffold>
   );
 }
@@ -209,13 +273,14 @@ function PinField({ theme, label, value, onChange, testID }: { theme: ThemeToken
   );
 }
 
-function SettingRow({ theme, icon, name, value, onPress }: { theme: ThemeTokens; icon: IconName; name: string; value: string; onPress: () => void }) {
+function SettingRow({ theme, icon, name, value, onPress, danger }: { theme: ThemeTokens; icon: IconName; name: string; value: string; onPress: () => void; danger?: boolean }) {
+  const accent = danger ? theme.down : theme.brand;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" style={[styles.settingRow, { borderBottomColor: theme.line }]}>
-      <View style={[styles.settingIcon, { backgroundColor: withAlpha(theme.brand, 0.12) }]}>
-        <Icon name={icon} color={theme.brand} size={16} />
+      <View style={[styles.settingIcon, { backgroundColor: withAlpha(accent, 0.12) }]}>
+        <Icon name={icon} color={accent} size={16} />
       </View>
-      <Text style={[styles.settingName, { color: theme.text }]}>{name}</Text>
+      <Text style={[styles.settingName, { color: danger ? theme.down : theme.text }]}>{name}</Text>
       <Text style={[styles.settingValue, { color: theme.muted }]}>{value}</Text>
       <Icon name="chevronRight" color={theme.faint} size={14} strokeWidth={2} />
     </Pressable>
@@ -227,7 +292,7 @@ const styles = StyleSheet.create({
   sheetTitle: { fontFamily: fonts.display.bold, fontSize: 14, marginBottom: 8 },
   fieldLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4, marginTop: 10 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.body.regular, fontSize: 13 },
-  row: { flexDirection: "row", gap: 10, marginTop: 12 },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 12 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   btnOutline: { borderWidth: 1, backgroundColor: "transparent" },
   btnText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
@@ -238,6 +303,6 @@ const styles = StyleSheet.create({
   settingIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   settingName: { flex: 1, fontFamily: fonts.body.semibold, fontSize: 13 },
   settingValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
-  signOut: { paddingVertical: 13, borderRadius: 12, alignItems: "center", borderWidth: 1, marginTop: 18 },
+  signOut: { paddingVertical: 13, borderRadius: 12, alignItems: "center", borderWidth: 1, marginTop: 8 },
   signOutText: { fontFamily: fonts.body.semibold, fontSize: 14 },
 });

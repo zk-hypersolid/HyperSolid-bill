@@ -4,6 +4,7 @@ import type { ThemeTokens } from "../theme/tokens";
 import type { Network } from "../state/envStore";
 import type { AccountSummary, Position, OpenOrder, Fill, FundingEvent } from "../lib/hyperliquid/types";
 import { fonts } from "../theme/fonts";
+import { withAlpha } from "../theme/color";
 import { useT } from "../i18n/useT";
 import type { TranslationKey } from "../i18n/messages";
 import { PositionRow } from "./PositionRow";
@@ -92,25 +93,27 @@ export function TradeActivityPanel({
   return (
     <View style={[styles.wrap, { borderTopColor: theme.line }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
-        {TABS.map(([key, labelKey]) => (
-          <Pressable
-            key={key}
-            testID={`activity-tab-${key}`}
-            accessibilityRole="button"
-            accessibilityState={{ selected: tab === key }}
-            onPress={() => setTab(key)}
-          >
-            <Text
-              style={[
-                styles.tab,
-                { color: tab === key ? theme.brand : theme.muted, borderBottomColor: tab === key ? theme.brand : "transparent" },
-              ]}
+        {TABS.map(([key, labelKey]) => {
+          const active = tab === key;
+          const n = counts[key];
+          return (
+            <Pressable
+              key={key}
+              testID={`activity-tab-${key}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => setTab(key)}
+              style={[styles.tabItem, { borderBottomColor: active ? theme.brand : "transparent" }]}
             >
-              {t(labelKey)}
-              {counts[key] != null ? ` ${counts[key]}` : ""}
-            </Text>
-          </Pressable>
-        ))}
+              <Text style={[styles.tab, { color: active ? theme.brand : theme.muted }]}>{t(labelKey)}</Text>
+              {n != null && n > 0 ? (
+                <View style={[styles.badge, { backgroundColor: withAlpha(active ? theme.brand : theme.muted, 0.16) }]}>
+                  <Text style={[styles.badgeText, { color: active ? theme.brand : theme.muted }]}>{n}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       <View style={styles.body}>
@@ -216,7 +219,10 @@ const styles = StyleSheet.create({
   wrap: { borderTopWidth: 1, marginTop: 18, paddingTop: 10 },
   tabsScroll: { marginBottom: 8 },
   tabs: { flexDirection: "row", gap: 16, paddingRight: 16 },
-  tab: { fontFamily: fonts.display.bold, fontSize: 12.5, letterSpacing: 0.2, paddingBottom: 7, borderBottomWidth: 2 },
+  tabItem: { flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 7, borderBottomWidth: 2 },
+  tab: { fontFamily: fonts.display.bold, fontSize: 12.5, letterSpacing: 0.2 },
+  badge: { minWidth: 18, paddingHorizontal: 5, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontFamily: fonts.mono.bold, fontSize: 10, letterSpacing: 0.2 },
   body: { minHeight: 80 },
   empty: { fontFamily: fonts.body.regular, fontSize: 13, paddingVertical: 18 },
   balRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1 },

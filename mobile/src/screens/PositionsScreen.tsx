@@ -195,26 +195,25 @@ export function PositionsScreen({
           <EquityCard theme={theme} summary={portfolio.summary} />
 
           <View style={[styles.tabs, { borderBottomColor: theme.line }]}>
-            {tabs.map(([key, labelKey, n]) => (
-              <Pressable
-                key={key}
-                onPress={() => setTab(key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: tab === key }}
-              >
-                <Text
-                  style={[
-                    styles.tab,
-                    {
-                      color: tab === key ? theme.brand : theme.muted,
-                      borderBottomColor: tab === key ? theme.brand : "transparent",
-                    },
-                  ]}
+            {tabs.map(([key, labelKey, n]) => {
+              const active = tab === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setTab(key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.tabItem, { borderBottomColor: active ? theme.brand : "transparent" }]}
                 >
-                  {t(labelKey)} · {n}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text style={[styles.tab, { color: active ? theme.brand : theme.muted }]}>{t(labelKey)}</Text>
+                  {n > 0 ? (
+                    <View style={[styles.badge, { backgroundColor: withAlpha(active ? theme.brand : theme.muted, 0.16) }]}>
+                      <Text style={[styles.badgeText, { color: active ? theme.brand : theme.muted }]}>{n}</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
 
           {tab === "positions" ? (
@@ -398,7 +397,10 @@ const styles = StyleSheet.create({
   healthRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
   healthLabel: { fontFamily: fonts.body.medium, fontSize: 10.5 },
   tabs: { flexDirection: "row", gap: 18, borderBottomWidth: 1, marginTop: 8, marginBottom: 6 },
-  tab: { fontFamily: fonts.display.bold, fontSize: 12.5, letterSpacing: 0.3, paddingBottom: 8, borderBottomWidth: 2 },
+  tabItem: { flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 8, borderBottomWidth: 2 },
+  tab: { fontFamily: fonts.display.bold, fontSize: 12.5, letterSpacing: 0.3 },
+  badge: { minWidth: 18, paddingHorizontal: 5, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontFamily: fonts.mono.bold, fontSize: 10, letterSpacing: 0.2 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1 },
   rowCoin: { fontFamily: fonts.display.bold, fontSize: 14 },
   rowSub: { fontFamily: fonts.body.regular, fontSize: 11, marginTop: 3 },

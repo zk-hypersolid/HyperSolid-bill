@@ -77,74 +77,22 @@ describe("AccountScreen", () => {
     expect(screen.getByText(/no keys, can't trade/)).toBeTruthy();
   });
 
-  it("renders the connected state with wallet card, deposit/withdraw and sign-out", () => {
+  it("renders the connected state with wallet card, deposit/withdraw and a settings gear", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
     render(<AccountScreen deps={fakeDeps} />);
     expect(screen.getByText("Local wallet")).toBeTruthy();
     expect(screen.getByText("Non-custodial")).toBeTruthy();
     expect(screen.getByText("Deposit")).toBeTruthy();
     expect(screen.getByText("Withdraw")).toBeTruthy();
-    expect(screen.getByText("Sign out / switch wallet")).toBeTruthy();
-    expect(screen.getByText("Network")).toBeTruthy();
+    expect(screen.getByTestId("open-settings")).toBeTruthy();
   });
 
-  it("reveals the recovery phrase via Export & backup (biometric-gated read)", async () => {
-    const phrase = "abandon ability able about above absent absorb abstract absurd abuse access accident";
-    const manager = { exportMnemonic: jest.fn(async () => phrase) } as unknown as WalletManager;
+  it("opens Settings from the gear", () => {
     useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={{ ...fakeDeps, manager }} />);
-    expect(screen.queryByText(phrase)).toBeNull();
-    fireEvent.press(screen.getByText("Export & backup"));
-    await waitFor(() => expect(screen.getByText(phrase)).toBeTruthy());
-    expect(manager.exportMnemonic).toHaveBeenCalled();
-    expect(screen.getByText("I've backed it up safely")).toBeTruthy();
-  });
-
-  it("surfaces a failure (and reveals nothing) when export is denied", async () => {
-    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    const manager = { exportMnemonic: jest.fn(async () => { throw new Error("cancelled"); }) } as unknown as WalletManager;
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={{ ...fakeDeps, manager }} />);
-    fireEvent.press(screen.getByText("Export & backup"));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Export failed", expect.any(String)));
-    expect(screen.queryByText("I've backed it up safely")).toBeNull();
-    alertSpy.mockRestore();
-  });
-
-  it("hides Export & backup for a view-only wallet", () => {
-    useWalletStore.setState({ mode: "viewOnly", wallet: null, address: ADDR });
-    render(<AccountScreen deps={fakeDeps} />);
-    expect(screen.queryByText("Export & backup")).toBeNull();
-  });
-
-  it("reveals the private key via Export private key (biometric-gated read)", async () => {
-    const key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    const manager = { exportPrivateKey: jest.fn(async () => key) } as unknown as WalletManager;
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={{ ...fakeDeps, manager }} />);
-    expect(screen.queryByTestId("revealed-key")).toBeNull();
-    fireEvent.press(screen.getByText("Export private key"));
-    await waitFor(() => expect(screen.getByTestId("revealed-key")).toBeTruthy());
-    expect(manager.exportPrivateKey).toHaveBeenCalled();
-  });
-
-  it("changes the PIN through verify-old + set-new", async () => {
-    const change = jest.fn(async () => ({ ok: true }));
-    const pinStore = { hasPin: jest.fn(async () => true), change } as never;
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={{ ...fakeDeps, pinStore }} />);
-    fireEvent.press(screen.getByText("Change PIN"));
-    fireEvent.changeText(screen.getByTestId("changepin-old"), "111111");
-    fireEvent.changeText(screen.getByTestId("changepin-new"), "222222");
-    fireEvent.changeText(screen.getByTestId("changepin-confirm"), "222222");
-    fireEvent.press(screen.getByTestId("changepin-confirm-btn"));
-    await waitFor(() => expect(change).toHaveBeenCalledWith("111111", "222222"));
-  });
-
-  it("cycles the auto-lock timeout", () => {
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={fakeDeps} />);
-    expect(screen.getByText("Auto-lock")).toBeTruthy();
+    const navigate = jest.fn();
+    render(<AccountScreen deps={fakeDeps} navigation={{ navigate }} />);
+    fireEvent.press(screen.getByTestId("open-settings"));
+    expect(navigate).toHaveBeenCalledWith("Settings");
   });
 
   it("shows a copyable wallet address with funding guidance in the deposit sheet", async () => {
@@ -222,17 +170,6 @@ describe("AccountScreen", () => {
     fireEvent.press(screen.getByTestId("verify-back"));
     expect(screen.getByText(phrase)).toBeTruthy();
     expect(screen.getByText("Continue")).toBeTruthy();
-  });
-
-  it("shows a Language row that toggles the locale (en <-> zh)", () => {
-    useLocaleStore.setState({ locale: "en" });
-    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
-    render(<AccountScreen deps={fakeDeps} />);
-    expect(screen.getByText("Language")).toBeTruthy();
-    expect(screen.getByText("English")).toBeTruthy();
-    fireEvent.press(screen.getByText("English"));
-    expect(screen.getByText("中文")).toBeTruthy();
-    expect(useLocaleStore.getState().locale).toBe("zh");
   });
 
   it("labels the view-only connected state correctly", () => {

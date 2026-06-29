@@ -4,7 +4,7 @@ import { MarketsStack } from "./MarketsStack";
 import { TradeScreen } from "../screens/TradeScreen";
 import { PositionsScreen } from "../screens/PositionsScreen";
 import { AgentScreen } from "../screens/AgentScreen";
-import { AccountScreen } from "../screens/AccountScreen";
+import { AccountStack } from "./AccountStack";
 import { useTheme } from "../theme/useTheme";
 import { useT } from "../i18n/useT";
 import type { TranslationKey } from "../i18n/messages";
@@ -22,7 +22,7 @@ export const TABS: {
   { name: "Trade", labelKey: "tab.trade", icon: "trade", component: TradeScreen },
   { name: "Positions", labelKey: "tab.positions", icon: "positions", component: PositionsScreen },
   { name: "Agent", labelKey: "tab.strategy", icon: "agent", component: AgentScreen },
-  { name: "Account", labelKey: "tab.wallet", icon: "account", component: AccountScreen },
+  { name: "Account", labelKey: "tab.wallet", icon: "account", component: AccountStack },
 ];
 
 export function RootNavigator({ initialTab }: { initialTab?: string } = {}) {

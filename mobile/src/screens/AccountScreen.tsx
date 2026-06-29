@@ -5,17 +5,11 @@ import { useToastStore } from "../state/toastStore";
 import { useTheme } from "../theme/useTheme";
 import { useWalletStore } from "../state/walletStore";
 import { useAuthStore } from "../state/authStore";
-import { useLockPrefsStore, AUTO_LOCK_OPTIONS } from "../state/lockPrefsStore";
 import { useEnvStore } from "../state/envStore";
-import { useThemeStore } from "../state/themeStore";
-import { useLocaleStore } from "../state/localeStore";
 import { useT } from "../i18n/useT";
-import type { Locale } from "../i18n/messages";
 import { WalletManager } from "../wallet/walletManager";
 import { SecureStoreKeyStore } from "../wallet/secureKeyStore";
 import { PinStore } from "../wallet/pinStore";
-import { BiometricGate } from "../wallet/biometricGate";
-import * as LocalAuthentication from "expo-local-authentication";
 import { isValidAddress } from "../hooks/useViewOnlyPortfolio";
 import { useUnconfirmedIntents } from "../hooks/useUnconfirmedIntents";
 import { PositionsService } from "../services/positionsData";
@@ -29,7 +23,7 @@ import { MIN_DEPOSIT_USDC } from "../lib/arbitrum/deposit";
 import { buildAssetIndex } from "../lib/hyperliquid/assetId";
 import { marginRatioPct } from "../lib/hyperliquid/markPnl";
 import { totalFunding } from "../lib/hyperliquid/funding";
-import { Icon, type IconName } from "../components/Icon";
+import { Icon } from "../components/Icon";
 import { ScreenScaffold } from "../components/ScreenScaffold";
 import { NetworkWarning } from "../components/NetworkWarning";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -39,7 +33,7 @@ import { SectionLabel } from "../components/SectionLabel";
 import { MnemonicVerify } from "../components/MnemonicVerify";
 import { fonts } from "../theme/fonts";
 import { withAlpha } from "../theme/color";
-import type { ThemeName, ThemeTokens } from "../theme/tokens";
+import type { ThemeTokens } from "../theme/tokens";
 import type { AccountSummary } from "../lib/hyperliquid/types";
 import type { LocalWalletService } from "../wallet/localWallet";
 
@@ -48,23 +42,10 @@ export interface AccountScreenDeps {
   fundings: FundingsService;
   manager?: WalletManager;
   pinStore?: PinStore;
-  gate?: BiometricGate;
 }
-
-const THEME_ORDER: ThemeName[] = ["electrum", "daylight", "oscilloscope"];
 
 /** Below this ETH balance, an Arbitrum ERC-20 transfer likely can't pay gas — warn the user. */
 const GAS_MIN_ETH = 0.0002;
-const THEME_LABEL: Record<ThemeName, string> = {
-  electrum: "Electrum",
-  daylight: "Daylight",
-  oscilloscope: "Oscilloscope",
-};
-
-const LOCALE_LABEL: Record<Locale, string> = {
-  en: "English",
-  zh: "中文",
-};
 
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -83,22 +64,11 @@ export function AccountScreen({
   const wallet = useWalletStore((s) => s.wallet);
   const setLocalWallet = useWalletStore((s) => s.setLocalWallet);
   const setViewOnly = useWalletStore((s) => s.setViewOnly);
-  const reset = useWalletStore((s) => s.reset);
   const network = useEnvStore((s) => s.network);
-  const toggleNetwork = useEnvStore((s) => s.toggleNetwork);
-  const themeName = useThemeStore((s) => s.name);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  const locale = useLocaleStore((s) => s.locale);
-  const toggleLocale = useLocaleStore((s) => s.toggleLocale);
   const t = useT();
   const { count: unconfirmedCount } = useUnconfirmedIntents();
   const manager = useMemo(() => deps?.manager ?? new WalletManager(new SecureStoreKeyStore()), [deps]);
   const pinStore = useMemo(() => deps?.pinStore ?? new PinStore(), [deps]);
-  const gate = useMemo(() => deps?.gate ?? new BiometricGate(LocalAuthentication), [deps]);
-  const biometricEnabled = useLockPrefsStore((s) => s.biometricEnabled);
-  const setBiometricEnabled = useLockPrefsStore((s) => s.setBiometricEnabled);
-  const autoLockMinutes = useLockPrefsStore((s) => s.autoLockMinutes);
-  const setAutoLockMinutes = useLockPrefsStore((s) => s.setAutoLockMinutes);
 
   // After a fresh create (post backup-verify) or restore, re-evaluate auth so a wallet without an app
   // PIN routes to mandatory PIN setup (App renders PinSetupScreen on "needsPinSetup").
@@ -108,69 +78,6 @@ export function AccountScreen({
       () => pinStore.hasPin(),
     );
   }, [manager, pinStore]);
-
-  async function onToggleBiometric() {
-    if (!biometricEnabled) {
-      const avail = await gate.isAvailable();
-      if (!avail.hasHardware || !avail.isEnrolled) {
-        Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
-        return;
-      }
-    }
-    await setBiometricEnabled(!biometricEnabled);
-  }
-
-  function cycleAutoLock() {
-    const i = AUTO_LOCK_OPTIONS.indexOf(autoLockMinutes as (typeof AUTO_LOCK_OPTIONS)[number]);
-    const next = AUTO_LOCK_OPTIONS[(i + 1) % AUTO_LOCK_OPTIONS.length];
-    void setAutoLockMinutes(next);
-  }
-
-  function openChangePin() {
-    setOldPin("");
-    setNewPin("");
-    setConfirmPin("");
-    setSheet((s) => (s === "changepin" ? "none" : "changepin"));
-  }
-
-  async function onConfirmChangePin() {
-    if (newPin.length < 6 || newPin !== confirmPin) {
-      Alert.alert(t("account.changePinMismatch"));
-      return;
-    }
-    setPinBusy(true);
-    try {
-      const res = await pinStore.change(oldPin, newPin);
-      if (res.ok) {
-        useToastStore.getState().show(t("account.changePinDone"), "success");
-        setSheet("none");
-      } else {
-        Alert.alert(t("account.changePinWrong"));
-      }
-    } finally {
-      setPinBusy(false);
-    }
-  }
-
-  async function onExportPrivateKey() {
-    try {
-      const key = await manager.exportPrivateKey();
-      if (!key) {
-        Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
-        return;
-      }
-      setKeyCopied(false);
-      setRevealedKey(key);
-    } catch {
-      Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
-    }
-  }
-
-  async function onCopyKey() {
-    if (!revealedKey) return;
-    await Clipboard.setStringAsync(revealedKey);
-    setKeyCopied(true);
-  }
 
   const services = useMemo<AccountScreenDeps>(
     () =>
@@ -191,7 +98,7 @@ export function AccountScreen({
   const [verifyPhrase, setVerifyPhrase] = useState(false);
   const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [fundingTotal, setFundingTotal] = useState<number | null>(null);
-  const [sheet, setSheet] = useState<"none" | "deposit" | "withdraw" | "changepin">("none");
+  const [sheet, setSheet] = useState<"none" | "deposit" | "withdraw">("none");
   const [amountInput, setAmountInput] = useState("");
   const [destInput, setDestInput] = useState("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
@@ -201,12 +108,6 @@ export function AccountScreen({
   const [depositBusy, setDepositBusy] = useState(false);
   const [depositBalances, setDepositBalances] = useState<{ usdc: number; eth: number } | null>(null);
   const [addressCopied, setAddressCopied] = useState(false);
-  const [oldPin, setOldPin] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [pinBusy, setPinBusy] = useState(false);
-  const [revealedKey, setRevealedKey] = useState<string | null>(null);
-  const [keyCopied, setKeyCopied] = useState(false);
 
   // Reusable balance/funding fetch so we can refresh after a deposit/withdraw and on demand
   // (the Arbitrum→HL bridge credits a deposit ~1 min later, so a manual refresh is what surfaces it).
@@ -300,33 +201,7 @@ export function AccountScreen({
     setViewOnly(addrInput.trim());
   }
 
-  async function onSignOut() {
-    await manager.signOut();
-    reset();
-    setNewMnemonic(null);
-    setNeedsVerify(false);
-    setVerifyPhrase(false);
-  }
 
-  async function onExportBackup() {
-    try {
-      const mnemonic = await manager.exportMnemonic();
-      if (!mnemonic) {
-        Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
-        return;
-      }
-      setNeedsVerify(false);
-      setVerifyPhrase(false);
-      setNewMnemonic(mnemonic);
-    } catch {
-      Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
-    }
-  }
-
-  function cycleTheme() {
-    const next = THEME_ORDER[(THEME_ORDER.indexOf(themeName) + 1) % THEME_ORDER.length];
-    setTheme(next);
-  }
 
   async function onCopyAddress() {
     if (!address) return;
@@ -422,7 +297,17 @@ export function AccountScreen({
     const withdrawFee = withdrawFeeFor(network);
     const withdrawNet = Math.max(0, (Number(amountInput) || 0) - withdrawFee).toFixed(2);
     return (
-      <ScreenScaffold theme={theme} pill={<NetworkWarning variant="chip" />}>
+      <ScreenScaffold
+        theme={theme}
+        pill={
+          <View style={styles.pillRow}>
+            <NetworkWarning variant="chip" />
+            <Pressable accessibilityRole="button" testID="open-settings" hitSlop={8} onPress={() => navigation?.navigate("Settings")}>
+              <Icon name="grid" color={theme.muted} size={18} />
+            </Pressable>
+          </View>
+        }
+      >
         <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
 
         <SurfaceCard theme={theme} style={styles.wcard}>
@@ -630,74 +515,6 @@ export function AccountScreen({
           </SurfaceCard>
         ) : null}
 
-        {mode === "local" && sheet === "changepin" ? (
-          <SurfaceCard theme={theme} style={styles.card}>
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>{t("account.changePinTitle")}</Text>
-            <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("account.changePinOld")}</Text>
-            <TextInput
-              value={oldPin}
-              onChangeText={setOldPin}
-              placeholder="••••••"
-              placeholderTextColor={theme.faint}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={12}
-              testID="changepin-old"
-              style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
-            />
-            <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 10 }]}>{t("account.changePinNew")}</Text>
-            <TextInput
-              value={newPin}
-              onChangeText={setNewPin}
-              placeholder="••••••"
-              placeholderTextColor={theme.faint}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={12}
-              testID="changepin-new"
-              style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
-            />
-            <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 10 }]}>{t("account.changePinConfirm")}</Text>
-            <TextInput
-              value={confirmPin}
-              onChangeText={setConfirmPin}
-              placeholder="••••••"
-              placeholderTextColor={theme.faint}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={12}
-              testID="changepin-confirm"
-              style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
-            />
-            <View style={styles.sheetRow}>
-              <Pressable disabled={pinBusy} onPress={onConfirmChangePin} accessibilityRole="button" testID="changepin-confirm-btn" style={[styles.sheetBtn, { backgroundColor: theme.brand }]}>
-                <Text style={[styles.sheetBtnText, { color: theme.bg }]}>{t("account.changePinSave")}</Text>
-              </Pressable>
-              <Pressable onPress={() => setSheet("none")} accessibilityRole="button" style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}>
-                <Text style={[styles.sheetBtnText, { color: theme.text }]}>{t("account.close")}</Text>
-              </Pressable>
-            </View>
-          </SurfaceCard>
-        ) : null}
-
-        {revealedKey ? (
-          <SurfaceCard theme={theme} style={[styles.card, { borderColor: theme.warn }]}>
-            <View style={styles.warnRow}>
-              <Icon name="alert" color={theme.warn} size={16} />
-              <Text style={[styles.warn, { color: theme.warn }]}>{t("account.exportKeyWarn")}</Text>
-            </View>
-            <Text style={[styles.mnemonic, { color: theme.text }]} testID="revealed-key">{revealedKey}</Text>
-            <View style={styles.sheetRow}>
-              <Pressable onPress={onCopyKey} accessibilityRole="button" testID="copy-key" style={[styles.sheetBtn, styles.sheetBtnOutline, { borderColor: theme.lineStrong }]}>
-                <Text style={[styles.sheetBtnText, { color: theme.text }]}>{keyCopied ? t("account.copied") : t("account.copyAddress")}</Text>
-              </Pressable>
-              <Pressable onPress={() => setRevealedKey(null)} accessibilityRole="button" style={[styles.sheetBtn, { backgroundColor: theme.brand }]}>
-                <Text style={[styles.sheetBtnText, { color: theme.bg }]}>{t("account.backedUp")}</Text>
-              </Pressable>
-            </View>
-          </SurfaceCard>
-        ) : null}
-
         {summary ? (
           <SurfaceCard theme={theme} rule={false} style={styles.card}>
             <Text style={[styles.cardTitle, { color: theme.muted }]}>{t("account.accountSummary")}</Text>
@@ -761,41 +578,6 @@ export function AccountScreen({
             )}
           </SurfaceCard>
         ) : null}
-
-        <SettingRow theme={theme} icon="swap" name={t("account.network")} value={network} onPress={toggleNetwork} />
-        <SettingRow theme={theme} icon="agent" name={t("account.theme")} value={THEME_LABEL[themeName]} onPress={cycleTheme} />
-        <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
-        {mode === "local" ? (
-          <SettingRow theme={theme} icon="key" name={t("account.exportBackup")} value="" onPress={onExportBackup} />
-        ) : null}
-        {mode === "local" ? (
-          <SettingRow
-            theme={theme}
-            icon="shield"
-            name={t("account.security")}
-            value={biometricEnabled ? t("account.faceIdOn") : t("account.faceIdOff")}
-            onPress={onToggleBiometric}
-          />
-        ) : null}
-        {mode === "local" ? (
-          <SettingRow
-            theme={theme}
-            icon="lock"
-            name={t("account.autoLock")}
-            value={autoLockMinutes === 0 ? t("account.autoLockImmediate") : t("account.autoLockMin", { min: autoLockMinutes })}
-            onPress={cycleAutoLock}
-          />
-        ) : null}
-        {mode === "local" ? (
-          <SettingRow theme={theme} icon="lock" name={t("account.changePin")} value="" onPress={openChangePin} />
-        ) : null}
-        {mode === "local" ? (
-          <SettingRow theme={theme} icon="key" name={t("account.exportKey")} value="" onPress={onExportPrivateKey} />
-        ) : null}
-
-        <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>
-          <Text style={[styles.signOutText, { color: theme.down }]}>{t("account.signOutSwitch")}</Text>
-        </Pressable>
       </ScreenScaffold>
     );
   }
@@ -883,35 +665,11 @@ function Metric({ theme, label, value }: { theme: ThemeTokens; label: string; va
   );
 }
 
-function SettingRow({
-  theme,
-  icon,
-  name,
-  value,
-  onPress,
-}: {
-  theme: ThemeTokens;
-  icon: IconName;
-  name: string;
-  value: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={[styles.settingRow, { borderBottomColor: theme.line }]}>
-      <View style={[styles.settingIcon, { backgroundColor: withAlpha(theme.brand, 0.12) }]}>
-        <Icon name={icon} color={theme.brand} size={16} />
-      </View>
-      <Text style={[styles.settingName, { color: theme.text }]}>{name}</Text>
-      <Text style={[styles.settingValue, { color: theme.muted }]}>{value}</Text>
-      <Icon name="chevronRight" color={theme.faint} size={14} strokeWidth={2} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   subtitle: { fontFamily: fonts.body.regular, fontSize: 13, marginBottom: 18 },
   optionHint: { fontFamily: fonts.body.regular, fontSize: 11.5, lineHeight: 16, marginTop: 6, marginBottom: 4 },
   wcard: { padding: 16, marginTop: 4 },
+  pillRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   wtop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   wlabel: { fontFamily: fonts.display.bold, fontSize: 13 },
@@ -970,10 +728,4 @@ const styles = StyleSheet.create({
   btnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   btnOutline: { paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1, marginTop: 8 },
   btnOutlineText: { fontFamily: fonts.body.semibold, fontSize: 14 },
-  settingRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 13, borderBottomWidth: 1 },
-  settingIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  settingName: { flex: 1, fontFamily: fonts.body.semibold, fontSize: 13 },
-  settingValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
-  signOut: { paddingVertical: 13, borderRadius: 12, alignItems: "center", borderWidth: 1, marginTop: 18 },
-  signOutText: { fontFamily: fonts.body.semibold, fontSize: 14 },
 });

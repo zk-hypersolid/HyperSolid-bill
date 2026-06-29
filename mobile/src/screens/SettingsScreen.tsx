@@ -1,0 +1,243 @@
+import React, { useMemo, useState } from "react";
+import { View, Text, StyleSheet, Pressable, TextInput, Alert } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import * as LocalAuthentication from "expo-local-authentication";
+import { useToastStore } from "../state/toastStore";
+import { useTheme } from "../theme/useTheme";
+import { useWalletStore } from "../state/walletStore";
+import { useEnvStore } from "../state/envStore";
+import { useThemeStore } from "../state/themeStore";
+import { useLocaleStore } from "../state/localeStore";
+import { useLockPrefsStore, AUTO_LOCK_OPTIONS } from "../state/lockPrefsStore";
+import { useT } from "../i18n/useT";
+import type { Locale } from "../i18n/messages";
+import { WalletManager } from "../wallet/walletManager";
+import { SecureStoreKeyStore } from "../wallet/secureKeyStore";
+import { PinStore } from "../wallet/pinStore";
+import { BiometricGate } from "../wallet/biometricGate";
+import { Icon, type IconName } from "../components/Icon";
+import { ScreenScaffold } from "../components/ScreenScaffold";
+import { SurfaceCard } from "../components/SurfaceCard";
+import { fonts } from "../theme/fonts";
+import { withAlpha } from "../theme/color";
+import type { ThemeName, ThemeTokens } from "../theme/tokens";
+
+export interface SettingsScreenDeps {
+  manager?: WalletManager;
+  pinStore?: PinStore;
+  gate?: BiometricGate;
+}
+
+const THEME_ORDER: ThemeName[] = ["electrum", "daylight", "oscilloscope"];
+const THEME_LABEL: Record<ThemeName, string> = { electrum: "Electrum", daylight: "Daylight", oscilloscope: "Oscilloscope" };
+const LOCALE_LABEL: Record<Locale, string> = { en: "English", zh: "中文" };
+
+/** Wallet settings sub-page (Wallet › gear): app prefs + security + dangerous actions, away from funds. */
+export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
+  const theme = useTheme();
+  const t = useT();
+  const mode = useWalletStore((s) => s.mode);
+  const reset = useWalletStore((s) => s.reset);
+  const network = useEnvStore((s) => s.network);
+  const toggleNetwork = useEnvStore((s) => s.toggleNetwork);
+  const themeName = useThemeStore((s) => s.name);
+  const setTheme = useThemeStore((s) => s.setTheme);
+  const locale = useLocaleStore((s) => s.locale);
+  const toggleLocale = useLocaleStore((s) => s.toggleLocale);
+  const biometricEnabled = useLockPrefsStore((s) => s.biometricEnabled);
+  const setBiometricEnabled = useLockPrefsStore((s) => s.setBiometricEnabled);
+  const autoLockMinutes = useLockPrefsStore((s) => s.autoLockMinutes);
+  const setAutoLockMinutes = useLockPrefsStore((s) => s.setAutoLockMinutes);
+
+  const manager = useMemo(() => deps?.manager ?? new WalletManager(new SecureStoreKeyStore()), [deps]);
+  const pinStore = useMemo(() => deps?.pinStore ?? new PinStore(), [deps]);
+  const gate = useMemo(() => deps?.gate ?? new BiometricGate(LocalAuthentication), [deps]);
+
+  const [sheet, setSheet] = useState<"none" | "changepin">("none");
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+  const [revealedSecret, setRevealedSecret] = useState<{ kind: "mnemonic" | "key"; value: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function onToggleBiometric() {
+    if (!biometricEnabled) {
+      const avail = await gate.isAvailable();
+      if (!avail.hasHardware || !avail.isEnrolled) {
+        Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
+        return;
+      }
+    }
+    await setBiometricEnabled(!biometricEnabled);
+  }
+
+  function cycleAutoLock() {
+    const i = AUTO_LOCK_OPTIONS.indexOf(autoLockMinutes as (typeof AUTO_LOCK_OPTIONS)[number]);
+    void setAutoLockMinutes(AUTO_LOCK_OPTIONS[(i + 1) % AUTO_LOCK_OPTIONS.length]);
+  }
+  function cycleTheme() {
+    setTheme(THEME_ORDER[(THEME_ORDER.indexOf(themeName) + 1) % THEME_ORDER.length]);
+  }
+
+  function openChangePin() {
+    setOldPin("");
+    setNewPin("");
+    setConfirmPin("");
+    setSheet((s) => (s === "changepin" ? "none" : "changepin"));
+  }
+  async function onConfirmChangePin() {
+    if (newPin.length < 6 || newPin !== confirmPin) {
+      Alert.alert(t("account.changePinMismatch"));
+      return;
+    }
+    setPinBusy(true);
+    try {
+      const res = await pinStore.change(oldPin, newPin);
+      if (res.ok) {
+        useToastStore.getState().show(t("account.changePinDone"), "success");
+        setSheet("none");
+      } else Alert.alert(t("account.changePinWrong"));
+    } finally {
+      setPinBusy(false);
+    }
+  }
+
+  async function onExportBackup() {
+    try {
+      const mnemonic = await manager.exportMnemonic();
+      if (!mnemonic) return Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
+      setCopied(false);
+      setRevealedSecret({ kind: "mnemonic", value: mnemonic });
+    } catch {
+      Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
+    }
+  }
+  async function onExportKey() {
+    try {
+      const key = await manager.exportPrivateKey();
+      if (!key) return Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
+      setCopied(false);
+      setRevealedSecret({ kind: "key", value: key });
+    } catch {
+      Alert.alert(t("account.exportFailed"), t("account.exportFailedBody"));
+    }
+  }
+  async function onCopySecret() {
+    if (!revealedSecret) return;
+    await Clipboard.setStringAsync(revealedSecret.value);
+    setCopied(true);
+  }
+  async function onSignOut() {
+    await manager.signOut();
+    reset();
+  }
+
+  return (
+    <ScreenScaffold theme={theme} heading={t("settings.title")}>
+      {sheet === "changepin" ? (
+        <SurfaceCard theme={theme} style={styles.card}>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>{t("account.changePinTitle")}</Text>
+          <PinField theme={theme} label={t("account.changePinOld")} value={oldPin} onChange={setOldPin} testID="changepin-old" />
+          <PinField theme={theme} label={t("account.changePinNew")} value={newPin} onChange={setNewPin} testID="changepin-new" />
+          <PinField theme={theme} label={t("account.changePinConfirm")} value={confirmPin} onChange={setConfirmPin} testID="changepin-confirm" />
+          <View style={styles.row}>
+            <Pressable disabled={pinBusy} onPress={onConfirmChangePin} accessibilityRole="button" testID="changepin-confirm-btn" style={[styles.btn, { backgroundColor: theme.brand }]}>
+              <Text style={[styles.btnText, { color: theme.bg }]}>{t("account.changePinSave")}</Text>
+            </Pressable>
+            <Pressable onPress={() => setSheet("none")} accessibilityRole="button" style={[styles.btn, styles.btnOutline, { borderColor: theme.lineStrong }]}>
+              <Text style={[styles.btnText, { color: theme.text }]}>{t("account.close")}</Text>
+            </Pressable>
+          </View>
+        </SurfaceCard>
+      ) : null}
+
+      {revealedSecret ? (
+        <SurfaceCard theme={theme} style={[styles.card, { borderColor: theme.warn }]}>
+          <View style={styles.warnRow}>
+            <Icon name="alert" color={theme.warn} size={16} />
+            <Text style={[styles.warn, { color: theme.warn }]}>{revealedSecret.kind === "key" ? t("account.exportKeyWarn") : t("account.backupWarn")}</Text>
+          </View>
+          <Text style={[styles.secret, { color: theme.text }]} testID="revealed-secret">{revealedSecret.value}</Text>
+          <View style={styles.row}>
+            <Pressable onPress={onCopySecret} accessibilityRole="button" testID="copy-secret" style={[styles.btn, styles.btnOutline, { borderColor: theme.lineStrong }]}>
+              <Text style={[styles.btnText, { color: theme.text }]}>{copied ? t("account.copied") : t("account.copyAddress")}</Text>
+            </Pressable>
+            <Pressable onPress={() => setRevealedSecret(null)} accessibilityRole="button" style={[styles.btn, { backgroundColor: theme.brand }]}>
+              <Text style={[styles.btnText, { color: theme.bg }]}>{t("account.backedUp")}</Text>
+            </Pressable>
+          </View>
+        </SurfaceCard>
+      ) : null}
+
+      <SettingRow theme={theme} icon="swap" name={t("account.network")} value={network} onPress={toggleNetwork} />
+      <SettingRow theme={theme} icon="agent" name={t("account.theme")} value={THEME_LABEL[themeName]} onPress={cycleTheme} />
+      <SettingRow theme={theme} icon="repeat" name={t("settings.language")} value={LOCALE_LABEL[locale]} onPress={toggleLocale} />
+      {mode === "local" ? (
+        <>
+          <SettingRow theme={theme} icon="shield" name={t("account.security")} value={biometricEnabled ? t("account.faceIdOn") : t("account.faceIdOff")} onPress={onToggleBiometric} />
+          <SettingRow theme={theme} icon="lock" name={t("account.autoLock")} value={autoLockMinutes === 0 ? t("account.autoLockImmediate") : t("account.autoLockMin", { min: autoLockMinutes })} onPress={cycleAutoLock} />
+          <SettingRow theme={theme} icon="lock" name={t("account.changePin")} value="" onPress={openChangePin} />
+          <SettingRow theme={theme} icon="key" name={t("account.exportBackup")} value="" onPress={onExportBackup} />
+          <SettingRow theme={theme} icon="key" name={t("account.exportKey")} value="" onPress={onExportKey} />
+        </>
+      ) : null}
+
+      <Pressable onPress={onSignOut} accessibilityRole="button" style={[styles.signOut, { borderColor: theme.down }]}>
+        <Text style={[styles.signOutText, { color: theme.down }]}>{t("account.signOutSwitch")}</Text>
+      </Pressable>
+    </ScreenScaffold>
+  );
+}
+
+function PinField({ theme, label, value, onChange, testID }: { theme: ThemeTokens; label: string; value: string; onChange: (v: string) => void; testID: string }) {
+  return (
+    <>
+      <Text style={[styles.fieldLabel, { color: theme.muted }]}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="••••••"
+        placeholderTextColor={theme.faint}
+        keyboardType="number-pad"
+        secureTextEntry
+        maxLength={12}
+        testID={testID}
+        style={[styles.input, { color: theme.text, borderColor: theme.line, backgroundColor: theme.surface }]}
+      />
+    </>
+  );
+}
+
+function SettingRow({ theme, icon, name, value, onPress }: { theme: ThemeTokens; icon: IconName; name: string; value: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={[styles.settingRow, { borderBottomColor: theme.line }]}>
+      <View style={[styles.settingIcon, { backgroundColor: withAlpha(theme.brand, 0.12) }]}>
+        <Icon name={icon} color={theme.brand} size={16} />
+      </View>
+      <Text style={[styles.settingName, { color: theme.text }]}>{name}</Text>
+      <Text style={[styles.settingValue, { color: theme.muted }]}>{value}</Text>
+      <Icon name="chevronRight" color={theme.faint} size={14} strokeWidth={2} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { padding: 14, marginBottom: 12 },
+  sheetTitle: { fontFamily: fonts.display.bold, fontSize: 14, marginBottom: 8 },
+  fieldLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4, marginTop: 10 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.body.regular, fontSize: 13 },
+  row: { flexDirection: "row", gap: 10, marginTop: 12 },
+  btn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  btnOutline: { borderWidth: 1, backgroundColor: "transparent" },
+  btnText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
+  warnRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },
+  warn: { flex: 1, fontFamily: fonts.body.semibold, fontSize: 12, lineHeight: 17 },
+  secret: { fontFamily: fonts.mono.regular, fontSize: 15, lineHeight: 24 },
+  settingRow: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 13, borderBottomWidth: 1 },
+  settingIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  settingName: { flex: 1, fontFamily: fonts.body.semibold, fontSize: 13 },
+  settingValue: { fontFamily: fonts.mono.medium, fontSize: 12 },
+  signOut: { paddingVertical: 13, borderRadius: 12, alignItems: "center", borderWidth: 1, marginTop: 18 },
+  signOutText: { fontFamily: fonts.body.semibold, fontSize: 14 },
+});

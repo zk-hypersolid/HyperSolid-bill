@@ -38,6 +38,7 @@ export const messages = {
     "common.setUpWallet": "Set up wallet",
 
     "settings.language": "Language",
+    "settings.title": "Settings",
     "lang.en": "English",
     "lang.zh": "中文",
 
@@ -414,6 +415,7 @@ export const messages = {
     "common.setUpWallet": "去创建钱包",
 
     "settings.language": "语言",
+    "settings.title": "设置",
     "lang.en": "English",
     "lang.zh": "中文",
 

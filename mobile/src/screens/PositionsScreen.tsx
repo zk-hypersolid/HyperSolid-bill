@@ -4,6 +4,7 @@ import { useTheme } from "../theme/useTheme";
 import { useEnvStore } from "../state/envStore";
 import { useWalletStore } from "../state/walletStore";
 import { useToastStore } from "../state/toastStore";
+import { useLedgerStore } from "../state/ledgerStore";
 import { useMarketStore } from "../state/marketStore";
 import { PositionsService } from "../services/positionsData";
 import { FillsService } from "../services/fillsData";
@@ -97,7 +98,10 @@ export function PositionsScreen({
     const index = buildAssetIndex({
       universe: tickers.map((tk) => ({ name: tk.coin, szDecimals: tk.szDecimals, maxLeverage: tk.maxLeverage })),
     });
-    return new ExchangeService(createExchangeClient(network, local.getViemAccount()), index);
+    // Route through the persistent intent ledger (scoped by wallet × network) so an uncertain close is
+    // deduped by cloid on retry — never re-issued as a fresh order.
+    const ledger = useLedgerStore.getState().ledger ?? undefined;
+    return new ExchangeService(createExchangeClient(network, local.getViemAccount()), index, ledger);
   }, [wallet, mode, tickers, network]);
 
   // One-tap market close/reduce: reduce-only IOC at mid ± 5%, opposite the position side. Confirm
@@ -124,7 +128,14 @@ export function PositionsScreen({
             if (res.ok) {
               useToastStore.getState().show(t("positions.closeSubmitted"), "success");
               runQuery(walletAddress ?? "");
-            } else Alert.alert(t("positions.closeFailed"), res.error);
+            } else if (res.uncertain) {
+              // Network/timeout — the close may have landed. Never call it a failure; the persistent
+              // ledger lets a later submit dedupe by cloid. Reload so a filled close surfaces.
+              Alert.alert(t("common.uncertainReceipt"), t("positions.closeUncertain", { error: res.error }));
+              runQuery(walletAddress ?? "");
+            } else {
+              Alert.alert(t("positions.closeFailed"), res.error);
+            }
           },
         },
       ]);

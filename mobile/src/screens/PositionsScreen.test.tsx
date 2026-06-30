@@ -143,6 +143,18 @@ describe("PositionsScreen", () => {
     expect(mockPlaceOrder).toHaveBeenCalledWith(expect.objectContaining({ side: "sell", size: 0.25, reduceOnly: true, market: true }));
   });
 
+  it("treats an uncertain close receipt as uncertain, not a failure", async () => {
+    mockPlaceOrder.mockResolvedValue({ ok: false, uncertain: true, error: "timeout" });
+    (Alert.alert as jest.Mock).mockClear();
+    useWalletStore.setState({ mode: "local", wallet: localWallet as never, address: ADDR });
+    render(<PositionsScreen deps={fakeDeps} />);
+    await waitFor(() => expect(screen.getByTestId("close-BTC")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("close-BTC"));
+    await confirmAlert();
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Uncertain receipt", expect.stringContaining("may or may not")));
+    expect(Alert.alert).not.toHaveBeenCalledWith("Close failed", expect.anything());
+  });
+
   it("does not place a market close until the user confirms", async () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet as never, address: ADDR });
     render(<PositionsScreen deps={fakeDeps} />);

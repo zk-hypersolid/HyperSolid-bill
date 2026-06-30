@@ -69,6 +69,27 @@ describe("PositionsScreen", () => {
     (fakeDeps.orders.loadOpenOrders as jest.Mock).mockClear();
   });
 
+  it("shows a friendly network error with a Retry (no raw SDK string) and retries on tap", async () => {
+    const httpErr = new Error("Unknown HTTP request error: TypeError: Network request failed");
+    httpErr.name = "HttpRequestError";
+    const loadPortfolio = jest
+      .fn()
+      .mockRejectedValueOnce(httpErr)
+      .mockResolvedValueOnce(portfolio);
+    const deps = {
+      positions: { loadPortfolio } as unknown as PositionsService,
+      fills: { loadRecent: jest.fn(async () => []) } as unknown as FillsService,
+      orders: { loadOpenOrders: jest.fn(async () => []) } as unknown as OrdersService,
+    };
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={deps} />);
+    await waitFor(() => expect(screen.getByTestId("positions-error")).toBeTruthy());
+    expect(screen.getByText("Can't reach the venue")).toBeTruthy();
+    expect(screen.queryByText(/Unknown HTTP request error/)).toBeNull();
+    fireEvent.press(screen.getByTestId("positions-retry"));
+    await waitFor(() => expect(screen.getByText(/BTC/)).toBeTruthy());
+  });
+
   it("gates with a Set up wallet CTA and does not query when there is no wallet", () => {
     useWalletStore.setState({ mode: "none", wallet: null, address: null });
     const navigate = jest.fn();

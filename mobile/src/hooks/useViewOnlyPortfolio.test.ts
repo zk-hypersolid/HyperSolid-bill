@@ -29,13 +29,24 @@ describe("useViewOnlyPortfolio", () => {
     await waitFor(() => expect(result.current.portfolio?.summary.accountValue).toBe(1000));
   });
 
-  it("sets an error for an invalid address and does not call the service", async () => {
+  it("returns the invalidAddress code and does not call the service", async () => {
     const svc = { loadPortfolio: jest.fn() } as unknown as PositionsService;
     const { result } = renderHook(() => useViewOnlyPortfolio(svc));
     await act(async () => {
       await result.current.load("0xbad");
     });
-    expect(result.current.error).toMatch(/无效/);
+    expect(result.current.error).toBe("invalidAddress");
     expect(svc.loadPortfolio).not.toHaveBeenCalled();
+  });
+
+  it("maps a thrown SDK HTTP error to the network code (no raw leak)", async () => {
+    const httpErr = new Error("Unknown HTTP request error: TypeError: Network request failed");
+    httpErr.name = "HttpRequestError";
+    const svc = { loadPortfolio: jest.fn(async () => { throw httpErr; }) } as unknown as PositionsService;
+    const { result } = renderHook(() => useViewOnlyPortfolio(svc));
+    await act(async () => {
+      await result.current.load(VALID);
+    });
+    await waitFor(() => expect(result.current.error).toBe("network"));
   });
 });

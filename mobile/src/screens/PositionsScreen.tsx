@@ -198,7 +198,26 @@ export function PositionsScreen({
     <ScreenScaffold theme={theme} pill={<NetworkWarning variant="chip" />}>
       <UnconfirmedBanner theme={theme} count={unconfirmedCount} />
 
-      {error ? <Text style={[styles.msg, { color: theme.down }]}>{error}</Text> : null}
+      {error && !portfolio ? (
+        <View style={styles.errorBox} testID="positions-error">
+          <Text style={[styles.errorTitle, { color: theme.text }]}>
+            {error === "network" ? t("errors.networkTitle") : error === "invalidAddress" ? t("errors.addressTitle") : t("errors.unknownTitle")}
+          </Text>
+          <Text style={[styles.errorBody, { color: theme.muted }]}>
+            {error === "network" ? t("errors.networkBody") : error === "invalidAddress" ? t("errors.addressBody") : t("errors.unknownBody")}
+          </Text>
+          {error !== "invalidAddress" ? (
+            <Pressable
+              accessibilityRole="button"
+              testID="positions-retry"
+              onPress={() => runQuery(walletAddress ?? "")}
+              style={[styles.retryBtn, { borderColor: theme.brand }]}
+            >
+              <Text style={[styles.retryText, { color: theme.brand }]}>{t("common.retry")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
       {loading ? <ActivityIndicator color={theme.brand} style={{ marginTop: 16 }} /> : null}
 
       {portfolio ? (
@@ -392,6 +411,11 @@ const styles = StyleSheet.create({
   btn: { paddingHorizontal: 18, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   btnText: { fontFamily: fonts.display.bold, fontSize: 14 },
   msg: { fontFamily: fonts.body.regular, fontSize: 13, marginTop: 14 },
+  errorBox: { marginTop: 24, alignItems: "center", paddingHorizontal: 12 },
+  errorTitle: { fontFamily: fonts.display.bold, fontSize: 15, marginBottom: 6 },
+  errorBody: { fontFamily: fonts.body.regular, fontSize: 12.5, lineHeight: 18, textAlign: "center", marginBottom: 14 },
+  retryBtn: { paddingHorizontal: 22, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
+  retryText: { fontFamily: fonts.display.bold, fontSize: 13, letterSpacing: 0.3 },
   firstTrade: { marginTop: 14, paddingVertical: 13, borderRadius: 12, alignItems: "center" },
   firstTradeText: { fontFamily: fonts.display.bold, fontSize: 15, letterSpacing: 0.3 },
   eqCard: { marginTop: 16, padding: 16 },

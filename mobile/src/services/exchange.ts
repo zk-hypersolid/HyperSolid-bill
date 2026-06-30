@@ -227,11 +227,16 @@ export class ExchangeService {
    * so an invalid/over-balance request never hits the network. A thrown (network/timeout) receipt is
    * surfaced as uncertain — never assumed to have failed — mirroring the order-submit honesty rule.
    */
-  async withdrawUsdc(req: { destination: string; amount: number; withdrawable: number }): Promise<WithdrawResult> {
+  async withdrawUsdc(req: { destination: string; amount: number; withdrawable: number; fee?: number }): Promise<WithdrawResult> {
     if (!/^0x[0-9a-fA-F]{40}$/.test(req.destination)) {
       return { ok: false, error: "目标地址无效（需 0x + 40 位十六进制）" };
     }
     if (!(req.amount > 0)) return { ok: false, error: "提现金额需大于 0" };
+    // The venue deducts a flat fee from the amount; a withdrawal at or below the fee nets nothing yet
+    // still debits the account, so reject it before signing.
+    if (req.fee != null && req.amount <= req.fee) {
+      return { ok: false, error: `提现金额需高于手续费 ${req.fee} USDC` };
+    }
     if (req.amount > req.withdrawable) return { ok: false, error: "提现金额超过可提现余额" };
     try {
       const response = await this.client.withdraw3({

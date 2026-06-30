@@ -115,7 +115,7 @@ describe("AccountScreen", () => {
     fireEvent.press(screen.getByText("Deposit"));
     await waitFor(() => expect(screen.getByTestId("deposit-preset-50")).toBeTruthy());
     fireEvent.press(screen.getByTestId("deposit-preset-50"));
-    expect(screen.getByTestId("deposit-amount").props.value).toBe("250.00");
+    expect(screen.getByTestId("deposit-amount").props.value).toBe("250");
   });
 
   it("nudges an unfunded wallet to deposit", async () => {
@@ -245,7 +245,7 @@ describe("AccountScreen", () => {
     await waitFor(() => expect(screen.getByTestId("deposit-available")).toBeTruthy());
     fireEvent.changeText(screen.getByTestId("deposit-amount"), "5");
     fireEvent.press(screen.getByTestId("deposit-confirm"));
-    await waitFor(() => expect(mockDeposit).toHaveBeenCalledWith({ amount: 5, available: 500, confirmed: false }));
+    await waitFor(() => expect(mockDeposit).toHaveBeenCalledWith({ amount: 5, available: 500, confirmed: true }));
   });
 
   it("blocks deposit until the server delivers the Arbitrum RPC", async () => {
@@ -279,7 +279,7 @@ describe("AccountScreen", () => {
     // second press = sign
     fireEvent.press(screen.getByTestId("withdraw-confirm"));
     await waitFor(() => expect(mockWithdraw).toHaveBeenCalled());
-    expect(mockWithdraw).toHaveBeenCalledWith({ destination: ADDR, amount: 100, withdrawable: 800 });
+    expect(mockWithdraw).toHaveBeenCalledWith({ destination: ADDR, amount: 100, withdrawable: 800, fee: 1 });
   });
 
   it("does not show deposit/withdraw actions in view-only mode", () => {

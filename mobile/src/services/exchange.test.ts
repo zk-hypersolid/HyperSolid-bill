@@ -343,6 +343,15 @@ describe("ExchangeService.withdrawUsdc", () => {
     expect(client.withdraw3).not.toHaveBeenCalled();
   });
 
+  it("rejects an amount at or below the flat fee (would deliver ~0)", async () => {
+    const client = fakeClient();
+    const svc = new ExchangeService(client, index);
+    expect((await svc.withdrawUsdc({ destination: ADDR, amount: 1, withdrawable: 800, fee: 1 })).ok).toBe(false);
+    expect((await svc.withdrawUsdc({ destination: ADDR, amount: 0.5, withdrawable: 800, fee: 1 })).ok).toBe(false);
+    expect(client.withdraw3).not.toHaveBeenCalled();
+    expect((await svc.withdrawUsdc({ destination: ADDR, amount: 5, withdrawable: 800, fee: 1 })).ok).toBe(true);
+  });
+
   it("treats a thrown (network/timeout) receipt as uncertain, not failed", async () => {
     const client = fakeClient();
     client.withdraw3 = jest.fn(async () => {

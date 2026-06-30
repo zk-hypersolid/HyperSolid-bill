@@ -103,6 +103,7 @@ export const messages = {
     "positions.closeBody": "{action} {sz} {coin} at market — reduce-only, ≤5% slippage",
     "positions.closeFailed": "Close failed",
     "positions.closeSubmitted": "Close order submitted",
+    "positions.closeUncertain": "The close may or may not have reached the venue ({error}). Your position is unchanged until it confirms — refresh in a moment; re-close only if it persists.",
 
     "trade.typeLimit": "Limit",
     "trade.typeMarket": "Market",
@@ -497,6 +498,7 @@ export const messages = {
     "positions.closeBody": "{action} {sz} {coin}（市价 · 只减仓 · 滑点≤5%）",
     "positions.closeFailed": "平仓失败",
     "positions.closeSubmitted": "平仓委托已提交",
+    "positions.closeUncertain": "平仓请求可能已送达、也可能未送达（{error}）。确认前持仓不变——请稍后刷新；若仍在再重新平仓。",
 
     "trade.typeLimit": "限价",
     "trade.typeMarket": "市价",

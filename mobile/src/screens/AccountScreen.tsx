@@ -52,6 +52,11 @@ function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+/** Floor a USDC amount to its 6-decimal base precision so a "Max" preset can't round above balance. */
+function floorUsdc(amount: number): string {
+  return (Math.floor(amount * 1e6) / 1e6).toString();
+}
+
 export function AccountScreen({
   deps,
   navigation,
@@ -244,7 +249,7 @@ export function AccountScreen({
       const res = await svc.depositUsdc({
         amount: Number(depositAmount),
         available: depositBalances?.usdc,
-        confirmed: network === "mainnet",
+        confirmed: network === "mainnet" ? mainnetConfirm : true,
       });
       if (res.ok) {
         useToastStore.getState().show(t("account.depositSent"), "success");
@@ -277,6 +282,7 @@ export function AccountScreen({
         destination: destInput.trim(),
         amount: Number(amountInput),
         withdrawable: summary?.withdrawable ?? 0,
+        fee: withdrawFeeFor(network),
       });
       if (res.ok) {
         useToastStore.getState().show(t("account.withdrawSubmitted"), "success");
@@ -427,7 +433,7 @@ export function AccountScreen({
                     key={label}
                     accessibilityRole="button"
                     testID={`deposit-preset-${frac * 100}`}
-                    onPress={() => { setMainnetConfirm(false); setDepositAmount((depositBalances.usdc * frac).toFixed(2)); }}
+                    onPress={() => { setMainnetConfirm(false); setDepositAmount(floorUsdc(depositBalances.usdc * frac)); }}
                     style={[styles.preset, { borderColor: theme.lineStrong }]}
                   >
                     <Text style={[styles.presetText, { color: theme.text }]}>{label === "account.max" ? t("account.max") : label}</Text>

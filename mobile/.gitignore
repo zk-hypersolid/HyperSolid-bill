@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Maestro E2E screenshots/artifacts
+.maestro/artifacts/
+.maestro/**/artifacts/

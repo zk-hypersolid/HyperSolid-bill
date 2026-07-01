@@ -1,0 +1,4 @@
+# Maestro workspace config. Flows run against Expo Go loading the local project.
+# See .maestro/README.md for prerequisites (Metro on :8088, simulator booted, wallet+PIN seeded).
+flows:
+  - "*.yaml"

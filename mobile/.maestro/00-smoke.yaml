@@ -1,0 +1,23 @@
+appId: host.exp.Exponent
+name: 00 smoke — app boots and reaches the tab bar
+tags:
+  - smoke
+---
+# Boot Expo Go with the local project, unlock if needed, and assert the app rendered its tab bar.
+# This replaces the flaky cliclick "did it boot" check with a reproducible assertion.
+- launchApp:
+    clearState: false
+- openLink: exp://127.0.0.1:8088
+- extendedWaitUntil:
+    visible:
+      id: "pin-key-1"
+    timeout: 60000
+    optional: true
+- runFlow: subflows/unlock.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-Markets"
+    timeout: 30000
+- assertVisible:
+    id: "tab-Trade"
+- takeScreenshot: .maestro/artifacts/00-markets

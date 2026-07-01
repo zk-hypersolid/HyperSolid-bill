@@ -46,6 +46,7 @@ export function RootNavigator({ initialTab }: { initialTab?: string } = {}) {
           component={tab.component}
           options={{
             tabBarLabel: t(tab.labelKey),
+            tabBarButtonTestID: `tab-${tab.name}`,
             tabBarIcon: ({ color, focused }) => (
               <Icon name={tab.icon} color={color} active={focused} size={24} />
             ),

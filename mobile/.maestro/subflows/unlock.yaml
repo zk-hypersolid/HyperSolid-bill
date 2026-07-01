@@ -1,0 +1,27 @@
+appId: host.exp.Exponent
+name: unlock (enter the QA PIN if the app is locked)
+---
+# Conditional: only runs when the PIN lock screen is showing. The QA/testnet device PIN is 111111 —
+# override by editing this subflow if your device uses a different PIN. A fresh install with no
+# wallet skips this entirely (no pin-key visible).
+- runFlow:
+    when:
+      visible:
+        id: "pin-key-1"
+    commands:
+      - tapOn: { id: "pin-key-1" }
+      - waitForAnimationToEnd: { timeout: 400 }
+      - tapOn: { id: "pin-key-1" }
+      - waitForAnimationToEnd: { timeout: 400 }
+      - tapOn: { id: "pin-key-1" }
+      - waitForAnimationToEnd: { timeout: 400 }
+      - tapOn: { id: "pin-key-1" }
+      - waitForAnimationToEnd: { timeout: 400 }
+      - tapOn: { id: "pin-key-1" }
+      - waitForAnimationToEnd: { timeout: 400 }
+      - tapOn: { id: "pin-key-1" }
+      # After the 6th digit the app auto-submits and unlocks.
+      - extendedWaitUntil:
+          notVisible:
+            id: "pin-key-1"
+          timeout: 15000

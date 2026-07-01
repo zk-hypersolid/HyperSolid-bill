@@ -1,0 +1,40 @@
+appId: host.exp.Exponent
+name: 01 tab tour — screenshot each connected-state tab (visual regression baseline)
+tags:
+  - regression
+---
+# Walk the five bottom tabs and capture a screenshot of each connected-state screen. The PNGs land
+# under .maestro/artifacts/ and serve as the visual-regression baseline (replaces cliclick screenshots).
+- launchApp:
+    clearState: false
+- openLink: exp://127.0.0.1:8088
+- extendedWaitUntil:
+    visible:
+      id: "pin-key-1"
+    timeout: 60000
+    optional: true
+- runFlow: subflows/unlock.yaml
+
+- tapOn:
+    id: "tab-Markets"
+- extendedWaitUntil:
+    visible:
+      id: "tab-Markets"
+    timeout: 15000
+- takeScreenshot: .maestro/artifacts/01-markets
+
+- tapOn:
+    id: "tab-Trade"
+- takeScreenshot: .maestro/artifacts/02-trade
+
+- tapOn:
+    id: "tab-Positions"
+- takeScreenshot: .maestro/artifacts/03-positions
+
+- tapOn:
+    id: "tab-Agent"
+- takeScreenshot: .maestro/artifacts/04-strategy
+
+- tapOn:
+    id: "tab-Account"
+- takeScreenshot: .maestro/artifacts/05-wallet

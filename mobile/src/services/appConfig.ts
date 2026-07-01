@@ -1,4 +1,5 @@
 import { useRuntimeConfigStore, type AppRuntimeConfig } from "../state/runtimeConfigStore";
+import { fetchWithTimeout } from "../lib/fetchWithTimeout";
 
 interface RawAppConfig {
   arbitrumRpc?: { mainnet?: string | null; testnet?: string | null };
@@ -15,7 +16,7 @@ export async function loadAppConfig(
   baseUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<AppRuntimeConfig> {
-  const res = await fetchImpl(`${baseUrl.replace(/\/$/, "")}/app-config`);
+  const res = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}/app-config`, undefined, 10_000, fetchImpl);
   if (!res.ok) throw new Error(`app-config request failed: ${res.status}`);
   const raw = (await res.json()) as RawAppConfig;
   return {

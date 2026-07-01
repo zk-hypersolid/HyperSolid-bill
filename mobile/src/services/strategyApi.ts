@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "../lib/fetchWithTimeout";
+
 export interface DcaParams {
   coin: string;
   side: "buy";
@@ -41,11 +43,16 @@ export class StrategyApi {
   private async request<T>(path: string, method: string, body?: unknown): Promise<T> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
-    const res = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const res = await fetchWithTimeout(
+      `${this.baseUrl.replace(/\/$/, "")}${path}`,
+      {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      10_000,
+      this.fetchImpl,
+    );
     if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
     return (await res.json().catch(() => ({}))) as T;
   }

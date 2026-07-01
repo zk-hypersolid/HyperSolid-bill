@@ -14,7 +14,7 @@ describe("loadAppConfig", () => {
       }),
     ) as unknown as typeof fetch;
     const cfg = await loadAppConfig("https://api.example.com/", fetchImpl);
-    expect(fetchImpl).toHaveBeenCalledWith("https://api.example.com/app-config");
+    expect(fetchImpl).toHaveBeenCalledWith("https://api.example.com/app-config", expect.objectContaining({ signal: expect.anything() }));
     expect(cfg.arbitrumRpc).toEqual({ mainnet: "https://m/key", testnet: "https://t/key" });
     expect(cfg.withdrawFeeUsdc).toEqual({ mainnet: 1, testnet: 0 });
     expect(cfg.strategyApiBaseUrl).toBe("https://api.example.com");

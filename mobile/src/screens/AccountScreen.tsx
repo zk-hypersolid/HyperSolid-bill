@@ -262,6 +262,10 @@ export function AccountScreen({
       } else {
         Alert.alert(t("account.depositNotSubmitted"), res.error);
       }
+    } catch (e) {
+      // A synchronous throw before the service returns (bad wallet/account, RPC client construction)
+      // must never red-box — the tx was not signed, so surface it as not-submitted.
+      Alert.alert(t("account.depositNotSubmitted"), e instanceof Error ? e.message : String(e));
     } finally {
       setDepositBusy(false);
     }
@@ -295,6 +299,9 @@ export function AccountScreen({
       } else {
         Alert.alert(t("account.withdrawFailed"), res.error);
       }
+    } catch (e) {
+      // A synchronous throw before the service returns must never red-box; nothing was signed.
+      Alert.alert(t("account.withdrawFailed"), e instanceof Error ? e.message : String(e));
     } finally {
       setWithdrawBusy(false);
     }

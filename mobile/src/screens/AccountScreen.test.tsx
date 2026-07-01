@@ -248,6 +248,21 @@ describe("AccountScreen", () => {
     await waitFor(() => expect(mockDeposit).toHaveBeenCalledWith({ amount: 5, available: 500, confirmed: true }));
   });
 
+  it("surfaces a thrown deposit client error as not-submitted instead of red-boxing", async () => {
+    useEnvStore.setState({ network: "testnet" });
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockDeposit.mockImplementationOnce(() => { throw new Error("bad account"); });
+    const localWallet = { getViemAccount: () => ({}), getAddress: () => ADDR } as never;
+    useWalletStore.setState({ mode: "local", wallet: localWallet, address: ADDR });
+    render(<AccountScreen deps={fakeDeps} />);
+    fireEvent.press(screen.getByText("Deposit"));
+    await waitFor(() => expect(screen.getByTestId("deposit-available")).toBeTruthy());
+    fireEvent.changeText(screen.getByTestId("deposit-amount"), "5");
+    fireEvent.press(screen.getByTestId("deposit-confirm"));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Deposit not submitted", expect.stringContaining("bad account")));
+    alertSpy.mockRestore();
+  });
+
   it("blocks deposit until the server delivers the Arbitrum RPC", async () => {
     useEnvStore.setState({ network: "testnet" });
     useRuntimeConfigStore.setState({ arbitrumRpc: { mainnet: null, testnet: null } });

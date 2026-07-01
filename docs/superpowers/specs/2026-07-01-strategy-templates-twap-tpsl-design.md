@@ -105,10 +105,12 @@ A new branch in the scheduler tick evaluates running `tpsl` strategies:
   - **short** (`szi < 0`): `tp && mark <= tp` OR `sl && mark >= sl`.
 - On trigger → reduce-only IOC close via the generalised placer:
   `side = szi > 0 ? "sell" : "buy"`, `reduceOnly = true`, `sizeCoin = |szi|`, with a
-  deterministic cloid via the existing `cloidFor(id, slot)` scheme (`slot` = a
-  coarse close-attempt bucket) so a lost-response retry reuses the same cloid and
-  dedupes at the HL kernel. On a confirmed fill → `status = "completed"`,
-  `recordTrigger(id, now)`, activity row.
+  per-tick cloid via the existing `cloidFor(id, now)` scheme. Completion is
+  coverage-based: when the fill covers the position → `status = "completed"` +
+  `recordTrigger(id, now)` + activity row. A partial fill leaves the strategy
+  `running`; the next tick re-evaluates the smaller (still-triggered) position and
+  re-closes. `reduceOnly` makes repeated closes safe — they can only shrink the
+  position, never flip it.
 - Kill-switch blocks the close attempt (retries next tick once cleared). No
   notional cap is applied — a reduce-only close only reduces risk.
 

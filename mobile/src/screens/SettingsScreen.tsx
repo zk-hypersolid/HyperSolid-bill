@@ -73,14 +73,18 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
   const autoLockLabel = (m: number) => (m === 0 ? t("account.autoLockImmediate") : t("account.autoLockMin", { min: m }));
 
   async function onToggleBiometric() {
-    if (!biometricEnabled) {
-      const avail = await gate.isAvailable();
-      if (!avail.hasHardware || !avail.isEnrolled) {
-        Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
-        return;
+    try {
+      if (!biometricEnabled) {
+        const avail = await gate.isAvailable();
+        if (!avail.hasHardware || !avail.isEnrolled) {
+          Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
+          return;
+        }
       }
+      await setBiometricEnabled(!biometricEnabled);
+    } catch {
+      Alert.alert(t("account.faceIdUnavailable"), t("account.faceIdUnavailableBody"));
     }
-    await setBiometricEnabled(!biometricEnabled);
   }
 
   function openChangePin() {
@@ -128,8 +132,12 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
   }
   async function onCopySecret() {
     if (!revealedSecret) return;
-    await Clipboard.setStringAsync(revealedSecret.value);
-    setCopied(true);
+    try {
+      await Clipboard.setStringAsync(revealedSecret.value);
+      setCopied(true);
+    } catch {
+      /* clipboard unavailable — non-fatal, the secret is still shown on screen to copy manually */
+    }
   }
   async function onSignOut() {
     Alert.alert(t("account.signOutTitle"), t("account.signOutConfirm"), [
@@ -138,8 +146,12 @@ export function SettingsScreen({ deps }: { deps?: SettingsScreenDeps } = {}) {
         text: t("account.signOutSwitch"),
         style: "destructive",
         onPress: async () => {
-          await manager.signOut();
-          reset();
+          try {
+            await manager.signOut();
+            reset();
+          } catch {
+            reset();
+          }
         },
       },
     ]);

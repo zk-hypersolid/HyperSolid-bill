@@ -176,6 +176,17 @@ describe("PositionsScreen", () => {
     expect(Alert.alert).not.toHaveBeenCalledWith("Close failed", expect.anything());
   });
 
+  it("does not crash when the close order throws synchronously (shows failure alert)", async () => {
+    mockPlaceOrder.mockImplementation(() => { throw new Error("client boom"); });
+    (Alert.alert as jest.Mock).mockClear();
+    useWalletStore.setState({ mode: "local", wallet: localWallet as never, address: ADDR });
+    render(<PositionsScreen deps={fakeDeps} />);
+    await waitFor(() => expect(screen.getByTestId("close-BTC")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("close-BTC"));
+    await confirmAlert();
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("Close failed", expect.stringContaining("client boom")));
+  });
+
   it("does not place a market close until the user confirms", async () => {
     useWalletStore.setState({ mode: "local", wallet: localWallet as never, address: ADDR });
     render(<PositionsScreen deps={fakeDeps} />);

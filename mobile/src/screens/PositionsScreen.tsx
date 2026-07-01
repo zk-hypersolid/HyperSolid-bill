@@ -118,23 +118,28 @@ export function PositionsScreen({
           text: t("common.confirm"),
           style: "destructive",
           onPress: async () => {
-            const svc = buildSvc();
-            const mid = tickers.find((tk) => tk.coin === p.coin)?.midPx ?? 0;
-            if (!svc || mid <= 0 || size <= 0) {
-              Alert.alert(t("positions.closeFailed"));
-              return;
-            }
-            const res = await svc.placeOrder({ coin: p.coin, side, size, price: marketSlippagePrice(mid, side), reduceOnly: true, market: true });
-            if (res.ok) {
-              useToastStore.getState().show(t("positions.closeSubmitted"), "success");
-              runQuery(walletAddress ?? "");
-            } else if (res.uncertain) {
-              // Network/timeout — the close may have landed. Never call it a failure; the persistent
-              // ledger lets a later submit dedupe by cloid. Reload so a filled close surfaces.
-              Alert.alert(t("common.uncertainReceipt"), t("positions.closeUncertain", { error: res.error }));
-              runQuery(walletAddress ?? "");
-            } else {
-              Alert.alert(t("positions.closeFailed"), res.error);
+            try {
+              const svc = buildSvc();
+              const mid = tickers.find((tk) => tk.coin === p.coin)?.midPx ?? 0;
+              if (!svc || mid <= 0 || size <= 0) {
+                Alert.alert(t("positions.closeFailed"));
+                return;
+              }
+              const res = await svc.placeOrder({ coin: p.coin, side, size, price: marketSlippagePrice(mid, side), reduceOnly: true, market: true });
+              if (res.ok) {
+                useToastStore.getState().show(t("positions.closeSubmitted"), "success");
+                runQuery(walletAddress ?? "");
+              } else if (res.uncertain) {
+                // Network/timeout — the close may have landed. Never call it a failure; the persistent
+                // ledger lets a later submit dedupe by cloid. Reload so a filled close surfaces.
+                Alert.alert(t("common.uncertainReceipt"), t("positions.closeUncertain", { error: res.error }));
+                runQuery(walletAddress ?? "");
+              } else {
+                Alert.alert(t("positions.closeFailed"), res.error);
+              }
+            } catch (e) {
+              // A synchronous throw (client/account construction) must not red-box; nothing was signed.
+              Alert.alert(t("positions.closeFailed"), e instanceof Error ? e.message : String(e));
             }
           },
         },
@@ -156,14 +161,18 @@ export function PositionsScreen({
             text: t("common.confirm"),
             style: "destructive",
             onPress: async () => {
-              const svc = buildSvc();
-              if (!svc) {
-                Alert.alert(t("positions.cancelFailed"));
-                return;
+              try {
+                const svc = buildSvc();
+                if (!svc) {
+                  Alert.alert(t("positions.cancelFailed"));
+                  return;
+                }
+                const res = await svc.cancelOrder(order.coin, order.oid);
+                if (res.ok) runQuery(walletAddress ?? "");
+                else Alert.alert(t("positions.cancelFailed"), res.error);
+              } catch (e) {
+                Alert.alert(t("positions.cancelFailed"), e instanceof Error ? e.message : String(e));
               }
-              const res = await svc.cancelOrder(order.coin, order.oid);
-              if (res.ok) runQuery(walletAddress ?? "");
-              else Alert.alert(t("positions.cancelFailed"), res.error);
             },
           },
         ],

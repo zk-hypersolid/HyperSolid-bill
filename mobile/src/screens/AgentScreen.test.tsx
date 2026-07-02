@@ -173,5 +173,7 @@ describe("AgentScreen", () => {
     render(<AgentScreen />);
     fireEvent.press(screen.getByTestId("strategy-connect-btn"));
     await waitFor(() => expect(screen.getByTestId("strategy-g1")).toBeTruthy());
+    expect(screen.getByText("BTC Grid")).toBeTruthy();
+    expect(screen.getByText("level 3/6 · $100 bought")).toBeTruthy();
   });
 });

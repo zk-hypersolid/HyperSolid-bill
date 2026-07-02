@@ -153,6 +153,10 @@ describe("HTTP app", () => {
     const limited = (await app.inject({ method: "GET", url: "/activity?limit=1", headers })).json();
     expect(limited).toHaveLength(1);
     expect(limited[0].time).toBe(300);
+
+    // an empty/non-numeric limit falls back to the default (returns all 3), not clamps to 1
+    const empty = (await app.inject({ method: "GET", url: "/activity?limit=", headers })).json();
+    expect(empty).toHaveLength(3);
     await app.close();
   });
 

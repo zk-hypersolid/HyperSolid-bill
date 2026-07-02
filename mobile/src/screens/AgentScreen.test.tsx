@@ -107,12 +107,22 @@ describe("AgentScreen", () => {
     fireEvent.changeText(screen.getByTestId("dca-interval"), "24");
     fireEvent.press(screen.getByTestId("dca-create"));
     await waitFor(() =>
-      expect(mockApiFake.createStrategy).toHaveBeenCalledWith({
-        coin: "BTC",
-        side: "buy",
-        quoteAmountUsdc: 50,
-        intervalHours: 24,
-      }),
+      expect(mockApiFake.createStrategy).toHaveBeenCalledWith("dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 }),
+    );
+  });
+
+  it("switches to the TWAP template and creates a TWAP", async () => {
+    render(<AgentScreen />);
+    fireEvent.press(screen.getByTestId("strategy-connect-btn"));
+    await waitFor(() => expect(screen.getByTestId("template-twap")).toBeTruthy());
+    fireEvent.press(screen.getByTestId("template-twap"));
+    fireEvent.changeText(screen.getByTestId("twap-coin"), "ETH");
+    fireEvent.changeText(screen.getByTestId("twap-total"), "300");
+    fireEvent.changeText(screen.getByTestId("twap-slices"), "6");
+    fireEvent.changeText(screen.getByTestId("twap-duration"), "3");
+    fireEvent.press(screen.getByTestId("twap-create"));
+    await waitFor(() =>
+      expect(mockApiFake.createStrategy).toHaveBeenCalledWith("twap", { coin: "ETH", side: "buy", totalUsdc: 300, slices: 6, durationHours: 3 }),
     );
   });
 });

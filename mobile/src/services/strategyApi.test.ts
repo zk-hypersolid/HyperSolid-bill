@@ -41,6 +41,14 @@ describe("StrategyApi", () => {
     expect(JSON.parse(init.body as string).type).toBe("twap");
   });
 
+  it("creates a grid strategy", async () => {
+    const fetchMock = jest.fn(async (_u: string, _i?: RequestInit) => res({ id: "s4", type: "grid", params: {}, status: "running" }));
+    const api = new StrategyApi("https://api", "tok", fetchMock as unknown as typeof fetch);
+    await api.createStrategy("grid", { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 });
+    const init = (fetchMock.mock.calls[0][1] ?? {}) as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({ type: "grid", params: { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 } });
+  });
+
   it("fetches recent activity with a limit", async () => {
     const fetchMock = jest.fn(async (_u: string, _i?: RequestInit) => res([{ id: "a1", time: 1, coin: "BTC", side: "buy", sz: 0.1, px: 50000 }]));
     const api = new StrategyApi("https://api", "tok", fetchMock as unknown as typeof fetch);

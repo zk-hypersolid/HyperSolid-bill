@@ -17,6 +17,8 @@ export interface Activity {
 export interface ActivityStore {
   record(a: Omit<Activity, "id">): Activity;
   list(owner: string, strategyId: string): Activity[];
+  /** Newest-first activity across all of the owner's strategies, capped at `limit`. */
+  listRecent(owner: string, limit: number): Activity[];
   /** Sum of `sz*px` notional for an owner across all strategies since `sinceMs` (inclusive). */
   notionalSince(owner: string, sinceMs: number): number;
 }
@@ -32,6 +34,12 @@ export class MemoryActivityStore implements ActivityStore {
     return this.rows
       .filter((r) => r.owner === owner.toLowerCase() && r.strategyId === strategyId)
       .sort((x, y) => y.time - x.time);
+  }
+  listRecent(owner: string, limit: number): Activity[] {
+    return this.rows
+      .filter((r) => r.owner === owner.toLowerCase())
+      .sort((x, y) => y.time - x.time)
+      .slice(0, limit);
   }
   notionalSince(owner: string, sinceMs: number): number {
     return this.rows
@@ -94,6 +102,16 @@ export class SqliteActivityStore implements ActivityStore {
       side: r.side,
       sz: r.sz,
       px: r.px,
+    }));
+  }
+
+  listRecent(owner: string, limit: number): Activity[] {
+    const rows = this.db
+      .prepare("SELECT * FROM activity WHERE owner = ? ORDER BY time DESC LIMIT ?")
+      .all(owner.toLowerCase(), limit) as Row[];
+    return rows.map((r) => ({
+      id: r.id, strategyId: r.strategy_id, owner: r.owner, time: r.time,
+      coin: r.coin, side: r.side, sz: r.sz, px: r.px,
     }));
   }
 

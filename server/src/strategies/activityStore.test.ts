@@ -34,6 +34,26 @@ function contract(name: string, make: () => ActivityStore) {
 
 contract("MemoryActivityStore", () => new MemoryActivityStore());
 
+describe("listRecent", () => {
+  function seed(store: MemoryActivityStore | SqliteActivityStore) {
+    store.record({ strategyId: "s1", owner: "0xOwner", time: 100, coin: "BTC", side: "buy", sz: 0.1, px: 50000 });
+    store.record({ strategyId: "s2", owner: "0xOwner", time: 300, coin: "ETH", side: "sell", sz: 1, px: 1600 });
+    store.record({ strategyId: "s1", owner: "0xOwner", time: 200, coin: "BTC", side: "buy", sz: 0.2, px: 51000 });
+    store.record({ strategyId: "s9", owner: "0xOther", time: 400, coin: "SOL", side: "buy", sz: 5, px: 100 });
+  }
+
+  it.each([
+    ["memory", () => new MemoryActivityStore()],
+    ["sqlite", () => SqliteActivityStore.open(":memory:")],
+  ])("%s: newest-first across strategies, owner-scoped, capped by limit", (_n, make) => {
+    const store = make();
+    seed(store);
+    const recent = store.listRecent("0xOwner", 2);
+    expect(recent.map((r) => r.time)).toEqual([300, 200]); // newest first, other owner excluded, capped at 2
+    expect(recent.every((r) => r.owner === "0xowner")).toBe(true);
+  });
+});
+
 describe("SqliteActivityStore", () => {
   contract("contract", () => SqliteActivityStore.open(":memory:"));
 

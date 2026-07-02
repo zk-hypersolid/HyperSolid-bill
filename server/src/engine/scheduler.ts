@@ -4,7 +4,8 @@ import { dueDca, dcaNextRunAt } from "../strategies/dca";
 import { dueTwap, twapSliceUsdc, twapIntervalMs } from "../strategies/twap";
 import { withinCaps, type RiskLimits } from "../risk/guards";
 import { tpslTriggered, closeSide } from "../strategies/tpsl";
-import type { DcaParams, TwapParams, TpslParams } from "../strategies/types";
+import type { DcaParams, TwapParams, TpslParams, GridParams } from "../strategies/types";
+import { gridStep, bandIndex, gridAction } from "../strategies/grid";
 
 export interface PlaceRequest {
   owner: string;
@@ -51,8 +52,8 @@ export function cloidFor(strategyId: string, scheduledNextRunAt: number): string
   return `0x${h.slice(0, 32)}`;
 }
 
-/** Optional resolvers enabling the TP/SL trigger path (Phase 2). */
-export interface TpslDeps {
+/** Mark/position resolvers shared by the TP/SL trigger path and the Grid path. */
+export interface MarkDeps {
   resolveMark(coin: string): Promise<number>;
   /** Signed position size (szi): >0 long, <0 short, undefined/0 = flat. */
   resolvePosition(owner: string, coin: string): Promise<number | undefined>;
@@ -65,7 +66,7 @@ export async function tick(
   killSwitch: boolean,
   now: number,
   activity?: ActivityRecorder,
-  tpsl?: TpslDeps,
+  marks?: MarkDeps,
 ): Promise<void> {
   const all = store.listAll();
 
@@ -116,14 +117,14 @@ export async function tick(
   }
 
   // --- TP/SL: reduce-only close on mark crossing configured price ---
-  if (tpsl) {
+  if (marks) {
     for (const s of all) {
       if (s.kind !== "tpsl" || s.status !== "running") continue;
       if (killSwitch) continue;
       const p = s.params as TpslParams;
-      const szi = await tpsl.resolvePosition(s.owner, p.coin);
+      const szi = await marks.resolvePosition(s.owner, p.coin);
       if (szi === undefined || szi === 0) continue;
-      const mark = await tpsl.resolveMark(p.coin);
+      const mark = await marks.resolveMark(p.coin);
       if (!Number.isFinite(mark) || mark <= 0) continue;
       if (!tpslTriggered(p, szi, mark)) continue;
       const cloid = cloidFor(s.id, now);
@@ -135,6 +136,52 @@ export async function tick(
         }
         const covered = res.filledSz === undefined || res.filledSz + 1e-9 >= Math.abs(szi);
         if (covered) store.recordTrigger(s.id, now);
+      }
+    }
+  }
+
+  // --- Grid: mark-crossing, inventory-bounded long grid ---
+  if (marks) {
+    for (const s of all) {
+      if (s.kind !== "grid" || s.status !== "running") continue;
+      if (killSwitch) continue;
+      const p = s.params as GridParams;
+      const mark = await marks.resolveMark(p.coin);
+      if (!Number.isFinite(mark) || mark <= 0) continue;
+      const step = gridStep(p);
+      const curBand = bandIndex(mark, p.lowerPrice, step, p.levels);
+
+      if (s.lastLevel === undefined) {
+        store.seedGridLevel(s.id, curBand);
+        continue;
+      }
+
+      const act = gridAction(s.lastLevel, curBand, p.perLevelUsdc);
+      if (!act || act.usdc <= 0) continue;
+
+      if (act.side === "buy") {
+        if (!withinCaps({ notionalUsdc: act.usdc, killSwitch, coin: p.coin }, limits).ok) continue;
+        if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
+          const spentToday = activity.notionalSince(s.owner, dayStartUtcMs(now));
+          if (spentToday + act.usdc > limits.dailyMaxNotionalUsdc) continue;
+        }
+      }
+
+      const cloid = cloidFor(s.id, s.actionsDone ?? 0);
+      const res = await placer.place({
+        owner: s.owner,
+        coin: p.coin,
+        sizeUsdc: act.usdc,
+        cloid,
+        side: act.side,
+        reduceOnly: act.side === "sell",
+      });
+      if (res.ok) {
+        const bought = act.side === "buy" ? res.filledUsdc ?? act.usdc : 0;
+        store.recordGridAction(s.id, act.targetLevel, bought);
+        if (activity && res.filledSz !== undefined && res.avgPx !== undefined) {
+          activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side: act.side, sz: res.filledSz, px: res.avgPx });
+        }
       }
     }
   }

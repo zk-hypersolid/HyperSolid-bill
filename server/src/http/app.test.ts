@@ -199,4 +199,31 @@ describe("HTTP app", () => {
     expect(ks.statusCode).toBe(204);
     await app.close();
   });
+
+  it("creates a grid strategy and returns it", async () => {
+    const app = build();
+    const token = await tokenFor(app);
+    const auth = { authorization: `Bearer ${token}` };
+    const res = await app.inject({
+      method: "POST",
+      url: "/strategies",
+      headers: auth,
+      payload: { type: "grid", params: { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ type: "grid", status: "running", params: { levels: 6 } });
+  });
+
+  it("rejects an invalid grid (upper <= lower) with 400", async () => {
+    const app = build();
+    const token = await tokenFor(app);
+    const auth = { authorization: `Bearer ${token}` };
+    const res = await app.inject({
+      method: "POST",
+      url: "/strategies",
+      headers: auth,
+      payload: { type: "grid", params: { coin: "BTC", lowerPrice: 200, upperPrice: 100, levels: 6, perLevelUsdc: 50 } },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

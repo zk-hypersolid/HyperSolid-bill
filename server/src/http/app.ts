@@ -32,6 +32,7 @@ interface StrategyDto {
   nextRunAt?: number;
   slicesDone?: number;
   triggeredAt?: number;
+  lastLevel?: number;
 }
 
 function toDto(s: Strategy): StrategyDto {
@@ -44,6 +45,7 @@ function toDto(s: Strategy): StrategyDto {
     ...(s.nextRunAt !== undefined ? { nextRunAt: s.nextRunAt } : {}),
     ...(s.slicesDone !== undefined ? { slicesDone: s.slicesDone } : {}),
     ...(s.triggeredAt !== undefined ? { triggeredAt: s.triggeredAt } : {}),
+    ...(s.lastLevel !== undefined ? { lastLevel: s.lastLevel } : {}),
   };
 }
 

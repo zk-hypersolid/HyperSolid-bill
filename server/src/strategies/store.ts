@@ -10,6 +10,10 @@ export interface StrategyStore {
   setStatus(id: string, status: StrategyStatus): void;
   recordFill(id: string, quoteUsdc: number, nextRunAt: number): void;
   recordTrigger(id: string, now: number): void;
+  /** Grid: set the baseline grid-line index on the first tick (no order, no counter bump). */
+  seedGridLevel(id: string, level: number): void;
+  /** Grid: advance to `newLevel`, bump the action counter, add `boughtUsdc` (0 for reduce-only sells). */
+  recordGridAction(id: string, newLevel: number, boughtUsdc: number): void;
   remove(id: string): void;
 }
 
@@ -56,6 +60,19 @@ export class MemoryStrategyStore implements StrategyStore {
     if (!s) return;
     s.triggeredAt = now;
     s.status = "completed";
+  }
+
+  seedGridLevel(id: string, level: number): void {
+    const s = this.byId.get(id);
+    if (s) s.lastLevel = level;
+  }
+
+  recordGridAction(id: string, newLevel: number, boughtUsdc: number): void {
+    const s = this.byId.get(id);
+    if (!s) return;
+    s.lastLevel = newLevel;
+    s.actionsDone = (s.actionsDone ?? 0) + 1;
+    s.filledTotalUsdc = (s.filledTotalUsdc ?? 0) + boughtUsdc;
   }
 
   remove(id: string): void { this.byId.delete(id); }

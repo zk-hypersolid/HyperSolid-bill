@@ -85,6 +85,12 @@ export class SqliteStrategyStore implements StrategyStore {
   recordTrigger(id: string, now: number): void {
     this.db.prepare("UPDATE strategies SET triggered_at = ?, status = 'completed' WHERE id = ?").run(now, id);
   }
+  seedGridLevel(_id: string, _level: number): void {
+    throw new Error("Grid strategies not yet supported in SqliteStrategyStore");
+  }
+  recordGridAction(_id: string, _newLevel: number, _boughtUsdc: number): void {
+    throw new Error("Grid strategies not yet supported in SqliteStrategyStore");
+  }
   remove(id: string): void { this.db.prepare("DELETE FROM strategies WHERE id = ?").run(id); }
   close(): void { this.db.close(); }
 }

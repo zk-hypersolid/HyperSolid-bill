@@ -52,3 +52,29 @@ describe("MemoryStrategyStore", () => {
     expect(store.get(s.id)).toBeUndefined();
   });
 });
+
+describe("grid store state", () => {
+  const params = { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 };
+
+  it("creates a grid with actionsDone=0 and no lastLevel", () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    expect(s).toMatchObject({ kind: "grid", status: "running", actionsDone: 0, filledTotalUsdc: 0 });
+    expect(s.lastLevel).toBeUndefined();
+  });
+
+  it("seedGridLevel sets lastLevel without bumping actionsDone", () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 3);
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 0 });
+  });
+
+  it("recordGridAction advances lastLevel/actionsDone and adds bought notional", () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.recordGridAction(s.id, 2, 100); // a buy
+    store.recordGridAction(s.id, 4, 0);   // a reduce-only sell adds no bought notional
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 4, actionsDone: 2, filledTotalUsdc: 100 });
+  });
+});

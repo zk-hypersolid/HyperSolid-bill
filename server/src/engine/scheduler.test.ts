@@ -96,4 +96,29 @@ describe("scheduler tick", () => {
     expect(store.get(c.id)!.nextRunAt).toBeGreaterThan(1000);
     expect(placer.calls).toHaveLength(2);
   });
+
+  it("places a TWAP slice, advances slicesDone, and completes on the final slice", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "twap", { coin: "ETH", side: "sell", totalUsdc: 100, slices: 2, durationHours: 2 });
+    const placed: any[] = [];
+    const placer = { place: async (r: any) => { placed.push(r); return { ok: true, filledUsdc: 50, filledSz: 0.5, avgPx: 100 }; } };
+    const limits = { maxNotionalUsdc: 1000 };
+
+    await tick(store, placer as any, limits, false, 0);
+    expect(placed[0]).toMatchObject({ coin: "ETH", side: "sell", reduceOnly: false, sizeUsdc: 50 });
+    expect(store.get(s.id)).toMatchObject({ slicesDone: 1, status: "running" });
+
+    // second slice due after the interval
+    const iv = (2 * 3600 * 1000) / 2;
+    await tick(store, placer as any, limits, false, iv);
+    expect(store.get(s.id)).toMatchObject({ slicesDone: 2, status: "completed" });
+  });
+
+  it("does not place a TWAP slice when the kill-switch is active", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    store.create("0xo", "twap", { coin: "ETH", side: "buy", totalUsdc: 100, slices: 2, durationHours: 2 });
+    const placer = { place: jest.fn(async () => ({ ok: true, filledUsdc: 50 })) };
+    await tick(store, placer as any, { maxNotionalUsdc: 1000 }, true, 0);
+    expect(placer.place).not.toHaveBeenCalled();
+  });
 });

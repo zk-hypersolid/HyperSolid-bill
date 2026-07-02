@@ -1,8 +1,9 @@
 import { createHash } from "crypto";
 import type { StrategyStore } from "../strategies/store";
 import { dueDca, dcaNextRunAt } from "../strategies/dca";
+import { dueTwap, twapSliceUsdc, twapIntervalMs } from "../strategies/twap";
 import { withinCaps, type RiskLimits } from "../risk/guards";
-import type { DcaParams } from "../strategies/types";
+import type { DcaParams, TwapParams } from "../strategies/types";
 
 export interface PlaceRequest {
   owner: string;
@@ -94,7 +95,25 @@ export async function tick(
     }
   }
 
-  // --- TWAP: filled in Phase 1 (Task 1.2) ---
+  for (const s of dueTwap(all, now)) {
+    const p = s.params as TwapParams;
+    const sliceUsdc = twapSliceUsdc(p);
+    if (sliceUsdc <= 0) continue;
+    if (!withinCaps({ notionalUsdc: sliceUsdc, killSwitch, coin: p.coin }, limits).ok) continue;
+    if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
+      const spentToday = activity.notionalSince(s.owner, dayStartUtcMs(now));
+      if (spentToday + sliceUsdc > limits.dailyMaxNotionalUsdc) continue;
+    }
+    const cloid = cloidFor(s.id, s.nextRunAt ?? now);
+    const res = await placer.place({ owner: s.owner, coin: p.coin, sizeUsdc: sliceUsdc, cloid, side: p.side, reduceOnly: false });
+    if (res.ok) {
+      store.recordFill(s.id, res.filledUsdc ?? sliceUsdc, now + twapIntervalMs(p));
+      if (activity && res.filledSz !== undefined && res.avgPx !== undefined) {
+        activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side: p.side, sz: res.filledSz, px: res.avgPx });
+      }
+    }
+  }
+
   // --- TP/SL: filled in Phase 2 (Task 2.3) ---
   void tpsl;
 }

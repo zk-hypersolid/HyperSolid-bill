@@ -1,13 +1,17 @@
 import { createHash } from "crypto";
 import type { StrategyStore } from "../strategies/store";
-import { dueStrategies, nextRunAt } from "../strategies/dca";
+import { dueDca, dcaNextRunAt } from "../strategies/dca";
 import { withinCaps, type RiskLimits } from "../risk/guards";
+import type { DcaParams } from "../strategies/types";
 
 export interface PlaceRequest {
   owner: string;
   coin: string;
-  sizeUsdc: number;
   cloid: string;
+  side: "buy" | "sell";
+  reduceOnly: boolean;
+  sizeUsdc?: number;
+  sizeCoin?: number;
 }
 
 export interface PlaceResult {
@@ -45,13 +49,13 @@ export function cloidFor(strategyId: string, scheduledNextRunAt: number): string
   return `0x${h.slice(0, 32)}`;
 }
 
-/**
- * One scheduler pass: place a DCA child order for each due strategy (slot-deterministic cloid),
- * gated by risk caps + the kill-switch, and advance only on a successful placement. Idempotent: the
- * cloid is keyed by the strategy's *scheduled* nextRunAt, and the strategy is advanced only after a
- * confirmed fill — a re-run before advancement reuses the same cloid. On a confirmed fill it also
- * records an activity row (when an `activity` sink is provided).
- */
+/** Optional resolvers enabling the TP/SL trigger path (Phase 2). */
+export interface TpslDeps {
+  resolveMark(coin: string): Promise<number>;
+  /** Signed position size (szi): >0 long, <0 short, undefined/0 = flat. */
+  resolvePosition(owner: string, coin: string): Promise<number | undefined>;
+}
+
 export async function tick(
   store: StrategyStore,
   placer: OrderPlacer,
@@ -59,29 +63,38 @@ export async function tick(
   killSwitch: boolean,
   now: number,
   activity?: ActivityRecorder,
+  tpsl?: TpslDeps,
 ): Promise<void> {
-  for (const s of dueStrategies(store.listAll(), now)) {
-    const notionalUsdc = s.params.quoteAmountUsdc;
-    if (!withinCaps({ notionalUsdc, killSwitch, coin: s.params.coin }, limits).ok) continue;
+  const all = store.listAll();
+
+  // --- DCA: scheduled buys (unchanged behavior) ---
+  for (const s of dueDca(all, now)) {
+    const p = s.params as DcaParams;
+    const notionalUsdc = p.quoteAmountUsdc;
+    if (!withinCaps({ notionalUsdc, killSwitch, coin: p.coin }, limits).ok) continue;
     if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
       const spentToday = activity.notionalSince(s.owner, dayStartUtcMs(now));
       if (spentToday + notionalUsdc > limits.dailyMaxNotionalUsdc) continue;
     }
-    const cloid = cloidFor(s.id, s.nextRunAt);
-    const res = await placer.place({ owner: s.owner, coin: s.params.coin, sizeUsdc: notionalUsdc, cloid });
+    const cloid = cloidFor(s.id, s.nextRunAt ?? now);
+    const res = await placer.place({ owner: s.owner, coin: p.coin, sizeUsdc: notionalUsdc, cloid, side: "buy", reduceOnly: false });
     if (res.ok) {
-      store.recordFill(s.id, res.filledUsdc ?? notionalUsdc, nextRunAt(s, now));
+      store.recordFill(s.id, res.filledUsdc ?? notionalUsdc, dcaNextRunAt(p, now));
       if (activity && res.filledSz !== undefined && res.avgPx !== undefined) {
         activity.record({
           strategyId: s.id,
           owner: s.owner,
           time: now,
-          coin: s.params.coin,
-          side: s.params.side,
+          coin: p.coin,
+          side: p.side,
           sz: res.filledSz,
           px: res.avgPx,
         });
       }
     }
   }
+
+  // --- TWAP: filled in Phase 1 (Task 1.2) ---
+  // --- TP/SL: filled in Phase 2 (Task 2.3) ---
+  void tpsl;
 }

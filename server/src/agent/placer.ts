@@ -36,9 +36,9 @@ function fillOf(res: unknown): { filledUsdc: number; filledSz: number; avgPx: nu
 
 /**
  * Build the scheduler's OrderPlacer on top of an agent-signed HL client. Each placement is an
- * aggressive IoC buy (slippage-bounded) of `sizeUsdc` notional, carrying the scheduler's deterministic
- * cloid so a re-run dedupes at the HL kernel. Fails closed: no client, no price, an error status, or a
- * thrown error all return `{ ok:false }` so the scheduler does NOT advance and retries next tick.
+ * aggressive IoC order (slippage-bounded) carrying the scheduler's deterministic cloid so a re-run
+ * dedupes at the HL kernel. Fails closed: no client, no price, an error status, or a thrown error all
+ * return `{ ok:false }` so the scheduler does NOT advance and retries next tick.
  */
 export function makeHlPlacer(deps: PlacerDeps): OrderPlacer {
   return {
@@ -49,15 +49,17 @@ export function makeHlPlacer(deps: PlacerDeps): OrderPlacer {
         const price = await deps.resolvePrice(req.coin);
         if (!Number.isFinite(price) || price <= 0) return { ok: false };
         const { assetIndex, szDecimals } = await deps.resolveAsset(req.coin);
-        const size = roundSize(req.sizeUsdc / price, szDecimals);
+        const rawSize = req.sizeCoin !== undefined ? req.sizeCoin : (req.sizeUsdc ?? 0) / price;
+        const size = roundSize(rawSize, szDecimals);
         if (size <= 0) return { ok: false };
-        const limitPx = price * (1 + deps.slippageBps / 10_000);
+        const buy = req.side === "buy";
+        const limitPx = buy ? price * (1 + deps.slippageBps / 10_000) : price * (1 - deps.slippageBps / 10_000);
         const order = {
           a: assetIndex,
-          b: true,
+          b: buy,
           p: formatPrice(limitPx, szDecimals),
           s: roundSize(size, szDecimals).toString(),
-          r: false,
+          r: req.reduceOnly,
           t: { limit: { tif: "Ioc" as const } },
           c: req.cloid,
         };

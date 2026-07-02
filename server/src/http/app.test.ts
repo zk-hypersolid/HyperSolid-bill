@@ -61,8 +61,12 @@ describe("HTTP app", () => {
     const created = (await app.inject({ method: "POST", url: "/strategies", headers: auth, payload: { type: "dca", params } })).json();
     expect(created.type).toBe("dca");
     expect(created.status).toBe("running");
+    expect(created.params).toEqual(params);
+    expect(created.filledTotalUsdc).toBe(0);
+    expect(created.nextRunAt).toBe(1000);
 
-    expect((await app.inject({ method: "GET", url: "/strategies", headers: auth })).json()).toHaveLength(1);
+    const listed = (await app.inject({ method: "GET", url: "/strategies", headers: auth })).json();
+    expect(listed).toEqual([expect.objectContaining({ id: created.id, type: "dca", params, filledTotalUsdc: 0, nextRunAt: 1000 })]);
 
     const patched = (await app.inject({ method: "PATCH", url: `/strategies/${created.id}`, headers: auth, payload: { status: "paused" } })).json();
     expect(patched.status).toBe("paused");
@@ -74,6 +78,25 @@ describe("HTTP app", () => {
 
     expect((await app.inject({ method: "DELETE", url: `/strategies/${created.id}`, headers: auth })).statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/strategies", headers: auth })).json()).toHaveLength(0);
+    await app.close();
+  });
+
+  it("rejects an invalid strategy with 400", async () => {
+    const app = build();
+    const token = await tokenFor(app);
+    const auth = { authorization: `Bearer ${token}` };
+    const res = await app.inject({ method: "POST", url: "/strategies", headers: auth, payload: { type: "dca", params: { coin: "BTC", side: "buy", quoteAmountUsdc: 0, intervalHours: 24 } } });
+    expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("rejects missing or null strategy bodies with 400", async () => {
+    const app = build();
+    const token = await tokenFor(app);
+    const auth = { authorization: `Bearer ${token}` };
+
+    expect((await app.inject({ method: "POST", url: "/strategies", headers: auth })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/strategies", headers: { ...auth, "content-type": "application/json" }, payload: "null" })).statusCode).toBe(400);
     await app.close();
   });
 

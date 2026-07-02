@@ -1,14 +1,15 @@
 import { MemoryStrategyStore } from "../strategies/store";
 import { MemoryActivityStore } from "../strategies/activityStore";
-import { tick, cloidFor, type OrderPlacer } from "./scheduler";
+import { tick, cloidFor, type OrderPlacer, type PlaceRequest } from "./scheduler";
 
-function placerFake(): OrderPlacer & { calls: { cloid: string; sizeUsdc: number }[] } {
-  const calls: { cloid: string; sizeUsdc: number }[] = [];
+function placerFake(): OrderPlacer & { calls: PlaceRequest[] } {
+  const calls: PlaceRequest[] = [];
   return {
     calls,
     async place(req) {
-      calls.push({ cloid: req.cloid, sizeUsdc: req.sizeUsdc });
-      return { ok: true, filledUsdc: req.sizeUsdc, filledSz: 0.001, avgPx: req.sizeUsdc / 0.001 };
+      calls.push(req);
+      const filledUsdc = req.sizeUsdc ?? 0;
+      return { ok: true, filledUsdc, filledSz: 0.001, avgPx: filledUsdc / 0.001 };
     },
   };
 }
@@ -18,13 +19,13 @@ describe("scheduler tick", () => {
 
   it("places one order per due strategy with the slot-deterministic cloid, then advances it", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    const s = store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
+    const s = store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
     const placer = placerFake();
 
     await tick(store, placer, limits, false, 2000);
     expect(placer.calls).toHaveLength(1);
     expect(placer.calls[0].cloid).toBe(cloidFor(s.id, 1000));
-    expect(placer.calls[0].sizeUsdc).toBe(50);
+    expect(placer.calls[0]).toEqual(expect.objectContaining({ side: "buy", reduceOnly: false, sizeUsdc: 50 }));
 
     await tick(store, placer, limits, false, 2000);
     expect(placer.calls).toHaveLength(1);
@@ -32,7 +33,7 @@ describe("scheduler tick", () => {
 
   it("places nothing when the kill-switch is on", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
+    store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
     const placer = placerFake();
     await tick(store, placer, limits, true, 2000);
     expect(placer.calls).toHaveLength(0);
@@ -40,7 +41,7 @@ describe("scheduler tick", () => {
 
   it("does not advance the strategy if the placer reports failure", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    const s = store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
+    const s = store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
     const failing: OrderPlacer = { async place() { return { ok: false }; } };
     await tick(store, failing, limits, false, 2000);
     expect(store.get(s.id)!.nextRunAt).toBe(1000);
@@ -49,7 +50,7 @@ describe("scheduler tick", () => {
 
   it("records exactly one activity row per confirmed fill, and none on failure", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    const s = store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
+    const s = store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
     const activity = new MemoryActivityStore();
 
     await tick(store, placerFake(), limits, false, 2000, activity);
@@ -67,8 +68,8 @@ describe("scheduler tick", () => {
 
   it("skips a strategy whose coin is over its per-coin cap while another coin still fires", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    const btc = store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 200, intervalHours: 24 });
-    const eth = store.create("0xo", { coin: "ETH", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
+    const btc = store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 200, intervalHours: 24 });
+    const eth = store.create("0xo", "dca", { coin: "ETH", side: "buy", quoteAmountUsdc: 50, intervalHours: 24 });
     const placer = placerFake();
 
     await tick(store, placer, { maxNotionalUsdc: 1000, perCoinMaxNotionalUsdc: { BTC: 100 } }, false, 2000);
@@ -81,9 +82,9 @@ describe("scheduler tick", () => {
 
   it("enforces a per-owner daily spend cap, leaving other owners unaffected", async () => {
     const store = new MemoryStrategyStore(() => 1000);
-    const a = store.create("0xo", { coin: "BTC", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
-    const b = store.create("0xo", { coin: "ETH", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
-    const c = store.create("0xother", { coin: "BTC", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
+    const a = store.create("0xo", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
+    const b = store.create("0xo", "dca", { coin: "ETH", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
+    const c = store.create("0xother", "dca", { coin: "BTC", side: "buy", quoteAmountUsdc: 60, intervalHours: 24 });
     const placer = placerFake();
     const activity = new MemoryActivityStore();
 

@@ -167,6 +167,15 @@ export async function tick(
         }
       }
 
+      if (act.side === "sell") {
+        const szi = await marks.resolvePosition(s.owner, p.coin);
+        if (szi === undefined || szi <= 0) {
+          // Flat: no long inventory to reduce. Track the price up without placing a doomed order.
+          store.seedGridLevel(s.id, act.targetLevel);
+          continue;
+        }
+      }
+
       const cloid = cloidFor(s.id, s.actionsDone ?? 0);
       const res = await placer.place({
         owner: s.owner,

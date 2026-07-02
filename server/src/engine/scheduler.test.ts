@@ -289,4 +289,16 @@ describe("grid tick", () => {
     expect(seen[0]).not.toBe(seen[2]);
     expect(new Set(seen).size).toBe(3);
   });
+
+  it("does not place a reduce-only sell when flat; advances the tracked level instead", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 1); // start at line 120, FLAT
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 }; // band 3, no inventory
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    // tracked level advances to follow the price up, but no action counted
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 0 });
+  });
 });

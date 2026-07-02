@@ -1,58 +1,77 @@
 import { makeHlPlacer, type ExchangeLike, type PlacerDeps } from "./placer";
 
-type OrderArg = { orders: { a: number; b: boolean; p: string; s: string; r: boolean; t: unknown; c: string }[]; grouping: string };
-
-function deps(over: Partial<PlacerDeps> = {}): { deps: PlacerDeps; orders: OrderArg[] } {
-  const orders: OrderArg[] = [];
-  const client: ExchangeLike = {
-    async order(arg: unknown) {
-      orders.push(arg as OrderArg);
-      return { status: "ok", response: { type: "order", data: { statuses: [{ filled: { totalSz: "0.001", avgPx: "50000" } }] } } };
+const filled = { totalSz: "2", avgPx: "100" };
+const deps = (
+  orderSpy: (o: unknown) => void = () => undefined,
+  price = 100,
+  fill = filled,
+  over: Partial<PlacerDeps> = {},
+): PlacerDeps => ({
+  clientFor: () => ({
+    order: async (params: { orders: unknown[] }) => {
+      orderSpy(params.orders[0]);
+      return { response: { data: { statuses: [{ filled: fill }] } } };
     },
-  };
-  return {
-    orders,
-    deps: {
-      clientFor: () => client,
-      resolveAsset: async () => ({ assetIndex: 3, szDecimals: 3 }),
-      resolvePrice: async () => 50000,
-      slippageBps: 50,
-      ...over,
-    },
-  };
-}
+  }),
+  resolveAsset: async () => ({ assetIndex: 3, szDecimals: 2 }),
+  resolvePrice: async () => price,
+  slippageBps: 50,
+  ...over,
+});
 
 describe("makeHlPlacer", () => {
-  it("places an aggressive IoC buy for the requested USDC with the given cloid, and reports the fill", async () => {
-    const { deps: d, orders } = deps();
-    const placer = makeHlPlacer(d);
+  it("buy notional order: b=true, r=false, aggressive up", async () => {
+    let order: any;
+    const placer = makeHlPlacer(deps((o) => (order = o)));
+    const res = await placer.place({ owner: "0xo", coin: "BTC", cloid: "0xc", side: "buy", reduceOnly: false, sizeUsdc: 200 });
+    expect(res.ok).toBe(true);
+    expect(order.a).toBe(3);
+    expect(order.b).toBe(true);
+    expect(order.c).toBe("0xc");
+    expect(order.r).toBe(false);
+    expect(order.t).toEqual({ limit: { tif: "Ioc" } });
+    expect(Number(order.p)).toBeGreaterThan(100);
+    expect(order.s).toBe("2");
+    expect(res).toEqual({ ok: true, filledUsdc: 200, filledSz: 2, avgPx: 100 });
+  });
 
-    const res = await placer.place({ owner: "0xo", coin: "BTC", sizeUsdc: 50, cloid: "0xabc" });
+  it("sell order: b=false, aggressive down", async () => {
+    let order: any;
+    const placer = makeHlPlacer(deps((o) => (order = o)));
+    await placer.place({ owner: "0xo", coin: "BTC", cloid: "0xc", side: "sell", reduceOnly: false, sizeUsdc: 200 });
+    expect(order.b).toBe(false);
+    expect(Number(order.p)).toBeLessThan(100);
+  });
 
-    expect(orders).toHaveLength(1);
-    const o = orders[0].orders[0];
-    expect(orders[0].grouping).toBe("na");
-    expect(o.a).toBe(3);
-    expect(o.b).toBe(true);
-    expect(o.c).toBe("0xabc");
-    expect(o.r).toBe(false);
-    expect(o.t).toEqual({ limit: { tif: "Ioc" } });
-    // size = 50/50000 = 0.001 -> rounded to szDecimals 3
-    expect(o.s).toBe("0.001");
-    // aggressive buy price = 50000 * (1 + 50bps) = 50250
-    expect(o.p).toBe("50250");
-    expect(res).toEqual({ ok: true, filledUsdc: 50, filledSz: 0.001, avgPx: 50000 });
+  it("reduce-only close by coin size: r=true, uses sizeCoin", async () => {
+    let order: any;
+    const placer = makeHlPlacer(deps((o) => (order = o)));
+    await placer.place({ owner: "0xo", coin: "BTC", cloid: "0xc", side: "sell", reduceOnly: true, sizeCoin: 1.5 });
+    expect(order.r).toBe(true);
+    expect(order.s).toBe("1.5");
   });
 
   it("fails closed when no agent client is available for the owner", async () => {
-    const { deps: d } = deps({ clientFor: () => undefined });
-    const res = await makeHlPlacer(d).place({ owner: "0xo", coin: "BTC", sizeUsdc: 50, cloid: "0xabc" });
+    const res = await makeHlPlacer(deps(undefined, 100, filled, { clientFor: () => undefined })).place({
+      owner: "0xo",
+      coin: "BTC",
+      side: "buy",
+      reduceOnly: false,
+      sizeUsdc: 50,
+      cloid: "0xabc",
+    });
     expect(res.ok).toBe(false);
   });
 
   it("fails closed when the price is unavailable", async () => {
-    const { deps: d } = deps({ resolvePrice: async () => 0 });
-    const res = await makeHlPlacer(d).place({ owner: "0xo", coin: "BTC", sizeUsdc: 50, cloid: "0xabc" });
+    const res = await makeHlPlacer(deps(undefined, 0)).place({
+      owner: "0xo",
+      coin: "BTC",
+      side: "buy",
+      reduceOnly: false,
+      sizeUsdc: 50,
+      cloid: "0xabc",
+    });
     expect(res.ok).toBe(false);
   });
 
@@ -62,11 +81,23 @@ describe("makeHlPlacer", () => {
         return { status: "ok", response: { type: "order", data: { statuses: [{ error: "Insufficient margin" }] } } };
       },
     };
-    const { deps: d } = deps({ clientFor: () => errClient });
-    expect((await makeHlPlacer(d).place({ owner: "0xo", coin: "BTC", sizeUsdc: 50, cloid: "0xabc" })).ok).toBe(false);
+    expect((await makeHlPlacer(deps(undefined, 100, filled, { clientFor: () => errClient })).place({
+      owner: "0xo",
+      coin: "BTC",
+      side: "buy",
+      reduceOnly: false,
+      sizeUsdc: 50,
+      cloid: "0xabc",
+    })).ok).toBe(false);
 
     const throwClient: ExchangeLike = { async order() { throw new Error("network"); } };
-    const { deps: d2 } = deps({ clientFor: () => throwClient });
-    expect((await makeHlPlacer(d2).place({ owner: "0xo", coin: "BTC", sizeUsdc: 50, cloid: "0xabc" })).ok).toBe(false);
+    expect((await makeHlPlacer(deps(undefined, 100, filled, { clientFor: () => throwClient })).place({
+      owner: "0xo",
+      coin: "BTC",
+      side: "buy",
+      reduceOnly: false,
+      sizeUsdc: 50,
+      cloid: "0xabc",
+    })).ok).toBe(false);
   });
 });

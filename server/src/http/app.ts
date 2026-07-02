@@ -2,7 +2,8 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type { Auth } from "../auth/auth";
 import type { AgentManager } from "../agent/agentManager";
 import type { StrategyStore } from "../strategies/store";
-import type { DcaParams, DcaStrategy } from "../strategies/dca";
+import type { Strategy, StrategyKind } from "../strategies/types";
+import { validateParams } from "../strategies/validate";
 import type { ActivityStore } from "../strategies/activityStore";
 import type { AppConfigPayload } from "../config/appConfig";
 
@@ -24,15 +25,26 @@ export interface AppDeps {
 
 interface StrategyDto {
   id: string;
-  type: "dca";
-  params: DcaParams;
-  status: "running" | "paused";
-  filledTotalUsdc: number;
-  nextRunAt: number;
+  type: StrategyKind;
+  status: string;
+  params: Strategy["params"];
+  filledTotalUsdc?: number;
+  nextRunAt?: number;
+  slicesDone?: number;
+  triggeredAt?: number;
 }
 
-function toDto(s: DcaStrategy): StrategyDto {
-  return { id: s.id, type: "dca", params: s.params, status: s.status, filledTotalUsdc: s.filledTotalUsdc, nextRunAt: s.nextRunAt };
+function toDto(s: Strategy): StrategyDto {
+  return {
+    id: s.id,
+    type: s.kind,
+    status: s.status,
+    params: s.params,
+    ...(s.filledTotalUsdc !== undefined ? { filledTotalUsdc: s.filledTotalUsdc } : {}),
+    ...(s.nextRunAt !== undefined ? { nextRunAt: s.nextRunAt } : {}),
+    ...(s.slicesDone !== undefined ? { slicesDone: s.slicesDone } : {}),
+    ...(s.triggeredAt !== undefined ? { triggeredAt: s.triggeredAt } : {}),
+  };
 }
 
 /**
@@ -136,11 +148,16 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.post("/strategies", async (req, reply) => {
     const owner = ownerOf(req, reply);
     if (!owner) return;
-    const { params } = req.body as { type: "dca"; params: DcaParams };
-    return toDto(deps.store.create(owner, params));
+    if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+      return reply.code(400).send({ error: "invalid strategy body" });
+    }
+    const { type, params } = req.body as { type: StrategyKind; params: unknown };
+    const v = validateParams(type, params);
+    if (!v.ok) return reply.code(400).send({ error: v.error });
+    return toDto(deps.store.create(owner, type, v.params));
   });
 
-  const ownedStrategy = (owner: string, id: string, reply: FastifyReply): DcaStrategy | null => {
+  const ownedStrategy = (owner: string, id: string, reply: FastifyReply): Strategy | null => {
     const s = deps.store.get(id);
     if (!s || s.owner.toLowerCase() !== owner.toLowerCase()) {
       reply.code(404).send({ error: "not found" });

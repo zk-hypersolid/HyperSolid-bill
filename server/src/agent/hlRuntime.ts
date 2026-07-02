@@ -2,7 +2,7 @@ import { ExchangeClient, HttpTransport, InfoClient } from "@nktkas/hyperliquid";
 import { privateKeyToAccount } from "viem/accounts";
 import type { AgentManager } from "./agentManager";
 import type { ExchangeLike } from "./placer";
-import { assetIndexFromMeta, priceFromMids, type PerpMeta } from "./hlMeta";
+import { assetIndexFromMeta, priceFromMids, positionSzi, type PerpMeta, type ClearinghouseState } from "./hlMeta";
 
 /**
  * Build the placer's `clientFor`: an agent-signed HL ExchangeClient per owner, but only while the
@@ -41,6 +41,11 @@ export function makeResolvers(info: InfoClient, metaTtlMs = 60_000, now: () => n
   return {
     resolveAsset: async (coin: string) => assetIndexFromMeta(await getMeta(), coin),
     resolvePrice: async (coin: string) => priceFromMids((await info.allMids()) as Record<string, string>, coin),
+    resolvePosition: async (owner: string, coin: string): Promise<number | undefined> => {
+      const state = (await info.clearinghouseState({ user: owner })) as unknown as ClearinghouseState;
+      const szi = positionSzi(state, coin);
+      return szi === 0 ? undefined : szi;
+    },
   };
 }
 

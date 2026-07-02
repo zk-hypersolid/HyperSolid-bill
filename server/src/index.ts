@@ -64,15 +64,24 @@ export async function main(): Promise<void> {
 
   const transport = makeTransport(isTestnet);
   const info = makeInfoClient(transport);
+  const resolvers = makeResolvers(info, 60_000, now);
   const placer = makeHlPlacer({
     clientFor: makeClientFor(agents, transport, now),
-    ...makeResolvers(info, 60_000, now),
+    ...resolvers,
     slippageBps,
   });
 
   const killSwitch = process.env.GLOBAL_KILL === "1";
   const timer = setInterval(() => {
-    void tick(store, placer, { maxNotionalUsdc, perCoinMaxNotionalUsdc, dailyMaxNotionalUsdc }, killSwitch, now(), activity).catch((e) =>
+    void tick(
+      store,
+      placer,
+      { maxNotionalUsdc, perCoinMaxNotionalUsdc, dailyMaxNotionalUsdc },
+      killSwitch,
+      now(),
+      activity,
+      { resolveMark: resolvers.resolvePrice, resolvePosition: resolvers.resolvePosition },
+    ).catch((e) =>
       // eslint-disable-next-line no-console
       console.error("scheduler tick failed", e),
     );

@@ -1,33 +1,20 @@
-export interface DcaParams {
-  coin: string;
-  side: "buy";
-  quoteAmountUsdc: number;
-  intervalHours: number;
-  maxTotalUsdc?: number;
-}
+import type { Strategy, DcaParams } from "./types";
+export type { DcaParams } from "./types";
 
-export interface DcaStrategy {
-  id: string;
-  owner: string;
-  status: "running" | "paused";
-  params: DcaParams;
-  nextRunAt: number;
-  filledTotalUsdc: number;
-}
-
-/** Running strategies whose next run is due and that haven't hit their optional total cap. */
-export function dueStrategies(list: DcaStrategy[], now: number): DcaStrategy[] {
+/** Running DCA strategies whose next run is due and that haven't hit their optional total cap. */
+export function dueDca(list: Strategy[], now: number): Strategy[] {
   return list.filter(
     (s) =>
+      s.kind === "dca" &&
       s.status === "running" &&
-      s.nextRunAt <= now &&
-      (s.params.maxTotalUsdc === undefined || s.filledTotalUsdc < s.params.maxTotalUsdc),
+      (s.nextRunAt ?? 0) <= now &&
+      (s.params.maxTotalUsdc === undefined || (s.filledTotalUsdc ?? 0) < s.params.maxTotalUsdc),
   );
 }
 
 /** The next run timestamp = now + interval. */
-export function nextRunAt(s: DcaStrategy, now: number): number {
-  return now + s.params.intervalHours * 3600 * 1000;
+export function dcaNextRunAt(params: DcaParams, now: number): number {
+  return now + params.intervalHours * 3600 * 1000;
 }
 
 /** Coin size for a quote-USDC buy at `price`. */

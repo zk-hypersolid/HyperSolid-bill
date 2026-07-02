@@ -11,7 +11,7 @@ import { SurfaceCard } from "../components/SurfaceCard";
 import { Toggle } from "../components/Toggle";
 import { fonts } from "../theme/fonts";
 import type { ThemeTokens } from "../theme/tokens";
-import { StrategyApi, type Strategy } from "../services/strategyApi";
+import { StrategyApi, type Strategy, type DcaParams, type TwapParams, type TpslParams } from "../services/strategyApi";
 import { openStrategySession } from "../wallet/walletSession";
 import { ExchangeService } from "../services/exchange";
 import { createExchangeClient } from "../lib/hyperliquid/client";
@@ -21,6 +21,7 @@ import type { LocalWalletService } from "../wallet/localWallet";
 import type { Account } from "viem";
 
 const AGENT_VALIDITY_MS = 90 * 24 * 3600 * 1000;
+type Template = "dca" | "twap" | "tpsl";
 
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -146,6 +147,13 @@ function StrategyPanel({
   const [coin, setCoin] = useState("BTC");
   const [amount, setAmount] = useState("");
   const [intervalHours, setIntervalHours] = useState("24");
+  const [template, setTemplate] = useState<Template>("dca");
+  const [twapSide, setTwapSide] = useState<"buy" | "sell">("buy");
+  const [twapTotal, setTwapTotal] = useState("");
+  const [twapSlices, setTwapSlices] = useState("6");
+  const [twapDuration, setTwapDuration] = useState("3");
+  const [tp, setTp] = useState("");
+  const [sl, setSl] = useState("");
 
   async function onApprove() {
     const res = await ctrl.approveAgentFlow();
@@ -160,6 +168,30 @@ function StrategyPanel({
     }
     await ctrl.createDca({ coin: coin.toUpperCase(), side: "buy", quoteAmountUsdc: q, intervalHours: iv });
     setAmount("");
+  }
+  async function onCreateTwap() {
+    const total = Number(twapTotal), slices = Number(twapSlices), dur = Number(twapDuration);
+    if (!(total > 0) || !Number.isInteger(slices) || slices < 1 || !(dur > 0)) {
+      Alert.alert(t("agent.invalidParams"), t("agent.invalidParamsBody"));
+      return;
+    }
+    await ctrl.createTwap({ coin: coin.toUpperCase(), side: twapSide, totalUsdc: total, slices, durationHours: dur });
+    setTwapTotal("");
+  }
+  async function onCreateTpsl() {
+    const tpN = tp ? Number(tp) : undefined;
+    const slN = sl ? Number(sl) : undefined;
+    const bad =
+      (tpN === undefined && slN === undefined) ||
+      (tpN !== undefined && !(tpN > 0)) ||
+      (slN !== undefined && !(slN > 0));
+    if (bad) { Alert.alert(t("agent.invalidParams"), t("agent.tpslNeedsOne")); return; }
+    await ctrl.createTpsl({
+      coin: coin.toUpperCase(),
+      ...(tpN !== undefined ? { takeProfitPrice: tpN } : {}),
+      ...(slN !== undefined ? { stopLossPrice: slN } : {}),
+    });
+    setTp(""); setSl("");
   }
 
   return (
@@ -209,15 +241,75 @@ function StrategyPanel({
         ctrl.strategies.map((s) => <StrategyRow key={s.id} theme={theme} strategy={s} onToggle={() => void ctrl.toggle(s)} />)
       )}
 
-      <SurfaceCard theme={theme} rule={false} testID="new-dca" style={styles.card}>
-        <Text style={[styles.title, { color: theme.text }]}>{t("agent.newDca")}</Text>
-        <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="dca-coin" />
-        <Field theme={theme} label={t("agent.amountPerBuy")} value={amount} onChangeText={setAmount} keyboard testID="dca-amount" />
-        <Field theme={theme} label={t("agent.intervalHours")} value={intervalHours} onChangeText={setIntervalHours} keyboard testID="dca-interval" />
-        <Pressable onPress={onCreate} accessibilityRole="button" testID="dca-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
-          <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createDca")}</Text>
-        </Pressable>
-      </SurfaceCard>
+      <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.template")}</Text>
+      <View style={styles.segment} testID="template-picker">
+        {(["dca", "twap", "tpsl"] as Template[]).map((k) => (
+          <Pressable
+            key={k}
+            testID={`template-${k}`}
+            accessibilityRole="button"
+            onPress={() => setTemplate(k)}
+            style={[styles.segmentBtn, { borderColor: theme.line }, template === k && { backgroundColor: theme.surface }]}
+          >
+            <Text style={[styles.segmentText, { color: template === k ? theme.text : theme.muted }]}>
+              {t(k === "dca" ? "agent.templateDca" : k === "twap" ? "agent.templateTwap" : "agent.templateTpsl")}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {template === "dca" ? (
+        <SurfaceCard theme={theme} rule={false} testID="new-dca" style={styles.card}>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.newDca")}</Text>
+          <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="dca-coin" />
+          <Field theme={theme} label={t("agent.amountPerBuy")} value={amount} onChangeText={setAmount} keyboard testID="dca-amount" />
+          <Field theme={theme} label={t("agent.intervalHours")} value={intervalHours} onChangeText={setIntervalHours} keyboard testID="dca-interval" />
+          <Pressable onPress={onCreate} accessibilityRole="button" testID="dca-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
+            <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createDca")}</Text>
+          </Pressable>
+        </SurfaceCard>
+      ) : null}
+
+      {template === "twap" ? (
+        <SurfaceCard theme={theme} rule={false} testID="new-twap" style={styles.card}>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.newTwap")}</Text>
+          <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="twap-coin" />
+          <View style={styles.sideRow}>
+            <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.side")}</Text>
+            <View style={styles.sideBtns}>
+              {(["buy", "sell"] as const).map((sd) => (
+                <Pressable
+                  key={sd}
+                  testID={`twap-side-${sd}`}
+                  accessibilityRole="button"
+                  onPress={() => setTwapSide(sd)}
+                  style={[styles.sideBtn, { borderColor: theme.line }, twapSide === sd && { backgroundColor: theme.surface }]}
+                >
+                  <Text style={[styles.segmentText, { color: twapSide === sd ? theme.text : theme.muted }]}>{t(sd === "buy" ? "agent.buy" : "agent.sell")}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Field theme={theme} label={t("agent.totalUsdc")} value={twapTotal} onChangeText={setTwapTotal} keyboard testID="twap-total" />
+          <Field theme={theme} label={t("agent.slices")} value={twapSlices} onChangeText={setTwapSlices} keyboard testID="twap-slices" />
+          <Field theme={theme} label={t("agent.durationHours")} value={twapDuration} onChangeText={setTwapDuration} keyboard testID="twap-duration" />
+          <Pressable onPress={onCreateTwap} accessibilityRole="button" testID="twap-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
+            <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createTwap")}</Text>
+          </Pressable>
+        </SurfaceCard>
+      ) : null}
+
+      {template === "tpsl" && (
+        <SurfaceCard theme={theme} rule={false} testID="new-tpsl" style={styles.card}>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.newTpsl")}</Text>
+          <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="tpsl-coin" />
+          <Field theme={theme} label={t("agent.takeProfit")} value={tp} onChangeText={setTp} keyboard testID="tpsl-tp" />
+          <Field theme={theme} label={t("agent.stopLoss")} value={sl} onChangeText={setSl} keyboard testID="tpsl-sl" />
+          <Pressable onPress={onCreateTpsl} accessibilityRole="button" testID="tpsl-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
+            <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createTpsl")}</Text>
+          </Pressable>
+        </SurfaceCard>
+      )}
 
       <Pressable onPress={() => void ctrl.killAll()} accessibilityRole="button" testID="kill-switch" style={[styles.ctaOutline, { borderColor: theme.down }]}>
         <Text style={[styles.ctaText, { color: theme.down }]}>{t("agent.pauseAll")}</Text>
@@ -228,20 +320,36 @@ function StrategyPanel({
 
 function StrategyRow({ theme, strategy, onToggle }: { theme: ThemeTokens; strategy: Strategy; onToggle: () => void }) {
   const t = useT();
+  const title =
+    strategy.type === "twap" ? t("agent.strategyTwap", { coin: strategy.params.coin })
+    : strategy.type === "tpsl" ? t("agent.strategyTpsl", { coin: strategy.params.coin })
+    : t("agent.strategyDca", { coin: (strategy.params as DcaParams).coin });
+  const sub =
+    strategy.type === "twap"
+      ? t("agent.twapProgress", { done: String(strategy.slicesDone ?? 0), total: String((strategy.params as TwapParams).slices), filled: String(Math.round(strategy.filledTotalUsdc ?? 0)) })
+      : strategy.type === "tpsl"
+      ? [
+          (strategy.params as TpslParams).takeProfitPrice ? `${t("agent.takeProfit")} ${(strategy.params as TpslParams).takeProfitPrice}` : "",
+          (strategy.params as TpslParams).stopLossPrice ? `${t("agent.stopLoss")} ${(strategy.params as TpslParams).stopLossPrice}` : "",
+        ].filter(Boolean).join(" · ")
+      : `$${(strategy.params as DcaParams).quoteAmountUsdc} / ${(strategy.params as DcaParams).intervalHours}h`;
+  const completed = strategy.status === "completed";
   return (
     <SurfaceCard theme={theme} rule={false} testID={`strategy-${strategy.id}`} style={styles.row}>
       <View style={styles.rowMain}>
-        <Text style={[styles.rowTitle, { color: theme.text }]}>{t("agent.strategyDca", { coin: strategy.params.coin })}</Text>
-        <Text style={[styles.hint, { color: theme.muted }]}>
-          {`$${strategy.params.quoteAmountUsdc} / ${strategy.params.intervalHours}h`}
-        </Text>
+        <Text style={[styles.rowTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.hint, { color: theme.muted }]}>{sub}</Text>
       </View>
-      <Toggle
-        theme={theme}
-        value={strategy.status === "running"}
-        onValueChange={onToggle}
-        accessibilityLabel={`toggle-${strategy.id}`}
-      />
+      {completed ? (
+        <Text style={[styles.hint, { color: theme.faint }]}>{t("agent.statusCompleted")}</Text>
+      ) : (
+        <Toggle
+          theme={theme}
+          value={strategy.status === "running"}
+          onValueChange={onToggle}
+          accessibilityLabel={`toggle-${strategy.id}`}
+        />
+      )}
     </SurfaceCard>
   );
 }
@@ -297,6 +405,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", padding: 14, marginBottom: 8 },
   rowMain: { flex: 1 },
   rowTitle: { fontFamily: fonts.display.bold, fontSize: 13.5 },
+  segment: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  segmentBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
+  segmentText: { fontFamily: fonts.display.bold, fontSize: 12 },
+  sideRow: { marginBottom: 12 },
+  sideBtns: { flexDirection: "row", gap: 8 },
+  sideBtn: { flex: 1, borderWidth: 1, borderRadius: 10, paddingVertical: 10, alignItems: "center" },
   field: { marginBottom: 12 },
   fieldLabel: { fontFamily: fonts.body.regular, fontSize: 11, marginBottom: 4 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.mono.medium, fontSize: 14 },

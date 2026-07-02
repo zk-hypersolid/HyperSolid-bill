@@ -271,15 +271,22 @@ describe("grid tick", () => {
     expect(store.get(s.id)).toMatchObject({ lastLevel: 4, actionsDone: 0 });
   });
 
-  it("uses a monotonic actionsDone cloid so revisiting a level re-places", async () => {
+  it("keys the cloid on monotonic actionsDone, so revisiting the SAME level re-places (not deduped)", async () => {
     const store = new MemoryStrategyStore(() => 0);
     const s = store.create("0xo", "grid", params);
-    store.seedGridLevel(s.id, 3);
+    store.seedGridLevel(s.id, 3); // start at line 160
     const seen: string[] = [];
     const placer = { place: async (r: any) => { seen.push(r.cloid); return { ok: true, filledUsdc: 50, filledSz: 0.3, avgPx: 150 }; } };
+    // tick 1: 160 -> 140, down-cross buy to band 2 (targetLevel 2)
     await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 140, resolvePosition: async () => 0 });
+    // tick 2: 140 -> 160, up-cross reduce-only sell to band 3 (targetLevel 3)
     await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 160, resolvePosition: async () => 1 });
-    expect(seen).toHaveLength(2);
-    expect(seen[0]).not.toBe(seen[1]);
+    // tick 3: 160 -> 140, down-cross buy back to band 2 AGAIN (targetLevel 2, same as tick 1)
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 140, resolvePosition: async () => 0 });
+    expect(seen).toHaveLength(3);
+    // The two actions that both target level 2 (tick 1 and tick 3) must still get DISTINCT cloids,
+    // which only holds if the cloid is keyed on the monotonic actionsDone, not the level index.
+    expect(seen[0]).not.toBe(seen[2]);
+    expect(new Set(seen).size).toBe(3);
   });
 });

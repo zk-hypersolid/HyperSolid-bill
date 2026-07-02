@@ -102,8 +102,9 @@ order** that tick (see §5.3/§5.4).
 ### 5.3 `engine/scheduler.ts`
 - Generalize the mark resolver: extract `resolveMark(coin)` into a shared
   dependency used by **both** the TP/SL path and the new grid path (rename
-  `TpslDeps` usage or add a shared `MarkDeps { resolveMark }`; keep TP/SL's
-  `resolvePosition` where it lives). The grid needs only `resolveMark`.
+  `TpslDeps` usage or add a shared `MarkDeps { resolveMark, resolvePosition }`
+  used by both paths). The grid uses `resolveMark` for band tracking and
+  `resolvePosition` to guard reduce-only sells (see step 6).
 - Add a grid loop (runs when the shared mark dep is present):
   1. Skip if `killSwitch` (halts the whole grid, consistent with TP/SL).
   2. `mark = await resolveMark(coin)`; skip if not finite / ≤ 0.
@@ -112,7 +113,7 @@ order** that tick (see §5.3/§5.4).
      strategy — no order this tick.
   4. `curBand = bandIndex(mark, …)`; `act = gridAction(lastLevel, curBand, perLevelUsdc)`; skip if `null`.
   5. **Buy** (`reduceOnly=false`): enforce `withinCaps({ notionalUsdc: act.usdc, killSwitch, coin }, limits)` **and** the daily spend cap (`activity.notionalSince`), exactly like DCA/TWAP; skip the action if either blocks (do not advance `lastLevel`, so it retries next tick).
-  6. **Sell** (`reduceOnly=true`): risk-reducing → skip the daily spend cap (like the TP/SL close), but still respect `killSwitch` (already handled in 1).
+  6. **Sell** (`reduceOnly=true`): risk-reducing → skip the daily spend cap (like the TP/SL close), but still respect `killSwitch` (already handled in 1). **Flat guard:** resolve the position; if there is no long inventory to reduce (`szi === undefined || szi <= 0`), advance the tracked level via `store.seedGridLevel(s.id, act.targetLevel)` and continue **without** placing an order — this both avoids re-submitting an unfillable reduce-only order every tick and lets the grid follow the price up so a later down-cross buys from the peak. Mirrors the TP/SL position guard.
   7. `cloid = cloidFor(s.id, s.actionsDone ?? 0)`.
   8. `res = await placer.place({ owner, coin, sizeUsdc: act.usdc, cloid, side: act.side, reduceOnly: act.side === "sell" })`.
   9. On `res.ok`: `store.recordGridAction(s.id, act.targetLevel, res.filledUsdc ?? act.usdc)` (updates `lastLevel = targetLevel`, `actionsDone += 1`, adds buys to `filledTotalUsdc`); record an activity row when `filledSz`/`avgPx` are present (same as DCA/TWAP/TPSL).
@@ -192,6 +193,11 @@ New keys (illustrative): `agent.templateGrid`, `agent.gridLower`,
   via `actionsDone`), so repeated buy-low/sell-high both execute.
 - **Reduce-only sell larger than position:** HL caps it at the position size; the
   grid never flips short. `res.filledUsdc` reflects the actual reduced amount.
+- **Up-cross while flat (no inventory):** the sell has nothing to reduce, so the
+  grid places no order and instead advances the tracked level
+  (`seedGridLevel(targetLevel)`) so it follows the price up — a later down-cross
+  then buys from the peak. This avoids re-submitting an unfillable reduce-only
+  order every tick (position resolved via `resolvePosition`, mirroring TP/SL).
 - **Out of range:** at/above upper the grid holds no new buys and has sold down;
   at/below lower it stops buying (max inventory). It resumes on re-entry.
 - **Kill switch:** halts the entire grid loop (no buys or sells) like TP/SL.

@@ -56,3 +56,29 @@ func TestUserSignedTypeString(t *testing.T) {
 		t.Fatalf("type string = %q", got)
 	}
 }
+
+func TestApproveAgentDigestFailsClosed(t *testing.T) {
+	base := ApproveAgentInput{
+		SignatureChainID: "0xa4b1",
+		HyperliquidChain: "Mainnet",
+		AgentAddress:     "0x000000000000000000000000000000000000dEaD",
+		AgentName:        "x",
+		Nonce:            1,
+	}
+	// Malformed signatureChainId must error without producing a digest.
+	for _, bad := range []string{"", "0x", "0xzz", "nothex"} {
+		in := base
+		in.SignatureChainID = bad
+		if _, err := ApproveAgentDigest(in); err == nil {
+			t.Fatalf("expected error for signatureChainId %q", bad)
+		}
+	}
+	// Malformed agentAddress must error without producing a digest.
+	for _, bad := range []string{"0x1234", "0xZZ00000000000000000000000000000000000000", "not-an-address"} {
+		in := base
+		in.AgentAddress = bad
+		if _, err := ApproveAgentDigest(in); err == nil {
+			t.Fatalf("expected error for agentAddress %q", bad)
+		}
+	}
+}

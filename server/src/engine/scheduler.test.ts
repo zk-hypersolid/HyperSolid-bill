@@ -301,4 +301,41 @@ describe("grid tick", () => {
     // tracked level advances to follow the price up, but no action counted
     expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 0 });
   });
+
+  const symParams = { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50, mode: "symmetric" as const };
+
+  it("symmetric: opens a short on an up-cross while flat (non-reduce)", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", symParams);
+    store.seedGridLevel(s.id, 1); // mark was at 120
+    const placed: any[] = [];
+    const placer = { place: async (r: any) => { placed.push(r); return { ok: true, filledSz: 0.5, avgPx: 160 }; } };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 }; // band 3, flat
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placed[0]).toMatchObject({ side: "sell", reduceOnly: false, sizeUsdc: 100 });
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 1 });
+  });
+
+  it("symmetric: buys non-reduce on a down-cross while short (covers)", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", symParams);
+    store.seedGridLevel(s.id, 4); // mark was at 180
+    const placed: any[] = [];
+    const placer = { place: async (r: any) => { placed.push(r); return { ok: true, filledUsdc: 100, filledSz: 0.5, avgPx: 140 }; } };
+    const marks = { resolveMark: async () => 140, resolvePosition: async () => -1 }; // band 2, short
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placed[0]).toMatchObject({ side: "buy", reduceOnly: false, sizeUsdc: 100 });
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 2, actionsDone: 1 });
+  });
+
+  it("symmetric: gates the SELL side through the per-order cap", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", symParams);
+    store.seedGridLevel(s.id, 1); // mark was at 120
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 }; // up-cross -> sell 100
+    await tick(store, placer as any, { maxNotionalUsdc: 10 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 1 });
+  });
 });

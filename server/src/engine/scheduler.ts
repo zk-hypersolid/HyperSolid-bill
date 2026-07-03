@@ -140,12 +140,21 @@ export async function tick(
     }
   }
 
-  // --- Grid: mark-crossing, inventory-bounded long grid ---
+  // --- Grid: mark-crossing grid (longOnly | symmetric) ---
   if (marks) {
+    const gridCapsOk = (notionalUsdc: number, owner: string, coin: string): boolean => {
+      if (!withinCaps({ notionalUsdc, killSwitch, coin }, limits).ok) return false;
+      if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
+        const spentToday = activity.notionalSince(owner, dayStartUtcMs(now));
+        if (spentToday + notionalUsdc > limits.dailyMaxNotionalUsdc) return false;
+      }
+      return true;
+    };
     for (const s of all) {
       if (s.kind !== "grid" || s.status !== "running") continue;
       if (killSwitch) continue;
       const p = s.params as GridParams;
+      const mode = p.mode ?? "longOnly";
       const mark = await marks.resolveMark(p.coin);
       if (!Number.isFinite(mark) || mark <= 0) continue;
       const step = gridStep(p);
@@ -159,15 +168,13 @@ export async function tick(
       const act = gridAction(s.lastLevel, curBand, p.perLevelUsdc);
       if (!act || act.usdc <= 0) continue;
 
-      if (act.side === "buy") {
-        if (!withinCaps({ notionalUsdc: act.usdc, killSwitch, coin: p.coin }, limits).ok) continue;
-        if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
-          const spentToday = activity.notionalSince(s.owner, dayStartUtcMs(now));
-          if (spentToday + act.usdc > limits.dailyMaxNotionalUsdc) continue;
-        }
+      // Both sides open exposure in symmetric mode; longOnly only gates buys.
+      if (act.side === "buy" || mode === "symmetric") {
+        if (!gridCapsOk(act.usdc, s.owner, p.coin)) continue;
       }
 
-      if (act.side === "sell") {
+      // longOnly sells are reduce-only and need long inventory; symmetric sells may open shorts.
+      if (act.side === "sell" && mode === "longOnly") {
         const szi = await marks.resolvePosition(s.owner, p.coin);
         if (szi === undefined || szi <= 0) {
           // Flat: no long inventory to reduce. Track the price up without placing a doomed order.
@@ -183,7 +190,7 @@ export async function tick(
         sizeUsdc: act.usdc,
         cloid,
         side: act.side,
-        reduceOnly: act.side === "sell",
+        reduceOnly: mode === "longOnly" && act.side === "sell",
       });
       if (res.ok) {
         const bought = act.side === "buy" ? res.filledUsdc ?? act.usdc : 0;

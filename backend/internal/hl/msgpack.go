@@ -66,9 +66,12 @@ func encStr(b *[]byte, s string) {
 		*b = append(*b, 0xa0|byte(n))
 	case n < 256:
 		*b = append(*b, 0xd9, byte(n))
+	case n < 65536:
+		*b = append(*b, 0xda)
+		*b = binary.BigEndian.AppendUint16(*b, uint16(n))
 	default:
 		*b = append(*b, 0xdb)
-		*b = binary.BigEndian.AppendUint16(*b, uint16(n))
+		*b = binary.BigEndian.AppendUint32(*b, uint32(n))
 	}
 	*b = append(*b, s...)
 }

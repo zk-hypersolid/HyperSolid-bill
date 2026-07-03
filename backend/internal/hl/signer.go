@@ -2,6 +2,7 @@ package hl
 
 import (
 	"errors"
+	"sync"
 
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -14,9 +15,11 @@ type Sig struct {
 	V byte
 }
 
-// Signer holds a secp256k1 private key in-process (tier ①). Go GC cannot guarantee
-// erasure; Close is a best-effort zeroization (see BACKEND-ARCHITECTURE §5 tier ①).
+// Signer holds a secp256k1 private key in-process (tier ①). Close zeroizes the key
+// (both the scratch buffer and the library scalar); Go GC still can't guarantee
+// erasure of transient copies (see BACKEND-ARCHITECTURE §5 tier ①).
 type Signer struct {
+	mu     sync.RWMutex
 	key    *secp.PrivateKey
 	keyBuf []byte
 	closed bool
@@ -34,7 +37,9 @@ func NewSigner(priv []byte) (*Signer, error) {
 
 // SignL1Action hashes the action + signs the EIP-712 Agent digest.
 func (s *Signer) SignL1Action(action Map, nonce uint64, isTestnet bool) (Sig, error) {
-	if s.closed {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed || s.key == nil {
 		return Sig{}, errors.New("signer: closed")
 	}
 	conn, err := L1ActionHash(action, nonce, nil, nil)
@@ -45,8 +50,13 @@ func (s *Signer) SignL1Action(action Map, nonce uint64, isTestnet bool) (Sig, er
 	return signDigest(s.key, digest)
 }
 
-// Close best-effort zeroizes the key buffer.
+// Close best-effort zeroizes the key material (the library scalar + the scratch buffer).
 func (s *Signer) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.key != nil {
+		s.key.Zero()
+	}
 	for i := range s.keyBuf {
 		s.keyBuf[i] = 0
 	}

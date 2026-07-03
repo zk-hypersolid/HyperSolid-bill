@@ -13,6 +13,7 @@ func TestEncodePrimitives(t *testing.T) {
 	}{
 		{"str-fix", "hi", []byte{0xa2, 'h', 'i'}},
 		{"str8-32chars", string(bytes.Repeat([]byte("a"), 32)), append([]byte{0xd9, 0x20}, bytes.Repeat([]byte("a"), 32)...)},
+		{"str16-256chars", string(bytes.Repeat([]byte("a"), 256)), append([]byte{0xda, 0x01, 0x00}, bytes.Repeat([]byte("a"), 256)...)},
 		{"int-0", int64(0), []byte{0x00}},
 		{"int-127", int64(127), []byte{0x7f}},
 		{"int-128", int64(128), []byte{0xcc, 0x80}},

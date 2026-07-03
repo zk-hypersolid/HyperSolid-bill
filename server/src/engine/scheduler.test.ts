@@ -200,3 +200,105 @@ describe("scheduler tick", () => {
     expect(activity.list("0xo", s.id)).toHaveLength(1);
   });
 });
+
+describe("grid tick", () => {
+  const params = { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 };
+  // step=20; lines 100,120,140,160,180,200 (idx 0..5)
+
+  it("seeds lastLevel on the first tick without placing an order", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 };
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3 });
+  });
+
+  it("buys the crossed distance on a down-cross (non-reduce)", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 4); // mark was at 180
+    const placed: any[] = [];
+    const placer = { place: async (r: any) => { placed.push(r); return { ok: true, filledUsdc: 100, filledSz: 0.5, avgPx: 200 }; } };
+    const marks = { resolveMark: async () => 140, resolvePosition: async () => 0 }; // band 2
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placed[0]).toMatchObject({ coin: "BTC", side: "buy", reduceOnly: false, sizeUsdc: 100 });
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 2, actionsDone: 1, filledTotalUsdc: 100 });
+  });
+
+  it("sells reduce-only on an up-cross and does not add bought notional", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 1); // mark was at 120
+    const placed: any[] = [];
+    const placer = { place: async (r: any) => { placed.push(r); return { ok: true, filledUsdc: 100, filledSz: 0.5, avgPx: 160 }; } };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 1 }; // band 3
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placed[0]).toMatchObject({ side: "sell", reduceOnly: true, sizeUsdc: 100 });
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 1, filledTotalUsdc: 0 });
+  });
+
+  it("does nothing when the band is unchanged", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 3);
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 }; // band 3
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+  });
+
+  it("halts entirely under the kill-switch", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 4);
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 100, resolvePosition: async () => 0 };
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, true, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 4 });
+  });
+
+  it("blocks a grid buy over the per-order cap but leaves state for retry", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 4);
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 140, resolvePosition: async () => 0 }; // buy 100 usdc
+    await tick(store, placer as any, { maxNotionalUsdc: 10 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 4, actionsDone: 0 });
+  });
+
+  it("keys the cloid on monotonic actionsDone, so revisiting the SAME level re-places (not deduped)", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 3); // start at line 160
+    const seen: string[] = [];
+    const placer = { place: async (r: any) => { seen.push(r.cloid); return { ok: true, filledUsdc: 50, filledSz: 0.3, avgPx: 150 }; } };
+    // tick 1: 160 -> 140, down-cross buy to band 2 (targetLevel 2)
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 140, resolvePosition: async () => 0 });
+    // tick 2: 140 -> 160, up-cross reduce-only sell to band 3 (targetLevel 3)
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 160, resolvePosition: async () => 1 });
+    // tick 3: 160 -> 140, down-cross buy back to band 2 AGAIN (targetLevel 2, same as tick 1)
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 140, resolvePosition: async () => 0 });
+    expect(seen).toHaveLength(3);
+    // The two actions that both target level 2 (tick 1 and tick 3) must still get DISTINCT cloids,
+    // which only holds if the cloid is keyed on the monotonic actionsDone, not the level index.
+    expect(seen[0]).not.toBe(seen[2]);
+    expect(new Set(seen).size).toBe(3);
+  });
+
+  it("does not place a reduce-only sell when flat; advances the tracked level instead", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "grid", params);
+    store.seedGridLevel(s.id, 1); // start at line 120, FLAT
+    const placer = { place: jest.fn(async () => ({ ok: true })) };
+    const marks = { resolveMark: async () => 160, resolvePosition: async () => 0 }; // band 3, no inventory
+    await tick(store, placer as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks);
+    expect(placer.place).not.toHaveBeenCalled();
+    // tracked level advances to follow the price up, but no action counted
+    expect(store.get(s.id)).toMatchObject({ lastLevel: 3, actionsDone: 0 });
+  });
+});

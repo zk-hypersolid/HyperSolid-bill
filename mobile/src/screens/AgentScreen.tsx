@@ -11,7 +11,7 @@ import { SurfaceCard } from "../components/SurfaceCard";
 import { Toggle } from "../components/Toggle";
 import { fonts } from "../theme/fonts";
 import type { ThemeTokens } from "../theme/tokens";
-import { StrategyApi, type Strategy, type DcaParams, type TwapParams, type TpslParams, type Activity } from "../services/strategyApi";
+import { StrategyApi, type Strategy, type DcaParams, type TwapParams, type TpslParams, type GridParams, type Activity } from "../services/strategyApi";
 import { formatTimeHMS } from "../lib/hyperliquid/format";
 import { openStrategySession } from "../wallet/walletSession";
 import { ExchangeService } from "../services/exchange";
@@ -22,7 +22,7 @@ import type { LocalWalletService } from "../wallet/localWallet";
 import type { Account } from "viem";
 
 const AGENT_VALIDITY_MS = 90 * 24 * 3600 * 1000;
-type Template = "dca" | "twap" | "tpsl";
+type Template = "dca" | "twap" | "tpsl" | "grid";
 
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -155,6 +155,10 @@ function StrategyPanel({
   const [twapDuration, setTwapDuration] = useState("3");
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
+  const [gridLower, setGridLower] = useState("");
+  const [gridUpper, setGridUpper] = useState("");
+  const [gridLevels, setGridLevels] = useState("6");
+  const [gridPerLevel, setGridPerLevel] = useState("");
 
   async function onApprove() {
     const res = await ctrl.approveAgentFlow();
@@ -193,6 +197,15 @@ function StrategyPanel({
       ...(slN !== undefined ? { stopLossPrice: slN } : {}),
     });
     setTp(""); setSl("");
+  }
+  async function onCreateGrid() {
+    const lower = Number(gridLower), upper = Number(gridUpper), levels = Number(gridLevels), perLevel = Number(gridPerLevel);
+    if (!(lower > 0) || !(upper > lower) || !Number.isInteger(levels) || levels < 2 || !(perLevel > 0)) {
+      Alert.alert(t("agent.invalidParams"), t("agent.invalidGrid"));
+      return;
+    }
+    await ctrl.createGrid({ coin: coin.toUpperCase(), lowerPrice: lower, upperPrice: upper, levels, perLevelUsdc: perLevel });
+    setGridLower(""); setGridUpper(""); setGridPerLevel("");
   }
 
   return (
@@ -251,7 +264,7 @@ function StrategyPanel({
 
       <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t("agent.template")}</Text>
       <View style={styles.segment} testID="template-picker">
-        {(["dca", "twap", "tpsl"] as Template[]).map((k) => (
+        {(["dca", "twap", "tpsl", "grid"] as Template[]).map((k) => (
           <Pressable
             key={k}
             testID={`template-${k}`}
@@ -260,7 +273,12 @@ function StrategyPanel({
             style={[styles.segmentBtn, { borderColor: theme.line }, template === k && { backgroundColor: theme.surface }]}
           >
             <Text style={[styles.segmentText, { color: template === k ? theme.text : theme.muted }]}>
-              {t(k === "dca" ? "agent.templateDca" : k === "twap" ? "agent.templateTwap" : "agent.templateTpsl")}
+              {t(
+                k === "dca" ? "agent.templateDca"
+                : k === "twap" ? "agent.templateTwap"
+                : k === "tpsl" ? "agent.templateTpsl"
+                : "agent.templateGrid",
+              )}
             </Text>
           </Pressable>
         ))}
@@ -319,6 +337,20 @@ function StrategyPanel({
         </SurfaceCard>
       )}
 
+      {template === "grid" ? (
+        <SurfaceCard theme={theme} rule={false} testID="new-grid" style={styles.card}>
+          <Text style={[styles.title, { color: theme.text }]}>{t("agent.newGrid")}</Text>
+          <Field theme={theme} label={t("agent.coin")} value={coin} onChangeText={setCoin} autoCap testID="grid-coin" />
+          <Field theme={theme} label={t("agent.gridLower")} value={gridLower} onChangeText={setGridLower} keyboard testID="grid-lower" />
+          <Field theme={theme} label={t("agent.gridUpper")} value={gridUpper} onChangeText={setGridUpper} keyboard testID="grid-upper" />
+          <Field theme={theme} label={t("agent.gridLevels")} value={gridLevels} onChangeText={setGridLevels} keyboard testID="grid-levels" />
+          <Field theme={theme} label={t("agent.gridPerLevel")} value={gridPerLevel} onChangeText={setGridPerLevel} keyboard testID="grid-per-level" />
+          <Pressable onPress={onCreateGrid} accessibilityRole="button" testID="grid-create" style={[styles.cta, { backgroundColor: theme.brand }]}>
+            <Text style={[styles.ctaText, { color: theme.bg }]}>{t("agent.createGrid")}</Text>
+          </Pressable>
+        </SurfaceCard>
+      ) : null}
+
       <Pressable onPress={() => void ctrl.killAll()} accessibilityRole="button" testID="kill-switch" style={[styles.ctaOutline, { borderColor: theme.down }]}>
         <Text style={[styles.ctaText, { color: theme.down }]}>{t("agent.pauseAll")}</Text>
       </Pressable>
@@ -348,6 +380,7 @@ function StrategyRow({ theme, strategy, onToggle }: { theme: ThemeTokens; strate
   const title =
     strategy.type === "twap" ? t("agent.strategyTwap", { coin: strategy.params.coin })
     : strategy.type === "tpsl" ? t("agent.strategyTpsl", { coin: strategy.params.coin })
+    : strategy.type === "grid" ? t("agent.strategyGrid", { coin: (strategy.params as GridParams).coin })
     : t("agent.strategyDca", { coin: (strategy.params as DcaParams).coin });
   const sub =
     strategy.type === "twap"
@@ -357,6 +390,12 @@ function StrategyRow({ theme, strategy, onToggle }: { theme: ThemeTokens; strate
           (strategy.params as TpslParams).takeProfitPrice ? `${t("agent.takeProfit")} ${(strategy.params as TpslParams).takeProfitPrice}` : "",
           (strategy.params as TpslParams).stopLossPrice ? `${t("agent.stopLoss")} ${(strategy.params as TpslParams).stopLossPrice}` : "",
         ].filter(Boolean).join(" · ")
+      : strategy.type === "grid"
+      ? t("agent.gridProgress", {
+          level: String((strategy.lastLevel ?? 0) + 1),
+          levels: String((strategy.params as GridParams).levels),
+          filled: String(Math.round(strategy.filledTotalUsdc ?? 0)),
+        })
       : `$${(strategy.params as DcaParams).quoteAmountUsdc} / ${(strategy.params as DcaParams).intervalHours}h`;
   const completed = strategy.status === "completed";
   return (

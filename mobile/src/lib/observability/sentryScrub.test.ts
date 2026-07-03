@@ -31,3 +31,25 @@ describe("scrubEvent", () => {
     expect(scrubEvent(null)).toBeNull();
   });
 });
+
+describe("scrubEvent (arrays)", () => {
+  it("drops key material nested inside an array of objects", () => {
+    const event = { extra: { orders: [{ privateKey: "0xdead", coin: "ETH" }, { mnemonic: "a b c", coin: "BTC" }] } };
+    const out = scrubEvent(event) as { extra: { orders: Array<Record<string, unknown>> } };
+    expect(out.extra.orders[0].privateKey).toBeUndefined();
+    expect(out.extra.orders[0].coin).toBe("ETH");
+    expect(out.extra.orders[1].mnemonic).toBeUndefined();
+    expect(out.extra.orders[1].coin).toBe("BTC");
+  });
+  it("redacts address strings inside an array under an address key", () => {
+    const event = { extra: { addresses: ["0x1234567890abcdef1234567890abcdef12345678"] } };
+    const out = scrubEvent(event) as { extra: { addresses: string[] } };
+    expect(out.extra.addresses[0]).toBe("0x1234…5678");
+  });
+  it("recurses into nested arrays", () => {
+    const event = { extra: { groups: [[{ seed: "x", ok: 1 }]] } };
+    const out = scrubEvent(event) as { extra: { groups: Array<Array<Record<string, unknown>>> } };
+    expect(out.extra.groups[0][0].seed).toBeUndefined();
+    expect(out.extra.groups[0][0].ok).toBe(1);
+  });
+});

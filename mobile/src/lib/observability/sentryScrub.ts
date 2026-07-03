@@ -12,18 +12,26 @@ export function redactAddress(v: string): string {
   return /^0x[0-9a-fA-F]{6,}$/.test(v) ? `${v.slice(0, 6)}…${v.slice(-4)}` : v;
 }
 
+/** Scrub a single value under `key`: redact address strings, recurse objects/arrays, else pass through. */
+function scrubValue(key: string, val: unknown): unknown {
+  if (typeof val === "string") {
+    return ADDRESS_KEYS.some((a) => key.includes(a)) ? redactAddress(val) : val;
+  }
+  if (Array.isArray(val)) {
+    return val.map((el) => scrubValue(key, el));
+  }
+  if (val && typeof val === "object") {
+    return scrubRecord(val as Record<string, unknown>);
+  }
+  return val;
+}
+
 function scrubRecord(rec: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(rec)) {
     const key = k.toLowerCase();
-    if (SECRET_KEYS.some((s) => key.includes(s))) continue; // drop secrets
-    if (typeof val === "string" && ADDRESS_KEYS.some((a) => key.includes(a))) {
-      out[k] = redactAddress(val);
-    } else if (val && typeof val === "object" && !Array.isArray(val)) {
-      out[k] = scrubRecord(val as Record<string, unknown>);
-    } else {
-      out[k] = val;
-    }
+    if (SECRET_KEYS.some((s) => key.includes(s))) continue; // drop secrets by key
+    out[k] = scrubValue(key, val);
   }
   return out;
 }

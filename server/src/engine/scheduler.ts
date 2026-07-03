@@ -5,7 +5,7 @@ import { dueTwap, twapSliceUsdc, twapIntervalMs } from "../strategies/twap";
 import { withinCaps, type RiskLimits } from "../risk/guards";
 import { tpslTriggered, closeSide } from "../strategies/tpsl";
 import type { DcaParams, TwapParams, TpslParams, GridParams } from "../strategies/types";
-import { gridStep, bandIndex, gridAction } from "../strategies/grid";
+import { gridStep, bandIndex, gridAction, targetNetUsdc } from "../strategies/grid";
 
 export interface PlaceRequest {
   owner: string;
@@ -58,6 +58,9 @@ export interface MarkDeps {
   /** Signed position size (szi): >0 long, <0 short, undefined/0 = flat. */
   resolvePosition(owner: string, coin: string): Promise<number | undefined>;
 }
+
+/** HL perp min order notional; symmetric seed deltas below this are treated as already on-target. */
+const MIN_GRID_NOTIONAL = 10;
 
 export async function tick(
   store: StrategyStore,
@@ -161,6 +164,27 @@ export async function tick(
       const curBand = bandIndex(mark, p.lowerPrice, step, p.levels);
 
       if (s.lastLevel === undefined) {
+        if (mode === "symmetric") {
+          const target = targetNetUsdc(curBand, p.levels, p.perLevelUsdc);
+          const szi = (await marks.resolvePosition(s.owner, p.coin)) ?? 0;
+          const deltaUsdc = target - szi * mark;
+          const sizeUsdc = Math.abs(deltaUsdc);
+          if (sizeUsdc < MIN_GRID_NOTIONAL) {
+            store.seedGridLevel(s.id, curBand);
+            continue;
+          }
+          const side: "buy" | "sell" = deltaUsdc >= 0 ? "buy" : "sell";
+          if (!gridCapsOk(sizeUsdc, s.owner, p.coin)) continue; // retry next tick
+          const cloid = cloidFor(s.id, s.actionsDone ?? 0);
+          const res = await placer.place({ owner: s.owner, coin: p.coin, sizeUsdc, cloid, side, reduceOnly: false });
+          if (res.ok) {
+            store.recordGridAction(s.id, curBand, side === "buy" ? res.filledUsdc ?? sizeUsdc : 0);
+            if (activity && res.filledSz !== undefined && res.avgPx !== undefined) {
+              activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side, sz: res.filledSz, px: res.avgPx });
+            }
+          }
+          continue;
+        }
         store.seedGridLevel(s.id, curBand);
         continue;
       }

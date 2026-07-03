@@ -1,9 +1,11 @@
 import "./src/polyfills";
-import { registerRootComponent } from 'expo';
+import { registerRootComponent } from "expo";
+import Constants from "expo-constants";
+import { initSentry } from "./src/lib/observability/sentry";
+import App from "./App";
 
-import App from './App';
+const dsn = (Constants.expoConfig?.extra as { sentryDsn?: string } | undefined)?.sentryDsn ?? "";
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+initSentry({ dsn, isDev: __DEV__, isExpoGo });
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
 registerRootComponent(App);

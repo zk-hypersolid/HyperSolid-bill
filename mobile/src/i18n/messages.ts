@@ -437,6 +437,9 @@ export const messages = {
     "reject.priceRejected": "Invalid price",
     "reject.perpMarginRejected": "Insufficient margin",
     "reject.reduceOnlyRejected": "Reduce-only orders cannot increase the position",
+    "geo.blockedTitle": "HyperSolid is unavailable",
+    "geo.blockedBody": "HyperSolid is not available in your jurisdiction due to regulatory restrictions.",
+
     "reject.badAloPxRejected": "ALO (post-only) price would fill immediately",
     "reject.badTriggerPxRejected": "Trigger price is on the wrong side",
     "reject.iocCancelRejected": "IOC order canceled without filling",
@@ -874,6 +877,9 @@ export const messages = {
     "reject.priceRejected": "价格无效",
     "reject.perpMarginRejected": "保证金不足",
     "reject.reduceOnlyRejected": "仅减仓订单不能增加仓位",
+    "geo.blockedTitle": "HyperSolid 不可用",
+    "geo.blockedBody": "根据合规要求，HyperSolid 在您所在的司法管辖区不可用。",
+
     "reject.badAloPxRejected": "ALO（只挂单）价格会立即成交",
     "reject.badTriggerPxRejected": "触发价位于错误一侧",
     "reject.iocCancelRejected": "IOC 订单未成交被取消",

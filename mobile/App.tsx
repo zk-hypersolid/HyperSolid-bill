@@ -4,6 +4,8 @@ import { useFonts } from "expo-font";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import * as LocalAuthentication from "expo-local-authentication";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import * as Sentry from "@sentry/react-native";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { LockScreen } from "./src/screens/LockScreen";
 import { PinSetupScreen } from "./src/screens/PinSetupScreen";
@@ -102,29 +104,31 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      {status === "locked" ? (
-        <LockScreen
-          onUnlockBiometric={() => unlockSession(gate, manager, integrity)}
-          onUnlockPin={(pin) => unlockWithPin(pinStore, manager, integrity, pin)}
-          biometricEnabled={biometricEnabled}
-          onRecover={() => recoverFromLock(manager, pinStore)}
-        />
-      ) : status === "needsPinSetup" ? (
-        <PinSetupScreen pinStore={pinStore} manager={manager} gate={gate} />
-      ) : status === "noWallet" && !welcomeSeen ? (
-        <WelcomeScreen
-          onGetStarted={() => dismissWelcome("Account")}
-          onBrowse={() => dismissWelcome("Markets")}
-        />
-      ) : (
-        <NavigationContainer>
-          <RootNavigator initialTab={startTab} />
-        </NavigationContainer>
-      )}
-      <Toast />
-      <OfflineBanner />
-    </SafeAreaProvider>
+    <ErrorBoundary onError={(e) => Sentry.captureException(e)}>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        {status === "locked" ? (
+          <LockScreen
+            onUnlockBiometric={() => unlockSession(gate, manager, integrity)}
+            onUnlockPin={(pin) => unlockWithPin(pinStore, manager, integrity, pin)}
+            biometricEnabled={biometricEnabled}
+            onRecover={() => recoverFromLock(manager, pinStore)}
+          />
+        ) : status === "needsPinSetup" ? (
+          <PinSetupScreen pinStore={pinStore} manager={manager} gate={gate} />
+        ) : status === "noWallet" && !welcomeSeen ? (
+          <WelcomeScreen
+            onGetStarted={() => dismissWelcome("Account")}
+            onBrowse={() => dismissWelcome("Markets")}
+          />
+        ) : (
+          <NavigationContainer>
+            <RootNavigator initialTab={startTab} />
+          </NavigationContainer>
+        )}
+        <Toast />
+        <OfflineBanner />
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

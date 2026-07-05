@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { PositionsScreen } from "./PositionsScreen";
 import { useEnvStore } from "../state/envStore";
@@ -294,5 +294,36 @@ describe("PositionsScreen", () => {
     fireEvent.press(await screen.findByTestId("tab-twap"));
     fireEvent.press(await screen.findByTestId("twap-row-7"));
     expect(await screen.findByTestId("twap-slices-7")).toBeTruthy();
+  });
+
+  it("appends a live WS slice fill and optimistically bumps active-TWAP progress, then reconciles", async () => {
+    jest.useFakeTimers();
+    let captured: ((fills: unknown[]) => void) | null = null;
+    const deps = {
+      positions: { loadPortfolio: jest.fn(async () => portfolio) } as unknown as PositionsService,
+      fills: { loadRecent: jest.fn(async () => []) } as unknown as FillsService,
+      orders: { loadOpenOrders: jest.fn(async () => []) } as unknown as OrdersService,
+      twap: {
+        loadActive: jest.fn(async () => activeTwaps),
+        loadHistory: jest.fn(async () => []),
+        loadSliceFills: jest.fn(async () => new Map()),
+        subscribeSliceFills: jest.fn(async (_addr: string, cb: (f: unknown[]) => void) => { captured = cb; return { unsubscribe: jest.fn(async () => {}) }; }),
+      } as unknown as TwapService,
+    };
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={deps} />);
+    await waitFor(() => expect(deps.twap.subscribeSliceFills).toHaveBeenCalled());
+    fireEvent.press(screen.getByTestId("tab-twap"));
+
+    const loadActiveCallsBefore = (deps.twap.loadActive as jest.Mock).mock.calls.length;
+    act(() => {
+      captured!([{ twapId: 7, fill: { coin: "BTC", px: 60000, sz: 0.2, side: "buy", time: 1100, closedPnl: 0, dir: "Open Long", fee: 0, builderFee: 0, feeToken: "USDC", oid: 3, tid: 31, hash: "0x", crossed: true } }]);
+    });
+    fireEvent.press(await screen.findByTestId("twap-row-7"));
+    expect(await screen.findByTestId("twap-slices-7")).toBeTruthy();
+
+    act(() => { jest.advanceTimersByTime(1600); });
+    await waitFor(() => expect((deps.twap.loadActive as jest.Mock).mock.calls.length).toBeGreaterThan(loadActiveCallsBefore));
+    jest.useRealTimers();
   });
 });

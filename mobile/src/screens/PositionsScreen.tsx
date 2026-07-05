@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useTheme } from "../theme/useTheme";
 import { useEnvStore } from "../state/envStore";
@@ -16,6 +16,7 @@ import {
   createOrdersInfoClient,
   createExchangeClient,
   createTwapInfoClient,
+  createTwapSubsClient,
 } from "../lib/hyperliquid/client";
 import { buildAssetIndex } from "../lib/hyperliquid/assetId";
 import { marketSlippagePrice } from "../lib/hyperliquid/orderForm";
@@ -37,7 +38,7 @@ import { useT } from "../i18n/useT";
 import type { TranslationKey } from "../i18n/messages";
 import type { ThemeTokens } from "../theme/tokens";
 import type { Fill, OpenOrder, AccountSummary, Position } from "../lib/hyperliquid/types";
-import { twapProgressPct, type ActiveTwap, type TwapHistoryEntry } from "../lib/hyperliquid/twap";
+import { twapProgressPct, groupSliceFillsByTwapId, type ActiveTwap, type TwapHistoryEntry, type TwapSliceFill } from "../lib/hyperliquid/twap";
 
 export interface PositionsScreenDeps {
   positions: PositionsService;
@@ -69,7 +70,7 @@ export function PositionsScreen({
         positions: new PositionsService(createPositionsInfoClient(network)),
         fills: new FillsService(createFillsInfoClient(network)),
         orders: new OrdersService(createOrdersInfoClient(network)),
-        twap: new TwapService(createTwapInfoClient(network)),
+        twap: new TwapService(createTwapInfoClient(network), createTwapSubsClient(network)),
       },
     [deps, network],
   );
@@ -109,6 +110,51 @@ export function PositionsScreen({
   useEffect(() => {
     if (mode !== "none" && walletAddress && isValidAddress(walletAddress)) runQuery(walletAddress);
   }, [mode, walletAddress, runQuery]);
+
+  // Live TWAP slice fills over WS: append to slice detail, optimistically bump active-TWAP
+  // progress, and debounce-refetch twapHistory to reconcile the authoritative state.
+  const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (mode === "none" || !walletAddress || !isValidAddress(walletAddress)) return;
+    const addr = walletAddress;
+    let sub: { unsubscribe: () => void | Promise<void> } | null = null;
+    let cancelled = false;
+
+    const onSlice = (fills: TwapSliceFill[]) => {
+      if (fills.length === 0) return;
+      setSliceFills((prev) => {
+        const merged: TwapSliceFill[] = [];
+        for (const [twapId, arr] of prev) for (const f of arr) merged.push({ twapId, fill: f });
+        for (const f of fills) merged.push(f);
+        return groupSliceFillsByTwapId(merged);
+      });
+      setActiveTwaps((prev) =>
+        prev.map((tw) => {
+          const mine = fills.filter((f) => f.twapId === tw.twapId);
+          if (mine.length === 0) return tw;
+          const addSz = mine.reduce((n, f) => n + f.fill.sz, 0);
+          const addNtl = mine.reduce((n, f) => n + f.fill.sz * f.fill.px, 0);
+          return { ...tw, executedSz: Math.min(tw.sz, tw.executedSz + addSz), executedNtl: tw.executedNtl + addNtl };
+        }),
+      );
+      if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
+      reconcileTimer.current = setTimeout(() => {
+        void services.twap.loadActive(addr).then(setActiveTwaps).catch(() => {});
+        void services.twap.loadHistory(addr).then(setTwapHistory).catch(() => {});
+      }, 1500);
+    };
+
+    void services.twap
+      .subscribeSliceFills(addr, onSlice)
+      .then((s) => { if (cancelled) void s.unsubscribe(); else sub = s; })
+      .catch((e) => setTwapError(classifyFetchError(e)));
+
+    return () => {
+      cancelled = true;
+      if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
+      void sub?.unsubscribe();
+    };
+  }, [mode, walletAddress, services]);
 
   // Build a signing exchange service on demand (signing wallet + asset index from the market store)
   // so close/cancel work even before the Trade tab is visited. Returns null if anything's missing.

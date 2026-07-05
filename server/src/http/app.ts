@@ -201,8 +201,11 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const { id } = req.params as { id: string };
     const s = ownedStrategy(owner, id, reply);
     if (!s) return;
-    if (s.kind === "gridLimit" && s.status !== "canceling") {
-      deps.store.setStatus(id, "canceling"); // scheduler drains resting orders, then removes
+    if (s.kind === "gridLimit") {
+      // Async drain-then-remove: mark for cancellation; the scheduler cancels resting orders and
+      // removes the strategy once nothing is left resting. A repeat DELETE is an idempotent no-op so
+      // an in-flight drain is never short-circuited into orphaning live orders.
+      if (s.status !== "canceling") deps.store.setStatus(id, "canceling");
     } else {
       deps.store.remove(id);
     }

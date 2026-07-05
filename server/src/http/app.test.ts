@@ -281,4 +281,15 @@ describe("gridLimit HTTP", () => {
     expect(del.statusCode).toBe(204);
     expect(store.get(id)!.status).toBe("canceling");
   });
+
+  it("is idempotent: a repeat DELETE on a canceling gridLimit does not remove it mid-drain", async () => {
+    const { app, store } = buildWithStore();
+    const auth = { authorization: `Bearer ${await tokenFor(app)}` };
+    const created = await app.inject({ method: "POST", url: "/strategies", headers: auth, payload: { type: "gridLimit", params: glParams } });
+    const id = created.json().id as string;
+    await app.inject({ method: "DELETE", url: `/strategies/${id}`, headers: auth });
+    const del2 = await app.inject({ method: "DELETE", url: `/strategies/${id}`, headers: auth });
+    expect(del2.statusCode).toBe(204);
+    expect(store.get(id)!.status).toBe("canceling"); // still present + canceling, not removed
+  });
 });

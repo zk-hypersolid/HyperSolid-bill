@@ -321,6 +321,7 @@ export const messages = {
     "agent.strategyTpsl": "{coin} TP/SL",
     "agent.twapProgress": "{done}/{total} slices · ${filled}",
     "agent.statusCompleted": "Completed",
+    "agent.statusCanceling": "Canceling",
     "agent.recentActivity": "Recent activity",
     "agent.noActivity": "No activity yet — fills and triggers will show here.",
 
@@ -783,6 +784,7 @@ export const messages = {
     "agent.strategyTpsl": "{coin} 止盈/止损",
     "agent.twapProgress": "{done}/{total} 份 · ${filled}",
     "agent.statusCompleted": "已完成",
+    "agent.statusCanceling": "取消中",
     "agent.recentActivity": "最近活动",
     "agent.noActivity": "暂无活动——成交与触发会显示在这里。",
 

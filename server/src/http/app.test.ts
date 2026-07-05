@@ -292,4 +292,15 @@ describe("gridLimit HTTP", () => {
     expect(del2.statusCode).toBe(204);
     expect(store.get(id)!.status).toBe("canceling"); // still present + canceling, not removed
   });
+
+  it("rejects a PATCH on a canceling gridLimit so a delete cannot be undone", async () => {
+    const { app, store } = buildWithStore();
+    const auth = { authorization: `Bearer ${await tokenFor(app)}` };
+    const created = await app.inject({ method: "POST", url: "/strategies", headers: auth, payload: { type: "gridLimit", params: glParams } });
+    const id = created.json().id as string;
+    await app.inject({ method: "DELETE", url: `/strategies/${id}`, headers: auth }); // -> canceling
+    const patch = await app.inject({ method: "PATCH", url: `/strategies/${id}`, headers: auth, payload: { status: "running" } });
+    expect(patch.statusCode).toBe(409);
+    expect(store.get(id)!.status).toBe("canceling");
+  });
 });

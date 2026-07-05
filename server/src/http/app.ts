@@ -189,7 +189,12 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const owner = ownerOf(req, reply);
     if (!owner) return;
     const { id } = req.params as { id: string };
-    if (!ownedStrategy(owner, id, reply)) return;
+    const s = ownedStrategy(owner, id, reply);
+    if (!s) return;
+    // A canceling strategy is being deleted (its resting orders are draining); reject status changes
+    // so a stray PATCH can't resurrect it (canceling->running would re-arm; canceling->paused would
+    // leave it alive forever since the removal condition never fires again).
+    if (s.status === "canceling") return reply.code(409).send({ error: "strategy is canceling" });
     const { status } = req.body as { status: "running" | "paused" };
     deps.store.setStatus(id, status);
     return toDto(deps.store.get(id)!, deps.store);

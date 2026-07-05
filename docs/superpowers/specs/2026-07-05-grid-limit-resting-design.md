@@ -134,6 +134,8 @@ server 汇总 `armedCount`/`holdingCount`：GET /strategies 对 gridLimit 从 `g
 - 卖单 reduce-only，不占额度、不开新敞口。
 - killSwitch 全局排空 + 停挂。
 - ALO 保证纯 maker；最大暴露 =(levels-1)·perLevelUsdc 有界。
+- **日额度语义**：`dailyMaxNotionalUsdc` 基于**已成交**活动累计（`notionalSince`）。gridLimit 的 resting **挂单**（arming）不计入成交，故初次铺满网格不受日额度限制——初始铺单的敞口上界由**网格几何**（(levels-1)·perLevelUsdc）+ per-order/per-coin caps 决定；随成交累积，日额度会逐步节流后续 re-arm。这是刻意设计（网格本应铺满其区间），非缺陷。若需按承诺 resting 敞口设日限，应另设 per-strategy resting 名义上限。
+- **`canceling` 生命周期**：DELETE gridLimit 置 `canceling`（异步排空后由 tick 移除）；PATCH 对 `canceling` 策略返回 409（不可复活）；mobile 对 `canceling` 行只显示状态标签、不显示开关。
 
 ## 11. 边界与健壮性
 

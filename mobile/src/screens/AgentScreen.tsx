@@ -450,14 +450,15 @@ function StrategyRow({ theme, strategy, onToggle }: { theme: ThemeTokens; strate
       ? t("agent.gridLimitProgress", { armed: String(strategy.armedCount ?? 0), holding: String(strategy.holdingCount ?? 0), filled: String(Math.round(strategy.filledTotalUsdc ?? 0)) })
       : `$${(strategy.params as DcaParams).quoteAmountUsdc} / ${(strategy.params as DcaParams).intervalHours}h`;
   const completed = strategy.status === "completed";
+  const canceling = strategy.status === "canceling";
   return (
     <SurfaceCard theme={theme} rule={false} testID={`strategy-${strategy.id}`} style={styles.row}>
       <View style={styles.rowMain}>
         <Text style={[styles.rowTitle, { color: theme.text }]}>{title}</Text>
         <Text style={[styles.hint, { color: theme.muted }]}>{sub}</Text>
       </View>
-      {completed ? (
-        <Text style={[styles.hint, { color: theme.faint }]}>{t("agent.statusCompleted")}</Text>
+      {completed || canceling ? (
+        <Text style={[styles.hint, { color: theme.faint }]}>{t(canceling ? "agent.statusCanceling" : "agent.statusCompleted")}</Text>
       ) : (
         <Toggle
           theme={theme}

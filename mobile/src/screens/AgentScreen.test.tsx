@@ -218,4 +218,14 @@ describe("AgentScreen", () => {
     fireEvent.press(screen.getByTestId("strategy-connect-btn"));
     await waitFor(() => expect(screen.getByTestId("strategy-gl1")).toBeTruthy());
   });
+
+  it("shows a canceling label and no toggle for a canceling gridLimit row", async () => {
+    mockApiFake.listStrategies.mockResolvedValue([
+      { id: "gl2", type: "gridLimit", status: "canceling", params: { coin: "BTC", lowerPrice: 100, upperPrice: 200, levels: 6, perLevelUsdc: 50 }, filledTotalUsdc: 0, armedCount: 0, holdingCount: 0 },
+    ]);
+    render(<AgentScreen />);
+    fireEvent.press(screen.getByTestId("strategy-connect-btn"));
+    await waitFor(() => expect(screen.getByTestId("strategy-gl2")).toBeTruthy());
+    expect(screen.queryByLabelText("toggle-gl2")).toBeNull();
+  });
 });

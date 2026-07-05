@@ -255,15 +255,23 @@ export async function tick(
       if (s.kind !== "gridLimit") continue;
       const p = s.params as GridLimitParams;
 
-      // Drain: paused / canceling / global kill -> cancel every resting order for this strategy.
+      // Drain: paused / canceling / global kill -> cancel every resting order for this strategy,
+      // including a possible crash-orphan at the next seq. A rung is only cleared once the book
+      // confirms its orders are gone (a cancel isn't trusted until the next poll shows it absent), so
+      // a silently-failed cancel can never be shadowed by a fresh order on resume, and a `canceling`
+      // strategy is not removed while any of its orders may still be live.
       if (killSwitch || s.status !== "running") {
         const open = await getOpen(s.owner);
+        const drained = new Map(store.gridLimitRungs(s.id).map((r) => [r.rung, r]));
         let anyResting = false;
-        for (const r of store.gridLimitRungs(s.id)) {
-          if (!r.cloid) continue;
-          if (open.has(r.cloid)) anyResting = true;
-          await restingExec.cancelCloid({ owner: s.owner, coin: p.coin, cloid: r.cloid });
-          store.setGridLimitRung(s.id, { rung: r.rung, state: "idle", side: null, cloid: null, px: null, seq: r.seq });
+        for (let i = 0; i < rungCount(p); i++) {
+          const r: RungState = drained.get(i) ?? { rung: i, state: "idle", side: null, cloid: null, px: null, seq: 0 };
+          const candidates = [r.cloid, cloidForKey(s.id, `gl:${i}:${r.seq + 1}`)].filter((c): c is string => !!c);
+          let rungResting = false;
+          for (const c of candidates) {
+            if (open.has(c)) { await restingExec.cancelCloid({ owner: s.owner, coin: p.coin, cloid: c }); rungResting = true; anyResting = true; }
+          }
+          if (!rungResting && r.cloid) store.setGridLimitRung(s.id, { rung: i, state: "idle", side: null, cloid: null, px: null, seq: r.seq });
         }
         if (s.status === "canceling" && !anyResting) store.remove(s.id);
         continue;

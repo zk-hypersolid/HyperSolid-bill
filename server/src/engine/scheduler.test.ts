@@ -550,17 +550,21 @@ describe("gridLimit tick (running)", () => {
 });
 
 describe("gridLimit tick (draining)", () => {
-  it("cancels all resting orders when paused and leaves the strategy paused", async () => {
+  it("cancels resting orders when paused, clearing rungs only once the book confirms them gone", async () => {
     const store = new MemoryStrategyStore(() => 0);
     const s = store.create("0xo", "gridLimit", glParams);
     store.setGridLimitRung(s.id, { rung: 0, state: "armed", side: "buy", cloid: "0xB0", px: 100, seq: 1 });
     store.setGridLimitRung(s.id, { rung: 2, state: "holding", side: "sell", cloid: "0xS2", px: 160, seq: 2 });
     store.setStatus(s.id, "paused");
     const exec = fakeExec();
-    const reader = fakeReader(["0xB0", "0xS2"]);
     const marks = { resolveMark: async () => 150, resolvePosition: async () => undefined };
-    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks, exec as any, reader as any);
+    // Tick 1: both still open -> cancel both, keep rungs tracked (cancel not yet confirmed).
+    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks, exec as any, fakeReader(["0xB0", "0xS2"]) as any);
     expect(exec.cancels.map((c) => c.cloid).sort()).toEqual(["0xB0", "0xS2"]);
+    expect(store.gridLimitRungs(s.id).some((r) => r.cloid !== null)).toBe(true);
+    expect(store.get(s.id)!.status).toBe("paused");
+    // Tick 2: book empty -> rungs cleared to idle, still paused.
+    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks, exec as any, fakeReader([]) as any);
     expect(store.gridLimitRungs(s.id).every((r) => r.state === "idle" && r.cloid === null)).toBe(true);
     expect(store.get(s.id)!.status).toBe("paused");
   });
@@ -583,10 +587,21 @@ describe("gridLimit tick (draining)", () => {
     store.setGridLimitRung(s.id, { rung: 0, state: "armed", side: "buy", cloid: "0xB0", px: 100, seq: 1 });
     store.setStatus(s.id, "canceling");
     const exec = fakeExec();
-    // First tick: order still open -> cancel it, not yet removed.
     await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 150, resolvePosition: async () => undefined }, exec as any, fakeReader(["0xB0"]) as any);
     expect(store.get(s.id)).toBeDefined();
-    // Second tick: order gone -> removed.
+    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 150, resolvePosition: async () => undefined }, exec as any, fakeReader([]) as any);
+    expect(store.get(s.id)).toBeUndefined();
+  });
+
+  it("cancels a crash-orphaned resting order (never persisted) before removing a canceling strategy", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "gridLimit", glParams);
+    store.setStatus(s.id, "canceling");
+    const orphan = cloidForKey(s.id, "gl:0:1"); // rung 0 default seq 0 -> next-seq crash orphan
+    const exec = fakeExec();
+    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 150, resolvePosition: async () => undefined }, exec as any, fakeReader([orphan]) as any);
+    expect(exec.cancels.map((c) => c.cloid)).toContain(orphan);
+    expect(store.get(s.id)).toBeDefined();
     await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, { resolveMark: async () => 150, resolvePosition: async () => undefined }, exec as any, fakeReader([]) as any);
     expect(store.get(s.id)).toBeUndefined();
   });

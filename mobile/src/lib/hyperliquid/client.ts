@@ -109,7 +109,7 @@ export function createTwapSubsClient(network: Network): TwapSubsLike {
   };
   return {
     userTwapSliceFills: (address, listener) =>
-      subs.userTwapSliceFills({ user: address }, (e) => listener(e)) as never,
+      subs.userTwapSliceFills({ user: address }, (e) => listener(e as never)) as never,
   };
 }
 

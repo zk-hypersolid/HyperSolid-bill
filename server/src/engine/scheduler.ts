@@ -265,17 +265,23 @@ export async function tick(
       const placeSell = async (i: number, prev: RungState) => {
         const seq = prev.seq + 1;
         const cloid = cloidForKey(s.id, `gl:${i}:${seq}`);
+        // Adopt a crash-orphaned resting order: if a prior tick placed this exact cloid but crashed
+        // before persisting, it is already resting — track it instead of re-placing (HL would reject a
+        // duplicate cloid, stranding real inventory).
+        if (open.has(cloid)) { store.setGridLimitRung(s.id, { rung: i, state: "holding", side: "sell", cloid, px: rungSellPrice(p, i), seq }); return; }
         const res = await restingExec.placeLimit({ owner: s.owner, coin: p.coin, price: rungSellPrice(p, i), sizeCoin: rungSizeCoin(p, i), side: "sell", reduceOnly: true, cloid });
         if (res.ok && "oid" in res) store.setGridLimitRung(s.id, { rung: i, state: "holding", side: "sell", cloid, px: rungSellPrice(p, i), seq });
         else store.setGridLimitRung(s.id, { rung: i, state: "holding", side: "sell", cloid: null, px: rungSellPrice(p, i), seq: prev.seq });
       };
       const placeBuy = async (i: number, prev: RungState) => {
+        const seq = prev.seq + 1;
+        const cloid = cloidForKey(s.id, `gl:${i}:${seq}`);
+        // Adopt a crash-orphaned resting buy (see placeSell) before spending a fresh caps allowance.
+        if (open.has(cloid)) { store.setGridLimitRung(s.id, { rung: i, state: "armed", side: "buy", cloid, px: rungBuyPrice(p, i), seq }); return; }
         if (!withinCaps({ notionalUsdc: p.perLevelUsdc, killSwitch, coin: p.coin }, limits).ok) return;
         if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
           if (activity.notionalSince(s.owner, dayStartUtcMs(now)) + p.perLevelUsdc > limits.dailyMaxNotionalUsdc) return;
         }
-        const seq = prev.seq + 1;
-        const cloid = cloidForKey(s.id, `gl:${i}:${seq}`);
         const res = await restingExec.placeLimit({ owner: s.owner, coin: p.coin, price: rungBuyPrice(p, i), sizeCoin: rungSizeCoin(p, i), side: "buy", reduceOnly: false, cloid });
         if (res.ok && "oid" in res) store.setGridLimitRung(s.id, { rung: i, state: "armed", side: "buy", cloid, px: rungBuyPrice(p, i), seq });
       };

@@ -535,4 +535,16 @@ describe("gridLimit tick (running)", () => {
     await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks, exec as any, reader as any);
     expect(exec.placeLimit).not.toHaveBeenCalled();
   });
+
+  it("adopts a crash-orphaned resting order matching our deterministic cloid instead of re-placing", async () => {
+    const store = new MemoryStrategyStore(() => 0);
+    const s = store.create("0xo", "gridLimit", glParams);
+    const orphan = cloidForKey(s.id, "gl:0:1"); // what an idle rung 0 (seq 0) would place next
+    const exec = fakeExec();
+    const reader = fakeReader([orphan]);
+    const marks = { resolveMark: async () => 110, resolvePosition: async () => undefined }; // only rung 0 armable
+    await tick(store, {} as any, { maxNotionalUsdc: 1e9 }, false, 0, undefined, marks, exec as any, reader as any);
+    expect(exec.placeLimit).not.toHaveBeenCalled(); // adopted, not re-placed
+    expect(store.gridLimitRungs(s.id).find((r) => r.rung === 0)).toMatchObject({ state: "armed", side: "buy", cloid: orphan, seq: 1 });
+  });
 });

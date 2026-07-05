@@ -14,9 +14,15 @@ export interface ActiveTwap {
   startedAt: number;   // ms epoch (state.timestamp)
 }
 
-/** Minimal injectable Info surface for TWAP history (address-scoped). */
+/** Minimal injectable Info surface for TWAP history + slice fills (address-scoped). */
 export interface TwapInfoLike {
   twapHistory(address: string): Promise<unknown>;
+  userTwapSliceFills(address: string): Promise<unknown>;
+}
+
+/** Minimal injectable WebSocket surface for live TWAP slice fills. */
+export interface TwapSubsLike {
+  userTwapSliceFills(address: string, listener: (event: unknown) => void): Promise<Subscription>;
 }
 
 interface RawTwap {

@@ -114,6 +114,11 @@ export function PositionsScreen({
   // Live TWAP slice fills over WS: append to slice detail, optimistically bump active-TWAP
   // progress, and debounce-refetch twapHistory to reconcile the authoritative state.
   const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mirror of sliceFills so onSlice can tell which incoming fills are genuinely new.
+  const sliceFillsRef = useRef<Map<number, Fill[]>>(new Map());
+  useEffect(() => {
+    sliceFillsRef.current = sliceFills;
+  }, [sliceFills]);
   useEffect(() => {
     if (mode === "none" || !walletAddress || !isValidAddress(walletAddress)) return;
     const addr = walletAddress;
@@ -122,21 +127,29 @@ export function PositionsScreen({
 
     const onSlice = (fills: TwapSliceFill[]) => {
       if (fills.length === 0) return;
-      setSliceFills((prev) => {
-        const merged: TwapSliceFill[] = [];
-        for (const [twapId, arr] of prev) for (const f of arr) merged.push({ twapId, fill: f });
-        for (const f of fills) merged.push(f);
-        return groupSliceFillsByTwapId(merged);
-      });
-      setActiveTwaps((prev) =>
-        prev.map((tw) => {
-          const mine = fills.filter((f) => f.twapId === tw.twapId);
+      const prev = sliceFillsRef.current;
+      // Skip already-known fills: the WS sends an initial snapshot that overlaps the Info load
+      // (and may redeliver events), so bumping on every fill would double-count executed size.
+      const fresh = fills.filter((f) => !prev.get(f.twapId)?.some((x) => x.tid === f.fill.tid));
+      if (fresh.length === 0) return;
+
+      const merged: TwapSliceFill[] = [];
+      for (const [twapId, arr] of prev) for (const f of arr) merged.push({ twapId, fill: f });
+      for (const f of fresh) merged.push(f);
+      const grouped = groupSliceFillsByTwapId(merged);
+      sliceFillsRef.current = grouped;
+      setSliceFills(grouped);
+
+      setActiveTwaps((prevTwaps) =>
+        prevTwaps.map((tw) => {
+          const mine = fresh.filter((f) => f.twapId === tw.twapId);
           if (mine.length === 0) return tw;
           const addSz = mine.reduce((n, f) => n + f.fill.sz, 0);
           const addNtl = mine.reduce((n, f) => n + f.fill.sz * f.fill.px, 0);
           return { ...tw, executedSz: Math.min(tw.sz, tw.executedSz + addSz), executedNtl: tw.executedNtl + addNtl };
         }),
       );
+
       if (reconcileTimer.current) clearTimeout(reconcileTimer.current);
       reconcileTimer.current = setTimeout(() => {
         void services.twap.loadActive(addr).then(setActiveTwaps).catch(() => {});

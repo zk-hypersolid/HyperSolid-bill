@@ -326,4 +326,33 @@ describe("PositionsScreen", () => {
     await waitFor(() => expect((deps.twap.loadActive as jest.Mock).mock.calls.length).toBeGreaterThan(loadActiveCallsBefore));
     jest.useRealTimers();
   });
+
+  it("does not double-count a duplicate WS slice fill in the optimistic progress", async () => {
+    jest.useFakeTimers();
+    let captured: ((fills: unknown[]) => void) | null = null;
+    const deps = {
+      positions: { loadPortfolio: jest.fn(async () => portfolio) } as unknown as PositionsService,
+      fills: { loadRecent: jest.fn(async () => []) } as unknown as FillsService,
+      orders: { loadOpenOrders: jest.fn(async () => []) } as unknown as OrdersService,
+      twap: {
+        loadActive: jest.fn(async () => activeTwaps),
+        loadHistory: jest.fn(async () => []),
+        loadSliceFills: jest.fn(async () => new Map()),
+        subscribeSliceFills: jest.fn(async (_addr: string, cb: (f: unknown[]) => void) => { captured = cb; return { unsubscribe: jest.fn(async () => {}) }; }),
+      } as unknown as TwapService,
+    };
+    useWalletStore.setState({ mode: "local", wallet: {} as never, address: ADDR });
+    render(<PositionsScreen deps={deps} />);
+    await waitFor(() => expect(deps.twap.subscribeSliceFills).toHaveBeenCalled());
+    fireEvent.press(screen.getByTestId("tab-twap"));
+
+    const dupFill = [{ twapId: 7, fill: { coin: "BTC", px: 60000, sz: 0.2, side: "buy", time: 1100, closedPnl: 0, dir: "Open Long", fee: 0, builderFee: 0, feeToken: "USDC", oid: 3, tid: 31, hash: "0x", crossed: true } }];
+    act(() => { captured!(dupFill); });
+    act(() => { captured!(dupFill); }); // same tid delivered again (e.g. snapshot overlap)
+
+    // 0.4 executed + one 0.2 fill = 60%; a double-count would show 80%.
+    expect(await screen.findByText(/· 60% ·/)).toBeTruthy();
+    expect(screen.queryByText(/· 80% ·/)).toBeNull();
+    jest.useRealTimers();
+  });
 });

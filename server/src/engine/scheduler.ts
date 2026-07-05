@@ -4,8 +4,11 @@ import { dueDca, dcaNextRunAt } from "../strategies/dca";
 import { dueTwap, twapSliceUsdc, twapIntervalMs } from "../strategies/twap";
 import { withinCaps, type RiskLimits } from "../risk/guards";
 import { tpslTriggered, closeSide } from "../strategies/tpsl";
-import type { DcaParams, TwapParams, TpslParams, GridParams } from "../strategies/types";
+import type { DcaParams, TwapParams, TpslParams, GridParams, GridLimitParams } from "../strategies/types";
 import { gridStep, bandIndex, gridAction, targetNetUsdc } from "../strategies/grid";
+import { rungCount, rungBuyPrice, rungSellPrice, rungSizeCoin, armable, type RungState } from "../strategies/gridLimit";
+import type { RestingExecutor } from "../agent/restingExecutor";
+import type { OpenOrdersReader } from "../agent/openOrdersReader";
 
 export interface PlaceRequest {
   owner: string;
@@ -76,6 +79,8 @@ export async function tick(
   now: number,
   activity?: ActivityRecorder,
   marks?: MarkDeps,
+  restingExec?: RestingExecutor,
+  ordersReader?: OpenOrdersReader,
 ): Promise<void> {
   const all = store.listAll();
 
@@ -233,6 +238,71 @@ export async function tick(
         if (activity && res.filledSz !== undefined && res.avgPx !== undefined) {
           activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side: act.side, sz: res.filledSz, px: res.avgPx });
         }
+      }
+    }
+  }
+
+  // --- gridLimit: resting limit grid reconcile (running strategies) ---
+  if (restingExec && ordersReader && marks) {
+    const openByOwner = new Map<string, Map<string, { side: "buy" | "sell"; px: number }>>();
+    const getOpen = async (owner: string) => {
+      let m = openByOwner.get(owner);
+      if (!m) { m = await ordersReader.openCloids(owner); openByOwner.set(owner, m); }
+      return m;
+    };
+
+    for (const s of all) {
+      if (s.kind !== "gridLimit") continue;
+      if (s.status !== "running" || killSwitch) continue; // draining handled in a later task
+      const p = s.params as GridLimitParams;
+      const mark = await marks.resolveMark(p.coin);
+      if (!Number.isFinite(mark) || mark <= 0) continue;
+      const open = await getOpen(s.owner);
+
+      const stored = new Map(store.gridLimitRungs(s.id).map((r) => [r.rung, r]));
+      const rungAt = (i: number): RungState => stored.get(i) ?? { rung: i, state: "idle", side: null, cloid: null, px: null, seq: 0 };
+
+      const placeSell = async (i: number, prev: RungState) => {
+        const seq = prev.seq + 1;
+        const cloid = cloidForKey(s.id, `gl:${i}:${seq}`);
+        const res = await restingExec.placeLimit({ owner: s.owner, coin: p.coin, price: rungSellPrice(p, i), sizeCoin: rungSizeCoin(p, i), side: "sell", reduceOnly: true, cloid });
+        if (res.ok && "oid" in res) store.setGridLimitRung(s.id, { rung: i, state: "holding", side: "sell", cloid, px: rungSellPrice(p, i), seq });
+        else store.setGridLimitRung(s.id, { rung: i, state: "holding", side: "sell", cloid: null, px: rungSellPrice(p, i), seq: prev.seq });
+      };
+      const placeBuy = async (i: number, prev: RungState) => {
+        if (!withinCaps({ notionalUsdc: p.perLevelUsdc, killSwitch, coin: p.coin }, limits).ok) return;
+        if (limits.dailyMaxNotionalUsdc !== undefined && activity?.notionalSince) {
+          if (activity.notionalSince(s.owner, dayStartUtcMs(now)) + p.perLevelUsdc > limits.dailyMaxNotionalUsdc) return;
+        }
+        const seq = prev.seq + 1;
+        const cloid = cloidForKey(s.id, `gl:${i}:${seq}`);
+        const res = await restingExec.placeLimit({ owner: s.owner, coin: p.coin, price: rungBuyPrice(p, i), sizeCoin: rungSizeCoin(p, i), side: "buy", reduceOnly: false, cloid });
+        if (res.ok && "oid" in res) store.setGridLimitRung(s.id, { rung: i, state: "armed", side: "buy", cloid, px: rungBuyPrice(p, i), seq });
+      };
+
+      for (let i = 0; i < rungCount(p); i++) {
+        let r = rungAt(i);
+
+        // fill detection: a tracked resting order that vanished from open orders filled
+        if ((r.state === "armed" || r.state === "holding") && r.cloid && !open.has(r.cloid)) {
+          if (r.state === "armed") {
+            if (activity && r.px) activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side: "buy", sz: rungSizeCoin(p, i), px: r.px });
+            await placeSell(i, r);
+            continue;
+          }
+          if (activity && r.px) activity.record({ strategyId: s.id, owner: s.owner, time: now, coin: p.coin, side: "sell", sz: rungSizeCoin(p, i), px: r.px });
+          store.addFilledUsdc(s.id, Math.max(0, (rungSellPrice(p, i) - rungBuyPrice(p, i)) * rungSizeCoin(p, i)));
+          store.setGridLimitRung(s.id, { rung: i, state: "idle", side: null, cloid: null, px: null, seq: r.seq });
+          r = { rung: i, state: "idle", side: null, cloid: null, px: null, seq: r.seq };
+        }
+
+        if (r.state === "holding") {
+          if (!r.cloid) await placeSell(i, r); // retry a failed sell placement
+          continue;
+        }
+        if (r.state === "armed" && r.cloid && open.has(r.cloid)) continue; // already resting
+        if (armable(p, i, mark)) await placeBuy(i, r);
+        // not armable -> stay idle
       }
     }
   }

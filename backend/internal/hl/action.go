@@ -82,15 +82,30 @@ type ModifyInput struct {
 	Order OrderInput
 }
 
-// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
-func BuildModifyAction(in ModifyInput) Map {
+// modifyEntry builds one modify's {oid, order} tuple, shared by modify and batchModify.
+// oid = the 34-char 0x Cloid string when Cloid != "", otherwise the int64 Oid.
+func modifyEntry(in ModifyInput) Map {
 	var oid any
 	if in.Cloid != "" {
 		oid = in.Cloid
 	} else {
 		oid = in.Oid
 	}
-	return Map{{"type", "modify"}, {"oid", oid}, {"order", orderTuple(in.Order)}}
+	return Map{{"oid", oid}, {"order", orderTuple(in.Order)}}
+}
+
+// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
+func BuildModifyAction(in ModifyInput) Map {
+	return append(Map{{"type", "modify"}}, modifyEntry(in)...)
+}
+
+// BuildBatchModifyAction builds the ordered Map for a `batchModify` action: {type, modifies:[{oid, order}]}.
+func BuildBatchModifyAction(mods []ModifyInput) Map {
+	arr := make([]any, len(mods))
+	for i, m := range mods {
+		arr[i] = modifyEntry(m)
+	}
+	return Map{{"type", "batchModify"}, {"modifies", arr}}
 }
 
 // BuildUpdateLeverageAction builds the ordered Map for an `updateLeverage` action.
@@ -102,4 +117,25 @@ func BuildUpdateLeverageAction(asset int64, isCross bool, leverage int64) Map {
 		{"isCross", isCross},
 		{"leverage", leverage},
 	}
+}
+
+// BuildUpdateIsolatedMarginAction builds the ordered Map for an `updateIsolatedMargin` action.
+// ntli is a SIGNED integer (positive = add margin, negative = remove); isBuy selects the position side.
+func BuildUpdateIsolatedMarginAction(asset int64, isBuy bool, ntli int64) Map {
+	return Map{
+		{"type", "updateIsolatedMargin"},
+		{"asset", asset},
+		{"isBuy", isBuy},
+		{"ntli", ntli},
+	}
+}
+
+// BuildScheduleCancelAction builds the ordered Map for a `scheduleCancel` action (dead man's switch).
+// time == nil clears the schedule ({type} only); a non-nil time sets it ({type, time}).
+// The optional field is fully omitted (not sent as 0) when clearing, matching HL wire semantics.
+func BuildScheduleCancelAction(time *int64) Map {
+	if time == nil {
+		return Map{{"type", "scheduleCancel"}}
+	}
+	return Map{{"type", "scheduleCancel"}, {"time", *time}}
 }

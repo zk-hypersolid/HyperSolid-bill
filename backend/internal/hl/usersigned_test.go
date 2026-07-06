@@ -146,3 +146,28 @@ func TestUsdClassTransferDigestTogglesOnToPerp(t *testing.T) {
 		t.Fatal("expected error on empty signatureChainId")
 	}
 }
+
+func TestSpotSendDigest(t *testing.T) {
+	base := SpotSendInput{
+		SignatureChainID: "0xa4b1", HyperliquidChain: "Mainnet",
+		Destination: "0x000000000000000000000000000000000000dEaD",
+		Token:       "USDC:0xeb62eee3685fc4c43992febcd9e75443",
+		Amount:      "1", Time: 1700000000000,
+	}
+	d1, err := SpotSendDigest(base)
+	if err != nil {
+		t.Fatalf("spotSend: %v", err)
+	}
+	other := base
+	other.Token = "PURR:0x0000000000000000000000000000000000000000"
+	d2, err := SpotSendDigest(other)
+	if err != nil {
+		t.Fatalf("spotSend other token: %v", err)
+	}
+	if d1 == d2 {
+		t.Fatal("digest must differ when token differs")
+	}
+	if _, err := SpotSendDigest(SpotSendInput{SignatureChainID: "0x"}); err == nil {
+		t.Fatal("expected error on empty signatureChainId")
+	}
+}

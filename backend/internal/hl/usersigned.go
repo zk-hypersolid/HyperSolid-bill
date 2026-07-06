@@ -245,3 +245,32 @@ func UsdClassTransferDigest(in UsdClassTransferInput) ([32]byte, error) {
 		"hyperliquidChain": in.HyperliquidChain, "amount": in.Amount, "toPerp": in.ToPerp, "nonce": in.Nonce,
 	})
 }
+
+// --- spotSend (spot token transfer; destination hashed as a string, matching HL) ---
+
+var spotSendFields = []Field{
+	{"hyperliquidChain", "string"},
+	{"destination", "string"},
+	{"token", "string"},
+	{"amount", "string"},
+	{"time", "uint64"},
+}
+
+type SpotSendInput struct {
+	SignatureChainID string
+	HyperliquidChain string
+	Destination      string
+	Token            string
+	Amount           string
+	Time             uint64
+}
+
+func SpotSendDigest(in SpotSendInput) ([32]byte, error) {
+	chainID, err := parseHexChainID(in.SignatureChainID)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return UserSignedDigest("HyperliquidTransaction:SpotSend", spotSendFields, chainID, map[string]any{
+		"hyperliquidChain": in.HyperliquidChain, "destination": in.Destination, "token": in.Token, "amount": in.Amount, "time": in.Time,
+	})
+}

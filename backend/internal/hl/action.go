@@ -17,18 +17,23 @@ type CancelInput struct {
 	Oid   int64
 }
 
+// orderTuple builds one order's ordered msgpack tuple: {a,b,p,s,r,t(,c)}.
+func orderTuple(o OrderInput) Map {
+	tuple := Map{
+		{"a", o.Asset}, {"b", o.IsBuy}, {"p", o.Px}, {"s", o.Sz}, {"r", o.ReduceOnly},
+		{"t", Map{{"limit", Map{{"tif", o.Tif}}}}},
+	}
+	if o.Cloid != "" {
+		tuple = append(tuple, KV{"c", o.Cloid})
+	}
+	return tuple
+}
+
 // BuildOrderAction builds the ordered msgpack Map for an `order` action (fields in HL byte order).
 func BuildOrderAction(orders []OrderInput, grouping string) Map {
 	arr := make([]any, len(orders))
 	for i, o := range orders {
-		tuple := Map{
-			{"a", o.Asset}, {"b", o.IsBuy}, {"p", o.Px}, {"s", o.Sz}, {"r", o.ReduceOnly},
-			{"t", Map{{"limit", Map{{"tif", o.Tif}}}}},
-		}
-		if o.Cloid != "" {
-			tuple = append(tuple, KV{"c", o.Cloid})
-		}
-		arr[i] = tuple
+		arr[i] = orderTuple(o)
 	}
 	return Map{{"type", "order"}, {"orders", arr}, {"grouping", grouping}}
 }
@@ -52,4 +57,19 @@ func BuildTwapOrderAction(asset int64, isBuy bool, sz string, reduceOnly bool, m
 // BuildTwapCancelAction builds the ordered Map for a `twapCancel` action.
 func BuildTwapCancelAction(asset, twapID int64) Map {
 	return Map{{"type", "twapCancel"}, {"a", asset}, {"t", twapID}}
+}
+
+// CancelByCloidInput is one cancel-by-cloid (asset + 34-char 0x client order id).
+type CancelByCloidInput struct {
+	Asset int64
+	Cloid string
+}
+
+// BuildCancelByCloidAction builds the ordered Map for a `cancelByCloid` action.
+func BuildCancelByCloidAction(cancels []CancelByCloidInput) Map {
+	arr := make([]any, len(cancels))
+	for i, c := range cancels {
+		arr[i] = Map{{"asset", c.Asset}, {"cloid", c.Cloid}}
+	}
+	return Map{{"type", "cancelByCloid"}, {"cancels", arr}}
 }

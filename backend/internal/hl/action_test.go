@@ -50,3 +50,17 @@ func TestBuildTwapActions(t *testing.T) {
 		t.Fatalf("twapCancel mismatch:\n got %#v\nwant %#v", cancel, wantCancel)
 	}
 }
+
+func TestBuildCancelByCloidAction(t *testing.T) {
+	got := BuildCancelByCloidAction([]CancelByCloidInput{{Asset: 0, Cloid: "0x00000000000000000000000000000001"}})
+	want := Map{
+		{"type", "cancelByCloid"},
+		{"cancels", []any{Map{
+			{"asset", int64(0)},
+			{"cloid", "0x00000000000000000000000000000001"},
+		}}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cancelByCloid action mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}

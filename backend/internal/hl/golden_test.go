@@ -87,6 +87,47 @@ func actionForVector(t *testing.T, v goldenVector) Map {
 		}
 		mustJSON(t, v.Params, &p)
 		return BuildTwapCancelAction(p.Asset, p.TwapID)
+	case "cancelByCloid":
+		var p struct {
+			Cancels []struct {
+				Asset int64  `json:"asset"`
+				Cloid string `json:"cloid"`
+			} `json:"cancels"`
+		}
+		mustJSON(t, v.Params, &p)
+		ins := make([]CancelByCloidInput, len(p.Cancels))
+		for i, c := range p.Cancels {
+			ins[i] = CancelByCloidInput{Asset: c.Asset, Cloid: c.Cloid}
+		}
+		return BuildCancelByCloidAction(ins)
+	case "modify":
+		var p struct {
+			OidNum   int64  `json:"oidNum"`
+			OidCloid string `json:"oidCloid"`
+			Order    struct {
+				Asset      int64  `json:"asset"`
+				IsBuy      bool   `json:"isBuy"`
+				Px         string `json:"px"`
+				Sz         string `json:"sz"`
+				ReduceOnly bool   `json:"reduceOnly"`
+				Tif        string `json:"tif"`
+				Cloid      string `json:"cloid"`
+			} `json:"order"`
+		}
+		mustJSON(t, v.Params, &p)
+		return BuildModifyAction(ModifyInput{
+			Oid:   p.OidNum,
+			Cloid: p.OidCloid,
+			Order: OrderInput{Asset: p.Order.Asset, IsBuy: p.Order.IsBuy, Px: p.Order.Px, Sz: p.Order.Sz, ReduceOnly: p.Order.ReduceOnly, Tif: p.Order.Tif, Cloid: p.Order.Cloid},
+		})
+	case "updateLeverage":
+		var p struct {
+			Asset    int64 `json:"asset"`
+			IsCross  bool  `json:"isCross"`
+			Leverage int64 `json:"leverage"`
+		}
+		mustJSON(t, v.Params, &p)
+		return BuildUpdateLeverageAction(p.Asset, p.IsCross, p.Leverage)
 	}
 	t.Fatalf("unknown kind %q", v.Kind)
 	return nil

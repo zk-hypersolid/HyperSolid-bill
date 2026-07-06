@@ -130,5 +130,145 @@
       "s": "0x0daa37d8471b5a9eacd93c79576d6acccafcd94373b234d62af9b7e65eb88c61",
       "v": 28
     }
+  },
+  {
+    "name": "cancelByCloid-mainnet",
+    "kind": "cancelByCloid",
+    "params": {
+      "cancels": [
+        {
+          "asset": 2,
+          "cloid": "0x00000000000000000000000000000001"
+        },
+        {
+          "asset": 5,
+          "cloid": "0x00000000000000000000000000000003"
+        }
+      ]
+    },
+    "nonce": 1700000000000,
+    "isTestnet": false,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0x1a7ee4d42b2835d167cf9f10cf9a53c8c5343603bff5f5e494d8e006a0c79c41",
+    "agentDigest": "0x734d2f1fc101039fab7f2f0f3f45ed30448f93b7366fe59d071b4e32c4b017ca",
+    "sig": {
+      "r": "0xe23ac0a77982f015d73faae5cfabab088309ea2ca6c1a07ce92d1f5e8db651b9",
+      "s": "0x41de7ffeb87f11ab1f0f48f6a33a075deb851652e53b13703f1cac848818eb86",
+      "v": 28
+    }
+  },
+  {
+    "name": "modify-oid-mainnet",
+    "kind": "modify",
+    "params": {
+      "oidNum": 123,
+      "order": {
+        "asset": 0,
+        "isBuy": true,
+        "px": "50000",
+        "sz": "0.01",
+        "reduceOnly": false,
+        "tif": "Gtc"
+      }
+    },
+    "nonce": 1700000000000,
+    "isTestnet": false,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0xc601f9c9544240307e0a4d3f5c2a95c2de0079b3765025b413818d87a1695c96",
+    "agentDigest": "0x0b6ec92ac747dd665f080416f5d1c89042e64efa9d8817baf6c18c658996a279",
+    "sig": {
+      "r": "0xccf2b9fcb2d6eed50f30d60f4f5afcabae8f2f88523cf8e303c4ae4813b69b38",
+      "s": "0x318306fd896268b6c643563a3dd2df0a2aa1ba5ea0b32fa3a640b034e8937df0",
+      "v": 28
+    }
+  },
+  {
+    "name": "modify-cloid-testnet",
+    "kind": "modify",
+    "params": {
+      "oidCloid": "0x00000000000000000000000000000002",
+      "order": {
+        "asset": 1,
+        "isBuy": false,
+        "px": "3000",
+        "sz": "0.5",
+        "reduceOnly": true,
+        "tif": "Ioc"
+      }
+    },
+    "nonce": 1700000000000,
+    "isTestnet": true,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0x4a0430e0c8871bca0814d19c070e20cb53339c81525e262be9e2e1940780d57e",
+    "agentDigest": "0x09e270d91c503b742ec8b515d2b4ff6965f10e3540022fbeb1af8bdb3eb0f3b8",
+    "sig": {
+      "r": "0x84759efd80d0f93a5bd338723db6993997ed6e03751be32d1cd9aa80f0cc80e2",
+      "s": "0x7d0dd7358f0c77974882c16c0fef9a2dfc4e201ff9f1d7904fbe9b5e2d9a3079",
+      "v": 28
+    }
+  },
+  {
+    "name": "modify-oid-large-order-cloid-mainnet",
+    "kind": "modify",
+    "params": {
+      "oidNum": 4294967297,
+      "order": {
+        "asset": 0,
+        "isBuy": true,
+        "px": "50000",
+        "sz": "0.01",
+        "reduceOnly": false,
+        "tif": "Alo",
+        "cloid": "0x00000000000000000000000000000009"
+      }
+    },
+    "nonce": 1700000000000,
+    "isTestnet": false,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0xbda188c87a5109737ca9a717e8982dd9e9e9f57a808804300e0c37d858ffb28d",
+    "agentDigest": "0xca2d70a5895c53ebd53b285fa6d07ae294ae0a41134c19fd92e80db0a08c6999",
+    "sig": {
+      "r": "0xaa4cf445469b5e29a58e13082fbc93dea470d003720c5eb2dcf3efd27c9910e2",
+      "s": "0x37c38abde4eee490abcee0123ce6ba7ece1374b6fd2f2a874db97216c94a3d7f",
+      "v": 27
+    }
+  },
+  {
+    "name": "updateLeverage-cross-mainnet",
+    "kind": "updateLeverage",
+    "params": {
+      "asset": 0,
+      "isCross": true,
+      "leverage": 5
+    },
+    "nonce": 1700000000000,
+    "isTestnet": false,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0x4a2f0def3cccafc69efda4409db55f1144941a44fb0deecd2687ecd80db99c2e",
+    "agentDigest": "0xe8c85aa61b09b5af31623825a905dea6ef756f2e925b3bf19dd431c38927c2f1",
+    "sig": {
+      "r": "0x55e97652574531f3ab0e059fc4dcae66dcb93121b6652f44b0e6c0674ae54a29",
+      "s": "0x0bebff59a60ef5683433b3231de2adcea2eacbf17d2f06141b3008413e1ae969",
+      "v": 27
+    }
+  },
+  {
+    "name": "updateLeverage-isolated-testnet",
+    "kind": "updateLeverage",
+    "params": {
+      "asset": 1,
+      "isCross": false,
+      "leverage": 3
+    },
+    "nonce": 1700000000000,
+    "isTestnet": true,
+    "privKey": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "actionHash": "0x2c1cb816db0818403e0976165fe3f65e9ab55f3f348172a692727e6412484fb9",
+    "agentDigest": "0xa8d284d9f24f00637e663206f04e70ff5635079b29de4c3a245c42ec4c031b82",
+    "sig": {
+      "r": "0xb5bf2a9820f9ac5934329a31d7314300b01ad8ec96468f51f4a2f6da98a2aa4b",
+      "s": "0x3213cc37e0679cf35243bc101aadb21ab71cff5e843fad590eaed4294b97c2f0",
+      "v": 28
+    }
   }
 ]

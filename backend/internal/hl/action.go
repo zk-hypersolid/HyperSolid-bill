@@ -17,18 +17,23 @@ type CancelInput struct {
 	Oid   int64
 }
 
+// orderTuple builds one order's ordered msgpack tuple: {a,b,p,s,r,t(,c)}.
+func orderTuple(o OrderInput) Map {
+	tuple := Map{
+		{"a", o.Asset}, {"b", o.IsBuy}, {"p", o.Px}, {"s", o.Sz}, {"r", o.ReduceOnly},
+		{"t", Map{{"limit", Map{{"tif", o.Tif}}}}},
+	}
+	if o.Cloid != "" {
+		tuple = append(tuple, KV{"c", o.Cloid})
+	}
+	return tuple
+}
+
 // BuildOrderAction builds the ordered msgpack Map for an `order` action (fields in HL byte order).
 func BuildOrderAction(orders []OrderInput, grouping string) Map {
 	arr := make([]any, len(orders))
 	for i, o := range orders {
-		tuple := Map{
-			{"a", o.Asset}, {"b", o.IsBuy}, {"p", o.Px}, {"s", o.Sz}, {"r", o.ReduceOnly},
-			{"t", Map{{"limit", Map{{"tif", o.Tif}}}}},
-		}
-		if o.Cloid != "" {
-			tuple = append(tuple, KV{"c", o.Cloid})
-		}
-		arr[i] = tuple
+		arr[i] = orderTuple(o)
 	}
 	return Map{{"type", "order"}, {"orders", arr}, {"grouping", grouping}}
 }
@@ -52,4 +57,49 @@ func BuildTwapOrderAction(asset int64, isBuy bool, sz string, reduceOnly bool, m
 // BuildTwapCancelAction builds the ordered Map for a `twapCancel` action.
 func BuildTwapCancelAction(asset, twapID int64) Map {
 	return Map{{"type", "twapCancel"}, {"a", asset}, {"t", twapID}}
+}
+
+// CancelByCloidInput is one cancel-by-cloid (asset + 34-char 0x client order id).
+type CancelByCloidInput struct {
+	Asset int64
+	Cloid string
+}
+
+// BuildCancelByCloidAction builds the ordered Map for a `cancelByCloid` action.
+func BuildCancelByCloidAction(cancels []CancelByCloidInput) Map {
+	arr := make([]any, len(cancels))
+	for i, c := range cancels {
+		arr[i] = Map{{"asset", c.Asset}, {"cloid", c.Cloid}}
+	}
+	return Map{{"type", "cancelByCloid"}, {"cancels", arr}}
+}
+
+// ModifyInput is the semantic input for a `modify` action. Oid is used when Cloid is "";
+// otherwise the 34-char 0x Cloid string is used as the oid value (HL oid union: uint | cloid).
+type ModifyInput struct {
+	Oid   int64
+	Cloid string
+	Order OrderInput
+}
+
+// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
+func BuildModifyAction(in ModifyInput) Map {
+	var oid any
+	if in.Cloid != "" {
+		oid = in.Cloid
+	} else {
+		oid = in.Oid
+	}
+	return Map{{"type", "modify"}, {"oid", oid}, {"order", orderTuple(in.Order)}}
+}
+
+// BuildUpdateLeverageAction builds the ordered Map for an `updateLeverage` action.
+// leverage is an integer; isCross=true → cross margin, false → isolated.
+func BuildUpdateLeverageAction(asset int64, isCross bool, leverage int64) Map {
+	return Map{
+		{"type", "updateLeverage"},
+		{"asset", asset},
+		{"isCross", isCross},
+		{"leverage", leverage},
+	}
 }

@@ -24,6 +24,14 @@ function buildAction(kind, p) {
   if (kind === "cancel") return { type: "cancel", cancels: p.cancels.map((c) => ({ a: c.asset, o: c.oid })) };
   if (kind === "twapOrder") return { type: "twapOrder", twap: { a: p.asset, b: p.isBuy, s: p.sz, r: p.reduceOnly, m: p.minutes, t: p.randomize } };
   if (kind === "twapCancel") return { type: "twapCancel", a: p.asset, t: p.twapId };
+  if (kind === "cancelByCloid") return { type: "cancelByCloid", cancels: p.cancels.map((c) => ({ asset: c.asset, cloid: c.cloid })) };
+  if (kind === "modify") {
+    const o = { a: p.order.asset, b: p.order.isBuy, p: p.order.px, s: p.order.sz, r: p.order.reduceOnly, t: { limit: { tif: p.order.tif } } };
+    if (p.order.cloid) o.c = p.order.cloid;
+    const oid = p.oidCloid ?? p.oidNum;
+    return { type: "modify", oid, order: o };
+  }
+  if (kind === "updateLeverage") return { type: "updateLeverage", asset: p.asset, isCross: p.isCross, leverage: p.leverage };
   throw new Error("unknown kind " + kind);
 }
 
@@ -34,6 +42,12 @@ const cases = [
   { name: "cancel-mainnet", kind: "cancel", isTestnet: false, params: { cancels: [{ asset: 0, oid: 123 }] } },
   { name: "twapOrder-mainnet", kind: "twapOrder", isTestnet: false, params: { asset: 0, isBuy: true, sz: "0.02", reduceOnly: false, minutes: 30, randomize: true } },
   { name: "twapCancel-testnet", kind: "twapCancel", isTestnet: true, params: { asset: 0, twapId: 7 } },
+  { name: "cancelByCloid-mainnet", kind: "cancelByCloid", isTestnet: false, params: { cancels: [{ asset: 2, cloid: "0x00000000000000000000000000000001" }, { asset: 5, cloid: "0x00000000000000000000000000000003" }] } },
+  { name: "modify-oid-mainnet", kind: "modify", isTestnet: false, params: { oidNum: 123, order: { asset: 0, isBuy: true, px: "50000", sz: "0.01", reduceOnly: false, tif: "Gtc" } } },
+  { name: "modify-cloid-testnet", kind: "modify", isTestnet: true, params: { oidCloid: "0x00000000000000000000000000000002", order: { asset: 1, isBuy: false, px: "3000", sz: "0.5", reduceOnly: true, tif: "Ioc" } } },
+  { name: "modify-oid-large-order-cloid-mainnet", kind: "modify", isTestnet: false, params: { oidNum: 4294967297, order: { asset: 0, isBuy: true, px: "50000", sz: "0.01", reduceOnly: false, tif: "Alo", cloid: "0x00000000000000000000000000000009" } } },
+  { name: "updateLeverage-cross-mainnet", kind: "updateLeverage", isTestnet: false, params: { asset: 0, isCross: true, leverage: 5 } },
+  { name: "updateLeverage-isolated-testnet", kind: "updateLeverage", isTestnet: true, params: { asset: 1, isCross: false, leverage: 3 } },
 ];
 
 function normSig(sig) {

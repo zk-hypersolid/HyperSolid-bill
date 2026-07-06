@@ -118,3 +118,24 @@ func BuildUpdateLeverageAction(asset int64, isCross bool, leverage int64) Map {
 		{"leverage", leverage},
 	}
 }
+
+// BuildUpdateIsolatedMarginAction builds the ordered Map for an `updateIsolatedMargin` action.
+// ntli is a SIGNED integer (positive = add margin, negative = remove); isBuy selects the position side.
+func BuildUpdateIsolatedMarginAction(asset int64, isBuy bool, ntli int64) Map {
+	return Map{
+		{"type", "updateIsolatedMargin"},
+		{"asset", asset},
+		{"isBuy", isBuy},
+		{"ntli", ntli},
+	}
+}
+
+// BuildScheduleCancelAction builds the ordered Map for a `scheduleCancel` action (dead man's switch).
+// time == nil clears the schedule ({type} only); a non-nil time sets it ({type, time}).
+// The optional field is fully omitted (not sent as 0) when clearing, matching HL wire semantics.
+func BuildScheduleCancelAction(time *int64) Map {
+	if time == nil {
+		return Map{{"type", "scheduleCancel"}}
+	}
+	return Map{{"type", "scheduleCancel"}, {"time", *time}}
+}

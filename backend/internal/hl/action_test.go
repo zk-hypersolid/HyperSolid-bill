@@ -132,3 +132,36 @@ func TestBuildBatchModifyAction(t *testing.T) {
 		t.Fatalf("batchModify action mismatch:\n got %#v\nwant %#v", got, want)
 	}
 }
+
+func TestBuildUpdateIsolatedMarginActionAdd(t *testing.T) {
+	got := BuildUpdateIsolatedMarginAction(0, true, 1000000)
+	want := Map{{"type", "updateIsolatedMargin"}, {"asset", int64(0)}, {"isBuy", true}, {"ntli", int64(1000000)}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("updateIsolatedMargin(add) mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}
+
+func TestBuildUpdateIsolatedMarginActionRemoveNegative(t *testing.T) {
+	got := BuildUpdateIsolatedMarginAction(1, false, -500000)
+	want := Map{{"type", "updateIsolatedMargin"}, {"asset", int64(1)}, {"isBuy", false}, {"ntli", int64(-500000)}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("updateIsolatedMargin(remove) mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}
+
+func TestBuildScheduleCancelActionSet(t *testing.T) {
+	ts := int64(1700000000000)
+	got := BuildScheduleCancelAction(&ts)
+	want := Map{{"type", "scheduleCancel"}, {"time", int64(1700000000000)}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scheduleCancel(set) mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}
+
+func TestBuildScheduleCancelActionClear(t *testing.T) {
+	got := BuildScheduleCancelAction(nil)
+	want := Map{{"type", "scheduleCancel"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scheduleCancel(clear) mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}

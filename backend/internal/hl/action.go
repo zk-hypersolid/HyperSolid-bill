@@ -82,15 +82,30 @@ type ModifyInput struct {
 	Order OrderInput
 }
 
-// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
-func BuildModifyAction(in ModifyInput) Map {
+// modifyEntry builds one modify's {oid, order} tuple, shared by modify and batchModify.
+// oid = the 34-char 0x Cloid string when Cloid != "", otherwise the int64 Oid.
+func modifyEntry(in ModifyInput) Map {
 	var oid any
 	if in.Cloid != "" {
 		oid = in.Cloid
 	} else {
 		oid = in.Oid
 	}
-	return Map{{"type", "modify"}, {"oid", oid}, {"order", orderTuple(in.Order)}}
+	return Map{{"oid", oid}, {"order", orderTuple(in.Order)}}
+}
+
+// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
+func BuildModifyAction(in ModifyInput) Map {
+	return append(Map{{"type", "modify"}}, modifyEntry(in)...)
+}
+
+// BuildBatchModifyAction builds the ordered Map for a `batchModify` action: {type, modifies:[{oid, order}]}.
+func BuildBatchModifyAction(mods []ModifyInput) Map {
+	arr := make([]any, len(mods))
+	for i, m := range mods {
+		arr[i] = modifyEntry(m)
+	}
+	return Map{{"type", "batchModify"}, {"modifies", arr}}
 }
 
 // BuildUpdateLeverageAction builds the ordered Map for an `updateLeverage` action.

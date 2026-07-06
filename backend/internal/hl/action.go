@@ -73,3 +73,33 @@ func BuildCancelByCloidAction(cancels []CancelByCloidInput) Map {
 	}
 	return Map{{"type", "cancelByCloid"}, {"cancels", arr}}
 }
+
+// ModifyInput is the semantic input for a `modify` action. Oid is used when Cloid is "";
+// otherwise the 34-char 0x Cloid string is used as the oid value (HL oid union: uint | cloid).
+type ModifyInput struct {
+	Oid   int64
+	Cloid string
+	Order OrderInput
+}
+
+// BuildModifyAction builds the ordered Map for a `modify` action: {type, oid, order}.
+func BuildModifyAction(in ModifyInput) Map {
+	var oid any
+	if in.Cloid != "" {
+		oid = in.Cloid
+	} else {
+		oid = in.Oid
+	}
+	return Map{{"type", "modify"}, {"oid", oid}, {"order", orderTuple(in.Order)}}
+}
+
+// BuildUpdateLeverageAction builds the ordered Map for an `updateLeverage` action.
+// leverage is an integer; isCross=true → cross margin, false → isolated.
+func BuildUpdateLeverageAction(asset int64, isCross bool, leverage int64) Map {
+	return Map{
+		{"type", "updateLeverage"},
+		{"asset", asset},
+		{"isCross", isCross},
+		{"leverage", leverage},
+	}
+}

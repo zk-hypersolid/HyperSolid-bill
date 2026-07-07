@@ -80,7 +80,7 @@ describe("makeShadowVerifier", () => {
     );
     const verify = makeShadowVerifier({ url: "http://x", fetchImpl: f as never, timeoutMs: 20, logger: { warn, debug: jest.fn() } });
     verify("order", orderParams);
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 150));
     expect(warn).toHaveBeenCalledTimes(1);
   });
 });

@@ -15,10 +15,11 @@ type Intent struct {
 
 // Config is the per-user policy bound at the signing boundary.
 type Config struct {
-	AllowedKinds    map[string]bool    // reject-first allowlist; a kind absent/false is denied
-	KillSwitch      bool               // when true, every intent is rejected
-	MaxNotionalUsdc float64            // global per-order notional cap
-	PerCoinMaxUsdc  map[string]float64 // optional tighter per-coin cap (overrides global)
+	AllowedKinds         map[string]bool    // reject-first allowlist; a kind absent/false is denied
+	KillSwitch           bool               // when true, every intent is rejected
+	MaxNotionalUsdc      float64            // global per-order notional cap
+	PerCoinMaxUsdc       map[string]float64 // optional tighter per-coin cap (overrides global)
+	DailyMaxNotionalUsdc float64            // per-key daily notional cap; 0 = no daily limit (enforced by SpendTracker, not Evaluate)
 }
 
 // Decision is the policy verdict. Allow is false unless every rule passes.
